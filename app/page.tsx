@@ -50,7 +50,7 @@ export default function Home() {
           {/* Logo dengan Animasi Loading */}
           <div className="relative mb-10 z-10">
             <div className="w-36 h-36 bg-white rounded-full shadow-2xl shadow-[#2dc653]/20 relative z-10 flex items-center justify-center overflow-hidden border border-gray-50">
-              <img src="/logo.png" alt="Logo SD ILBS" className="w-full h-full object-cover scale-[1.35]" />
+              <img src="/logo.png" alt="Logo SD ILBS" className="w-full h-full object-cover scale-[1.35] mix-blend-multiply contrast-125 brightness-110" />
             </div>
             {/* Cincin berputar (Spinning Ring) */}
             <div className="absolute -inset-2 border-[3px] border-gray-100 border-t-[#2dc653] rounded-full animate-spin" style={{ animationDuration: '1.2s' }}></div>
@@ -80,8 +80,8 @@ export default function Home() {
       {/* Navbar */}
       <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-4">
-            <img src="/logo.png" alt="Logo SD Islam Labschool" className="w-12 h-12 object-contain" />
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/logo.png" alt="Logo SD Islam Labschool" className="w-14 h-14 object-contain scale-[1.4] mix-blend-multiply contrast-125 brightness-110" />
             <div className="flex flex-col">
               <span className="font-extrabold text-xl text-gray-900 tracking-tight leading-tight uppercase">
                 Catatan Mengaji Digital
@@ -273,14 +273,10 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-12 px-6 border-t border-gray-800">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain grayscale opacity-50" />
-            <span className="font-bold text-white tracking-wide">Labschool Bani Saleh</span>
-          </div>
-          <p className="text-sm font-medium">
-            &copy; {new Date().getFullYear()} Hak Cipta Dilindungi. Platform Laporan Harian Digital.
+      <footer className="bg-[#2dc653] py-8 px-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-center text-center">
+          <p className="text-sm font-medium text-gray-800">
+            &copy; {new Date().getFullYear()} <span className="text-gray-900 font-bold">SD Labschool Bani Saleh</span>. Hak Cipta Dilindungi.
           </p>
         </div>
       </footer>
