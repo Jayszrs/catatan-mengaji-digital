@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { fetchStudentByRouteKey } from "@/lib/students";
 import Link from "next/link";
 import { ArrowLeft, Plus, X, Sun, BookOpen, Calendar, MapPin, MessageSquare, Mic, RefreshCw, FileText, Info, Target, Star, ChevronDown, ChevronUp, Edit2, Trash2 } from "lucide-react";
 
@@ -52,17 +53,12 @@ export default function StudentDashboard(props: { params: Promise<{ id: string }
       setUser(user);
 
       // Fetch Student
-      const { data: studentData } = await supabase
-        .from("students")
-        .select("*")
-        .eq("id", studentId)
-        .single();
+      const { data: studentData } = await fetchStudentByRouteKey(studentId);
 
       if (studentData) {
         setStudent(studentData);
+        await fetchLaporan(studentData.id);
       }
-
-      await fetchLaporan(user.id);
     } catch (err) {
       console.error(err);
     } finally {
@@ -70,13 +66,12 @@ export default function StudentDashboard(props: { params: Promise<{ id: string }
     }
   };
 
-  const fetchLaporan = async (teacherId: string) => {
+  const fetchLaporan = async (resolvedStudentId: string) => {
     // Fetch Tadarus
     const { data: dataTadarus } = await supabase
       .from("laporan_tadarus_pagi")
       .select("*")
-      .eq("student_id", studentId)
-      .eq("teacher_id", teacherId)
+      .eq("student_id", resolvedStudentId)
       .order("tanggal", { ascending: false })
       .limit(10);
     setTadarusLaporan(dataTadarus || []);
@@ -85,8 +80,7 @@ export default function StudentDashboard(props: { params: Promise<{ id: string }
     const { data: dataTahsin } = await supabase
       .from("laporan_tahsin_tahfidz")
       .select("*")
-      .eq("student_id", studentId)
-      .eq("teacher_id", teacherId)
+      .eq("student_id", resolvedStudentId)
       .order("tanggal", { ascending: false })
       .limit(10);
     setTahsinLaporan(dataTahsin || []);

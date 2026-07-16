@@ -59,7 +59,6 @@ export default function InputTadarusPage() {
       const { data } = await supabase
         .from("students")
         .select("*")
-        .eq("teacher_id", user.id)
         .order("nama_lengkap", { ascending: true });
 
       setStudents(data || []);

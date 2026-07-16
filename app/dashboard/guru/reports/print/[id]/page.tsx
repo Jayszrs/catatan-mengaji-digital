@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { fetchStudentByRouteKey } from "@/lib/students";
 import { Printer, ArrowLeft, FileText, Award, Save, Loader2, CheckCircle2 } from "lucide-react";
 
 export default function PrintReportPage() {
@@ -69,19 +70,17 @@ export default function PrintReportPage() {
 
   const fetchStudentData = async (studentId: string) => {
     try {
-      const { data, error } = await supabase
-        .from("students")
-        .select("*")
-        .eq("id", studentId)
-        .single();
+      const { data, error } = await fetchStudentByRouteKey(studentId);
         
       if (error) throw error;
+      if (!data) return;
       setStudent(data);
+      const reportStudentId = data.id;
 
       const { data: reportData } = await supabase
         .from("student_reports")
         .select("data_rapor")
-        .eq("student_id", studentId)
+        .eq("student_id", reportStudentId)
         .eq("jenis_rapor", "rapor")
         .eq("bulan_tahun", "Juni 2026")
         .maybeSingle();
@@ -103,7 +102,7 @@ export default function PrintReportPage() {
       const { data: munaqosyahData } = await supabase
         .from("student_reports")
         .select("data_rapor")
-        .eq("student_id", studentId)
+        .eq("student_id", reportStudentId)
         .eq("jenis_rapor", "munaqosyah")
         .eq("bulan_tahun", "Juni 2026")
         .maybeSingle();

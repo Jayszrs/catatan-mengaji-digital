@@ -69,7 +69,6 @@ export default function GuruTahsinDashboard() {
       const { data } = await supabase
         .from("laporan_tahsin_tahfidz")
         .select("*")
-        .eq("teacher_id", user.id)
         .order("tanggal", { ascending: false })
         .limit(10);
 

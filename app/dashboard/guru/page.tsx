@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { getStudentRouteKey } from "@/lib/students";
 import Link from "next/link";
 import { Users, BookOpen, Sun, GraduationCap, X, Plus, UserPlus, Fingerprint, ChevronRight, Inbox, Save, FileText, ArrowUpRight, Clock, Activity, CheckCircle2, MoreHorizontal } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -51,7 +52,7 @@ export default function DaftarSiswaDashboard() {
       }
 
       setUser(user);
-      await fetchDashboardData(user.id);
+      await fetchDashboardData();
     } catch (err) {
       router.push("/auth/login");
     } finally {
@@ -59,13 +60,12 @@ export default function DaftarSiswaDashboard() {
     }
   };
 
-  const fetchDashboardData = async (teacherId: string) => {
+  const fetchDashboardData = async () => {
     try {
       // 1. Fetch Students
       const { data: studentsData } = await supabase
         .from("students")
         .select("*")
-        .eq("teacher_id", teacherId)
         .order("nama_lengkap", { ascending: true });
 
       setStudents(studentsData || []);
@@ -76,13 +76,11 @@ export default function DaftarSiswaDashboard() {
       const { count: tadarusCount } = await supabase
         .from("laporan_tadarus_pagi")
         .select('*', { count: 'exact', head: true })
-        .eq("teacher_id", teacherId)
         .eq("tanggal", today);
 
       const { count: tahsinCount } = await supabase
         .from("laporan_tahsin_tahfidz")
         .select('*', { count: 'exact', head: true })
-        .eq("teacher_id", teacherId)
         .eq("tanggal", today);
 
       setStats({
@@ -306,7 +304,7 @@ export default function DaftarSiswaDashboard() {
             {students.slice(0, 5).map((student) => (
               <Link
                 key={student.id}
-                href={`/dashboard/guru/student/${student.id}`}
+                href={`/dashboard/guru/student/${getStudentRouteKey(student)}`}
                 className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border border-transparent hover:border-gray-100 hover:bg-gray-50 hover:shadow-sm transition-all group gap-4"
               >
                 <div className="flex items-center gap-4">

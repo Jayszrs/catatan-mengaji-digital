@@ -8,7 +8,42 @@ import Link from "next/link";
 import { Users, BookOpen, Sun, ChevronRight, Inbox, Search, Fingerprint, Plus, X, UserPlus, Save, Edit2, Trash2, Upload, Loader2, CheckCircle2, AlertCircle, ChevronDown } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { getStudentRouteKey } from "@/lib/students";
 import * as XLSX from "xlsx";
+
+const getNextAvailableNis = (students: any[]) => {
+  const usedNis = new Set(
+    students
+      .map((student) => student.nis?.toString().trim())
+      .filter(Boolean),
+  );
+  const numericNis = Array.from(usedNis)
+    .map((nis) => Number(nis))
+    .filter((nis) => Number.isInteger(nis));
+  let nextNis = Math.max(1000000, ...numericNis) + 1;
+
+  while (usedNis.has(nextNis.toString())) {
+    nextNis += 1;
+  }
+
+  return nextNis.toString();
+};
+
+const normalizeNis = (value: unknown) => value?.toString().trim() || "";
+
+const getRowValue = (row: any, keys: string[]) => {
+  const normalizedEntries: Array<[string, unknown]> = Object.entries(row).map(([key, value]) => [
+    key.trim().toLowerCase(),
+    value,
+  ]);
+
+  for (const key of keys) {
+    const found = normalizedEntries.find(([rowKey]) => rowKey === key.toLowerCase());
+    if (found) return found[1] === null || found[1] === undefined ? "" : String(found[1]).trim();
+  }
+
+  return "";
+};
 
 export default function DaftarSiswaFull() {
   const router = useRouter();
@@ -65,7 +100,6 @@ export default function DaftarSiswaFull() {
       const { data: studentsData } = await supabase
         .from("students")
         .select("*")
-        .eq("teacher_id", user.id)
         .order("nama_lengkap", { ascending: true });
 
       setStudents(studentsData || []);
@@ -83,10 +117,14 @@ export default function DaftarSiswaFull() {
       await new Promise(resolve => setTimeout(resolve, 800)); // Efek loading buatan
       if (!user) return;
       
+      const nis = normalizeNis(formData.nis) || getNextAvailableNis(
+        students.filter((student) => student.id !== editingId),
+      );
+
       if (editingId) {
         const { data, error } = await supabase.from("students").update({
           nama_lengkap: formData.nama_lengkap,
-          nis: formData.nis,
+          nis,
           wali_murid: formData.wali_murid,
           alamat: formData.alamat,
           no_telp: formData.no_telp,
@@ -101,21 +139,28 @@ export default function DaftarSiswaFull() {
         }
         setNotification({ show: true, message: "Data siswa berhasil diperbarui!", type: 'success' });
       } else {
-        const { error } = await supabase.from("students").insert([
+        const existingStudent = students.find((student) => normalizeNis(student.nis) === nis);
+        const payload = {
+          teacher_id: user.id,
+          nama_lengkap: formData.nama_lengkap,
+          nis,
+          wali_murid: formData.wali_murid,
+          alamat: formData.alamat,
+          no_telp: formData.no_telp,
+          tempat_tanggal_lahir: formData.tempat_tanggal_lahir,
+          kelas: formData.kelas,
+          level: formData.level,
+        };
+
+        const { error } = existingStudent
+          ? await supabase.from("students").update(payload).eq("id", existingStudent.id)
+          : await supabase.from("students").insert([
           {
-            teacher_id: user.id,
-            nama_lengkap: formData.nama_lengkap,
-            nis: formData.nis,
-            wali_murid: formData.wali_murid,
-            alamat: formData.alamat,
-            no_telp: formData.no_telp,
-            tempat_tanggal_lahir: formData.tempat_tanggal_lahir,
-            kelas: formData.kelas,
-            level: formData.level,
+            ...payload,
           },
         ]);
         if (error) throw error;
-        setNotification({ show: true, message: "Siswa baru berhasil ditambahkan!", type: 'success' });
+        setNotification({ show: true, message: existingStudent ? "Data siswa dengan NIS yang sama berhasil diperbarui!" : "Siswa baru berhasil ditambahkan!", type: 'success' });
       }
       
       setFormData({
@@ -194,25 +239,56 @@ export default function DaftarSiswaFull() {
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const json: any[] = XLSX.utils.sheet_to_json(worksheet);
-        
-        const newStudents = json.map((row) => ({
-          teacher_id: user.id,
-          nama_lengkap: row["Nama Lengkap"] || row["Nama"] || row["NAMA"] || "Tanpa Nama",
-          nis: (row["NIS"] || row["nis"] || "").toString(),
-          kelas: (row["Kelas"] || row["kelas"] || "1").toString(),
-          tempat_tanggal_lahir: (row["Tempat, Tanggal Lahir"] || row["TTL"] || "").toString(),
-          wali_murid: (row["Wali Murid"] || row["Orang Tua"] || "").toString(),
-          no_telp: (row["No Telp"] || row["No Telepon"] || row["No HP"] || "").toString(),
-          alamat: (row["Alamat"] || row["alamat"] || "").toString(),
-        }));
+        if (!user) {
+          setNotification({ show: true, message: "Sesi login tidak ditemukan. Silakan login ulang.", type: 'error' });
+          return;
+        }
 
-        if (newStudents.length > 0) {
+        const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+        const existingStudents = [...students];
+        
+        const newStudents = json.map((row) => {
+          const nis = normalizeNis(getRowValue(row, ["NIS", "Nomor Induk Siswa", "No Induk", "NISN"])) || getNextAvailableNis(existingStudents);
+          const student = {
+            teacher_id: user.id,
+            nama_lengkap: getRowValue(row, ["Nama Lengkap", "Nama", "NAMA"]) || "Tanpa Nama",
+            nis,
+            kelas: getRowValue(row, ["Kelas", "kelas"]) || "1",
+            level: getRowValue(row, ["Level", "level"]) || "1",
+            tempat_tanggal_lahir: getRowValue(row, ["Tempat, Tanggal Lahir", "TTL", "Tempat Tanggal Lahir"]),
+            wali_murid: getRowValue(row, ["Wali Murid", "Orang Tua", "Nama Wali Murid"]),
+            no_telp: getRowValue(row, ["No Telp", "No Telepon", "No HP", "WhatsApp", "Whatsapp"]),
+            alamat: getRowValue(row, ["Alamat", "alamat"]),
+          };
+
+          existingStudents.push(student);
+          return student;
+        });
+
+        const studentsToSave = Array.from(
+          new Map(newStudents.map((student) => [student.nis, student])).values(),
+        );
+
+        if (studentsToSave.length > 0) {
           setIsSubmitting(true);
           await new Promise(resolve => setTimeout(resolve, 800)); // Efek loading buatan
-          const { error } = await supabase.from("students").insert(newStudents);
-          if (error) throw error;
-          setNotification({ show: true, message: `Berhasil mengimpor ${newStudents.length} siswa dari Excel!`, type: 'success' });
+          let createdCount = 0;
+          let updatedCount = 0;
+
+          for (const student of studentsToSave) {
+            const existingStudent = students.find((item) => normalizeNis(item.nis) === student.nis);
+            const { error } = existingStudent
+              ? await supabase.from("students").update(student).eq("id", existingStudent.id)
+              : await supabase.from("students").insert([student]);
+            if (error) throw error;
+            if (existingStudent) {
+              updatedCount += 1;
+            } else {
+              createdCount += 1;
+            }
+          }
+
+          setNotification({ show: true, message: `Import selesai: ${createdCount} siswa baru, ${updatedCount} siswa diperbarui. NIS kosong sudah dibuat otomatis.`, type: 'success' });
           await checkUserAndFetchStudents();
         } else {
           setNotification({ show: true, message: "File Excel kosong atau format tidak sesuai.", type: 'error' });
@@ -263,7 +339,7 @@ export default function DaftarSiswaFull() {
             Daftar Siswa Lengkap
           </h1>
           <p className="text-sm text-gray-500 font-medium">
-            Kelola dan lihat seluruh daftar siswa di kelas Anda.
+            Kelola dan lihat seluruh daftar siswa yang terintegrasi.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 items-center">
@@ -376,8 +452,8 @@ export default function DaftarSiswaFull() {
               />
 
               <Input
-                label="Nomor Induk Siswa (NIS) - Opsional"
-                placeholder="Contoh: 1011234"
+                label="Nomor Induk Siswa (NIS)"
+                placeholder={`Otomatis: ${getNextAvailableNis(students)}`}
                 value={formData.nis}
                 onChange={(e) => setFormData({ ...formData, nis: e.target.value })}
               />
@@ -495,7 +571,7 @@ export default function DaftarSiswaFull() {
                   {groupedStudents[kelas].map((student: any) => (
                     <div
                       key={student.id}
-                      onClick={() => router.push(`/dashboard/guru/student/${student.id}`)}
+                      onClick={() => router.push(`/dashboard/guru/student/${getStudentRouteKey(student)}`)}
                       className="group block bg-white border border-gray-200 rounded-2xl p-6 hover:border-[#1b4332] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden cursor-pointer"
                     >
                       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#1b4332]/5 to-transparent rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>

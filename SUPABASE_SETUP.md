@@ -1,5 +1,23 @@
 # Database Schema dan Setup Supabase
 
+## Update penting: NIS dan data lintas akun
+
+Untuk perubahan terbaru, jalankan file [`supabase-nis-shared-data-migration.sql`](./supabase-nis-shared-data-migration.sql) di Supabase SQL Editor setelah backup data.
+
+Perubahan tersebut membuat:
+
+- NIS otomatis wajib terisi dan unik sebagai kunci bisnis utama siswa.
+- Import CSV/Excel memakai NIS untuk update data yang sudah ada, bukan membuat duplikat.
+- Data siswa dan laporan bisa dilihat lintas akun guru/orang tua/admin selama memakai Supabase project yang sama.
+
+Kalau aplikasi dipasang di beberapa akun/domain Vercel, pastikan semua deployment memakai nilai environment variable yang sama:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
 ## 📋 Tabel-tabel yang Diperlukan
 
 ### 1. user_roles

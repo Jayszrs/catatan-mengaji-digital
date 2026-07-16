@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Printer, Download, Users, FileText, Search, Fingerprint, Award, GraduationCap, ChevronDown } from "lucide-react";
 import { Button } from "@/components/Button";
+import { getStudentRouteKey } from "@/lib/students";
 
 export default function CetakRaporPage() {
   const router = useRouter();
@@ -29,7 +30,6 @@ export default function CetakRaporPage() {
       const { data: studentsData } = await supabase
         .from("students")
         .select("*")
-        .eq("teacher_id", user.id)
         .order("nama_lengkap", { ascending: true });
 
       setStudents(studentsData || []);
@@ -183,13 +183,13 @@ export default function CetakRaporPage() {
                       
                       <div className="flex flex-wrap items-center gap-2 mt-4 xl:mt-0 w-full xl:w-auto">
                         <button 
-                          onClick={() => router.push(`/dashboard/guru/reports/print/${student.id}?type=rapor`)}
+                          onClick={() => router.push(`/dashboard/guru/reports/print/${getStudentRouteKey(student)}?type=rapor`)}
                           className="flex-1 xl:flex-none px-4 py-2 border-2 border-blue-600 text-blue-700 hover:bg-blue-50 font-bold rounded-xl flex items-center justify-center gap-2 transition-all text-xs shadow-sm"
                         >
                           <FileText size={16} /> Input Rapor
                         </button>
                         <button 
-                          onClick={() => router.push(`/dashboard/guru/reports/print/${student.id}?type=munaqosyah`)}
+                          onClick={() => router.push(`/dashboard/guru/reports/print/${getStudentRouteKey(student)}?type=munaqosyah`)}
                           className="flex-1 xl:flex-none px-4 py-2 border-2 border-purple-600 text-purple-700 hover:bg-purple-50 font-bold rounded-xl flex items-center justify-center gap-2 transition-all text-xs shadow-sm"
                         >
                           <GraduationCap size={16} /> Munaqosyah
