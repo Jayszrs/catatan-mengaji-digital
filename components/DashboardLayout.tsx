@@ -4,18 +4,15 @@ import { ReactNode, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { DashboardOnboarding } from "@/components/DashboardOnboarding";
 import { 
   LayoutDashboard, 
   Users, 
-  Target, 
   Printer, 
   BookOpen, 
   Settings, 
   HelpCircle, 
   LogOut,
-  Search,
-  Bell,
-  Mail,
   Menu,
   X,
   Award,
@@ -31,20 +28,28 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userName, setUserName] = useState("Guru");
-  const [userEmail, setUserEmail] = useState("");
+  const [userName, setUserName] = useState(
+    userRole === "admin"
+      ? "Administrator"
+      : userRole === "orang_tua"
+        ? "Orang Tua"
+        : "Guru",
+  );
+  const [userEmail, setUserEmail] = useState(userRole === "admin" ? "admin" : "");
   const [userPhoto, setUserPhoto] = useState("");
+  const [tourOpen, setTourOpen] = useState(false);
 
   useEffect(() => {
     if (userRole === "admin") {
-      setUserName("Administrator");
-      setUserEmail("admin");
       return;
     }
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        setUserName(user.user_metadata?.name || "Guru");
+        setUserName(
+          user.user_metadata?.name ||
+            (userRole === "orang_tua" ? "Orang Tua" : "Guru"),
+        );
         setUserEmail(user.email || "");
         if (userRole === "guru") {
           const { data: profile } = await supabase
@@ -60,7 +65,36 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
     fetchUser();
   }, [userRole]);
 
+  useEffect(() => {
+    if (
+      (userRole !== "guru" && userRole !== "orang_tua")
+    ) {
+      return;
+    }
+
+    const storageKey = `cmd-dashboard-tour-v1:${userRole}`;
+    if (sessionStorage.getItem(storageKey)) return;
+
+    const timer = window.setTimeout(() => setTourOpen(true), 150);
+    return () => window.clearTimeout(timer);
+  }, [userRole]);
+
+  const finishTour = () => {
+    if (userRole === "guru" || userRole === "orang_tua") {
+      sessionStorage.setItem(`cmd-dashboard-tour-v1:${userRole}`, "completed");
+    }
+    setTourOpen(false);
+  };
+
+  const openTour = () => {
+    setSidebarOpen(false);
+    setTourOpen(true);
+  };
+
   const handleLogout = async () => {
+    if (userRole === "guru" || userRole === "orang_tua") {
+      sessionStorage.removeItem(`cmd-dashboard-tour-v1:${userRole}`);
+    }
     if (userRole === "admin") {
       await fetch("/api/admin/session", { method: "DELETE" });
       await supabase.auth.signOut();
@@ -78,6 +112,14 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
 
   return (
     <div className="flex h-screen bg-[#f7f9fa] font-sans print:block print:h-auto print:bg-white">
+      {tourOpen && (userRole === "guru" || userRole === "orang_tua") && (
+        <DashboardOnboarding
+          role={userRole}
+          userName={userName}
+          onFinish={finishTour}
+        />
+      )}
+
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -184,6 +226,16 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
           <div>
             <p className="px-4 text-xs font-bold text-gray-400 mb-4 tracking-widest uppercase">Sistem</p>
             <nav className="space-y-1">
+              {(userRole === "guru" || userRole === "orang_tua") && (
+                <button
+                  type="button"
+                  onClick={openTour}
+                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 font-bold text-gray-500 transition-all hover:bg-gray-50 hover:text-gray-900"
+                >
+                  <HelpCircle size={20} />
+                  <span>Panduan Penggunaan</span>
+                </button>
+              )}
               {userRole === "guru" && (
                 <Link href="/dashboard/guru/profile" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/profile") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <Settings size={20} />
@@ -210,6 +262,16 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
           </div>
 
           <div className="flex items-center gap-5">
+            {(userRole === "guru" || userRole === "orang_tua") && (
+              <button
+                type="button"
+                onClick={openTour}
+                className="hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-gray-600 shadow-sm transition hover:border-[#9fc4ae] hover:text-[#1b4332] sm:flex"
+              >
+                <HelpCircle size={16} />
+                Panduan
+              </button>
+            )}
             <div className="hidden md:block h-8 w-px bg-gray-200 mx-2"></div>
             
             <Link href={userRole === "guru" ? "/dashboard/guru/profile" : "#"} className="flex items-center gap-3 cursor-pointer group">
