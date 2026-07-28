@@ -229,6 +229,7 @@ function DailyReportTable({
         row.nilai_makhraj,
         row.nilai_tajwid,
         row.nilai_hafalan,
+        row.nilai,
       ].some((value) => value !== null && value !== undefined),
     )
     .slice(0, 5);
@@ -315,19 +316,19 @@ function DailyReportTable({
                     {row.nama_surah || "-"} {row.ayat ? `· ${row.ayat}` : ""}
                   </td>
                   <td className="border border-black">
-                    {formatScore(row.nilai_kelancaran)}
+                    {formatScore(row.nilai_kelancaran ?? row.nilai)}
                   </td>
                   <td className="border border-black">
-                    {formatScore(row.nilai_makhraj)}
+                    {formatScore(row.nilai_makhraj ?? row.nilai)}
                   </td>
                   <td className="border border-black">
-                    {formatScore(row.nilai_tajwid)}
+                    {formatScore(row.nilai_tajwid ?? row.nilai)}
                   </td>
                   <td className="border border-black">
-                    {formatScore(row.nilai_hafalan)}
+                    {formatScore(row.nilai_hafalan ?? row.nilai)}
                   </td>
                   <td className="border border-black font-bold">
-                    {formatScore(row.nilai_rata_rata)}
+                    {formatScore(row.nilai_rata_rata ?? row.nilai)}
                   </td>
                 </tr>
               ))}

@@ -27,6 +27,23 @@ alter table public.laporan_tahsin_tahfidz
   add column if not exists nilai_hafalan numeric(5,2),
   add column if not exists nilai_rata_rata numeric(5,2);
 
+-- Pertahankan nilai lama saat skema empat komponen mulai digunakan.
+update public.laporan_tahsin_tahfidz
+set
+  nilai_kelancaran = coalesce(nilai_kelancaran, nilai),
+  nilai_makhraj = coalesce(nilai_makhraj, nilai),
+  nilai_tajwid = coalesce(nilai_tajwid, nilai),
+  nilai_hafalan = coalesce(nilai_hafalan, nilai),
+  nilai_rata_rata = coalesce(nilai_rata_rata, nilai)
+where nilai is not null
+  and (
+    nilai_kelancaran is null
+    or nilai_makhraj is null
+    or nilai_tajwid is null
+    or nilai_hafalan is null
+    or nilai_rata_rata is null
+  );
+
 do $$
 declare
   column_name text;

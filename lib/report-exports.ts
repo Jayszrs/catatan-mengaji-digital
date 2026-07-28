@@ -117,6 +117,7 @@ export interface DailyMemorizationExportRow {
   nama_surah?: string;
   ayat?: string;
   murojaah?: string | null;
+  nilai?: number | null;
   nilai_kelancaran?: number | null;
   nilai_makhraj?: number | null;
   nilai_tajwid?: number | null;
@@ -136,11 +137,11 @@ export function downloadDailyMemorizationReports(
     Surah: row.nama_surah || "-",
     Ayat: row.ayat || "-",
     Murojaah: row.murojaah || "-",
-    Kelancaran: row.nilai_kelancaran ?? "-",
-    Makhraj: row.nilai_makhraj ?? "-",
-    Tajwid: row.nilai_tajwid ?? "-",
-    Hafalan: row.nilai_hafalan ?? "-",
-    "Rata-rata": row.nilai_rata_rata ?? "-",
+    Kelancaran: row.nilai_kelancaran ?? row.nilai ?? "-",
+    Makhraj: row.nilai_makhraj ?? row.nilai ?? "-",
+    Tajwid: row.nilai_tajwid ?? row.nilai ?? "-",
+    Hafalan: row.nilai_hafalan ?? row.nilai ?? "-",
+    "Rata-rata": row.nilai_rata_rata ?? row.nilai ?? "-",
     Keterangan: row.keterangan || "-",
   })));
   const workbook = XLSX.utils.book_new();

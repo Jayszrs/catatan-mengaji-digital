@@ -144,7 +144,7 @@ export default function ParentDashboard() {
       supabase
         .from("laporan_tahsin_tahfidz")
         .select(
-          "tanggal,nama_surah,ayat,murojaah,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,keterangan",
+          "tanggal,nama_surah,ayat,murojaah,nilai,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,keterangan",
         )
         .eq("student_id", studentId)
         .order("tanggal", { ascending: false }),
@@ -334,7 +334,7 @@ export default function ParentDashboard() {
   };
 
   const latestDailyAverage = useMemo(
-    () => Number(daily[0]?.nilai_rata_rata ?? 0),
+    () => Number(daily[0]?.nilai_rata_rata ?? daily[0]?.nilai ?? 0),
     [daily],
   );
   const latestLevel = levels[0];
@@ -628,7 +628,7 @@ export default function ParentDashboard() {
               icon={<BookOpenCheck />}
               title="Hafalan Harian"
               value={daily.length ? latestDailyAverage.toFixed(2) : "-"}
-              detail={`${dailyReports.length} laporan · ${daily.length} nilai`}
+              detail={`${dailyReports.length} laporan · ${daily.length} entri nilai`}
             />
             <OutputCard
               active={active === "level"}
