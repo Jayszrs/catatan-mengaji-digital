@@ -28,9 +28,17 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (email === "admin" && password === "admin123") {
-        if (typeof window !== "undefined") {
-          localStorage.setItem("admin_logged_in", "true");
+      if (!email.includes("@")) {
+        const response = await fetch("/api/admin/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: email.trim(), password }),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            result.error || "Username atau password Administrator tidak cocok.",
+          );
         }
         router.push("/dashboard/admin");
         return;
@@ -57,6 +65,11 @@ export default function LoginPage() {
       if (authError) throw authError;
 
       if (data.user) {
+        if (data.user.app_metadata?.role === "admin") {
+          router.push("/dashboard/admin");
+          return;
+        }
+
         const { data: roleData, error: roleError } = await supabase
           .from("user_roles")
           .select("role")
@@ -82,7 +95,7 @@ export default function LoginPage() {
           router.push("/dashboard/orang-tua");
         } else {
           setError(
-            "Role akun belum diberikan. Minta Administrator memilih tombol Jadikan Orang Tua atau Jadikan Guru pada Manajemen Akun.",
+            "Role akun belum diberikan. Minta Administrator memberikan role pada Manajemen Akun.",
           );
         }
       }

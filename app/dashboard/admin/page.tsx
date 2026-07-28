@@ -5,7 +5,17 @@ import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
-import { Users, UserPlus, Key, AlertCircle, Loader2, X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import {
+  Users,
+  UserPlus,
+  Key,
+  AlertCircle,
+  Loader2,
+  ShieldCheck,
+  Trash2,
+  X,
+} from "lucide-react";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -26,22 +36,48 @@ export default function AdminDashboard() {
 
   const [newPassword, setNewPassword] = useState("");
   const [repairingUserId, setRepairingUserId] = useState("");
+  const [deletingUserId, setDeletingUserId] = useState("");
 
   useEffect(() => {
-    // Check if admin is logged in (bypass from localStorage)
-    const isAdmin = localStorage.getItem("admin_logged_in");
-    if (!isAdmin) {
-      router.push("/auth/login");
-      return;
-    }
-    fetchUsers();
+    const verifyAdmin = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user?.app_metadata?.role === "admin") {
+        await fetchUsers();
+        return;
+      }
+      const response = await fetch("/api/admin/session");
+      if (!response.ok) {
+        router.push("/auth/login");
+        return;
+      }
+      await fetchUsers();
+    };
+    void verifyAdmin();
+    // Authentication is checked once when opening the admin dashboard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const getAdminHeaders = async (includeJson = false) => {
+    const headers: Record<string, string> = {};
+    if (includeJson) headers["Content-Type"] = "application/json";
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.user.app_metadata?.role === "admin") {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+    return headers;
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/users");
+      const res = await fetch("/api/admin/users", {
+        headers: await getAdminHeaders(),
+      });
       const data = await res.json();
       
       if (!res.ok) {
@@ -65,7 +101,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch("/api/admin/users", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await getAdminHeaders(true),
         body: JSON.stringify({
           action: "create",
           email,
@@ -104,7 +140,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch("/api/admin/users", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await getAdminHeaders(true),
         body: JSON.stringify({
           action: "update_password",
           userId: selectedUser.id,
@@ -128,7 +164,7 @@ export default function AdminDashboard() {
 
   const handleAssignRole = async (
     userId: string,
-    selectedRole: "guru" | "orang_tua",
+    selectedRole: "admin" | "guru" | "orang_tua",
   ) => {
     setRepairingUserId(userId);
     setError("");
@@ -136,7 +172,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch("/api/admin/users", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await getAdminHeaders(true),
         body: JSON.stringify({
           action: "assign_role",
           userId,
@@ -146,13 +182,45 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal memberikan role");
       setSuccess(
-        `Role ${selectedRole === "orang_tua" ? "Orang Tua" : "Guru"} berhasil diberikan.`,
+        `Role ${
+          selectedRole === "orang_tua"
+            ? "Orang Tua"
+            : selectedRole === "admin"
+              ? "Admin"
+              : "Guru"
+        } berhasil diberikan.`,
       );
       await fetchUsers();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Gagal memberikan role");
     } finally {
       setRepairingUserId("");
+    }
+  };
+
+  const handleDeleteUser = async (user: any) => {
+    const confirmed = window.confirm(
+      `Hapus akun ${user.name} (${user.email})?\n\nAkun tidak dapat login lagi. Akun Guru yang masih memiliki data siswa akan ditolak oleh sistem agar data siswa tidak ikut terhapus.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingUserId(user.id);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: await getAdminHeaders(true),
+        body: JSON.stringify({ action: "delete", userId: user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal menghapus akun");
+      setSuccess(`Akun ${user.name} berhasil dihapus.`);
+      await fetchUsers();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Gagal menghapus akun");
+    } finally {
+      setDeletingUserId("");
     }
   };
 
@@ -164,7 +232,7 @@ export default function AdminDashboard() {
             Manajemen Akun
           </h1>
           <p className="text-sm text-gray-500 font-medium">
-            Kelola akses guru dan orang tua.
+            Kelola akses Admin, Guru, dan Orang Tua.
           </p>
         </div>
         <div className="flex gap-4">
@@ -240,6 +308,7 @@ export default function AdminDashboard() {
                 >
                   <option value="guru">Guru / Wali Kelas</option>
                   <option value="orang_tua">Orang Tua / Wali Murid</option>
+                  <option value="admin">Administrator</option>
                 </select>
               </div>
             </div>
@@ -313,6 +382,8 @@ export default function AdminDashboard() {
                           ? 'bg-green-50 text-green-700'
                           : u.role === 'orang_tua'
                             ? 'bg-blue-50 text-blue-700'
+                            : u.role === 'admin'
+                              ? 'bg-purple-50 text-purple-700'
                             : 'bg-amber-50 text-amber-700'
                       }`}>
                         {u.role.replace("_", " ")}
@@ -339,20 +410,55 @@ export default function AdminDashboard() {
                           >
                             Jadikan Guru
                           </button>
+                          <button
+                            type="button"
+                            disabled={repairingUserId === u.id}
+                            onClick={() => handleAssignRole(u.id, "admin")}
+                            className="rounded-lg bg-purple-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                          >
+                            Jadikan Admin
+                          </button>
                         </div>
                       )}
-                      <button 
-                        onClick={() => {
-                          setSelectedUser(u);
-                          setShowPasswordForm(true);
-                          setShowAddForm(false);
-                          setNewPassword("");
-                          window.scrollTo({ top: 0, behavior: "smooth" });
-                        }}
-                        className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold text-sm rounded-lg flex items-center gap-2 inline-flex"
-                      >
-                        <Key size={16} /> Ubah Sandi
-                      </button>
+                      <div className="inline-flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedUser(u);
+                            setShowPasswordForm(true);
+                            setShowAddForm(false);
+                            setNewPassword("");
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-200"
+                        >
+                          <Key size={16} /> Ubah Sandi
+                        </button>
+                        {u.role === "admin" && (
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700">
+                            <ShieldCheck size={15} /> Admin
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          disabled={
+                            deletingUserId === u.id || u.is_current_admin
+                          }
+                          onClick={() => handleDeleteUser(u)}
+                          title={
+                            u.is_current_admin
+                              ? "Akun admin yang sedang dipakai tidak dapat dihapus"
+                              : "Hapus akun"
+                          }
+                          className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {deletingUserId === u.id ? (
+                            <Loader2 className="animate-spin" size={16} />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                          Hapus
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

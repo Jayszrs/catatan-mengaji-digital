@@ -63,6 +63,8 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
 
   const handleLogout = async () => {
     if (userRole === "admin") {
+      await fetch("/api/admin/session", { method: "DELETE" });
+      await supabase.auth.signOut();
       if (typeof window !== "undefined") {
         localStorage.removeItem("admin_logged_in");
       }
