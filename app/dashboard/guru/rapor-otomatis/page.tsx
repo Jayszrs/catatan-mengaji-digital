@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Award,
@@ -28,6 +28,7 @@ import { supabase } from "@/lib/supabase";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import { loadDailyMemorizationRows } from "@/lib/report-queries";
 import { getTahfidzLevelLabel } from "@/lib/tahfidz-levels";
+import { getMunaqosyahCriterionLabel } from "@/lib/munaqosyah";
 
 interface StudentOption {
   id: string;
@@ -82,9 +83,14 @@ function formatScore(value?: number | null) {
 
 function AutomaticReportContent() {
   const params = useSearchParams();
+  const requestedReport = params.get("report");
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [studentId, setStudentId] = useState(params.get("studentId") || "");
-  const [activeReport, setActiveReport] = useState<ReportType>("daily");
+  const [activeReport, setActiveReport] = useState<ReportType>(
+    requestedReport === "level" || requestedReport === "munaqosyah"
+      ? requestedReport
+      : "daily",
+  );
   const [dailyReports, setDailyReports] = useState<DailyReportExportRow[]>([]);
   const [memorization, setMemorization] = useState<DailyMemorizationExportRow[]>([]);
   const [dailyDate, setDailyDate] = useState("");
@@ -92,6 +98,7 @@ function AutomaticReportContent() {
   const [munaq, setMunaq] = useState<MunaqosyahExportRow | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const autoPrintTriggered = useRef(false);
 
   useEffect(() => {
     const loadStudents = async () => {
@@ -187,6 +194,20 @@ function AutomaticReportContent() {
       : activeReport === "level"
         ? levels.length > 0
         : Boolean(munaq);
+
+  useEffect(() => {
+    if (
+      params.get("print") !== "1" ||
+      loading ||
+      !hasData ||
+      autoPrintTriggered.current
+    ) {
+      return;
+    }
+    autoPrintTriggered.current = true;
+    const timeoutId = window.setTimeout(() => window.print(), 500);
+    return () => window.clearTimeout(timeoutId);
+  }, [hasData, loading, params]);
 
   const handleDownload = () => {
     try {
@@ -677,9 +698,8 @@ function LevelReportTable({ row }: { row?: LevelExamExportRow }) {
 
 function MunaqosyahReportTable({ row }: { row?: MunaqosyahExportRow }) {
   const sourceRows = row?.hasil_ujian?.rowsMunaqosyah || [];
-  const fallbackLabels = ["Kelancaran", "Makhraj", "Tajwid", "Hafalan"];
   const scores = sourceRows.map((score, index) => [
-    score.label || fallbackLabels[index] || `Komponen ${index + 1}`,
+    getMunaqosyahCriterionLabel(score.label, index),
     score.angka,
   ] as [string, number | null | undefined]);
 

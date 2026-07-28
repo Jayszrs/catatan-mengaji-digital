@@ -4,6 +4,7 @@ import {
   LevelExamExportRow,
   MunaqosyahExportRow,
 } from "@/lib/report-exports";
+import { getMunaqosyahCriterionLabel } from "@/lib/munaqosyah";
 import { getTahfidzLevelLabel } from "@/lib/tahfidz-levels";
 
 export type OfficialReportType = "daily" | "level" | "munaqosyah";
@@ -385,11 +386,10 @@ function LevelReportTable({ row }: { row?: LevelExamExportRow }) {
 
 function MunaqosyahReportTable({ row }: { row?: MunaqosyahExportRow }) {
   const sourceRows = row?.hasil_ujian?.rowsMunaqosyah || [];
-  const fallbackLabels = ["Kelancaran", "Makhraj", "Tajwid", "Hafalan"];
   const scores = sourceRows.map(
     (score, index) =>
       [
-        score.label || fallbackLabels[index] || `Komponen ${index + 1}`,
+        getMunaqosyahCriterionLabel(score.label, index),
         score.angka,
       ] as [string, number | null | undefined],
   );

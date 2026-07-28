@@ -285,6 +285,25 @@ export default function MunaqosyahPage() {
   const selectedStudent = students.find(
     (student) => student.id === form.student_id,
   );
+  const openOfficialReportPreview = () => {
+    if (!form.student_id) {
+      setMessage({
+        type: "error",
+        text: "Pilih siswa terlebih dahulu sebelum membuka rapor resmi.",
+      });
+      return;
+    }
+    const query = new URLSearchParams({
+      studentId: form.student_id,
+      report: "munaqosyah",
+      print: "1",
+    });
+    window.open(
+      `/dashboard/guru/rapor-otomatis?${query.toString()}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
 
   return (
     <DashboardLayout userRole="guru">
@@ -300,10 +319,11 @@ export default function MunaqosyahPage() {
         </div>
         <button
           type="button"
-          onClick={() => window.print()}
+          onClick={openOfficialReportPreview}
+          disabled={!form.student_id}
           className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 font-bold text-gray-700"
         >
-          <Printer size={18} /> Preview / Cetak
+          <Printer size={18} /> Preview / Cetak Rapor Resmi
         </button>
       </div>
 

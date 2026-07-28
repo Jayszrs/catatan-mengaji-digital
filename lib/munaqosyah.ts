@@ -156,6 +156,24 @@ export function getMunaqosyahPredicate(average: number) {
   return { indo: "Perlu Bimbingan", arab: "يحتاج إلى التوجيه" };
 }
 
+export function getMunaqosyahCriterionLabel(
+  label: string | undefined,
+  index: number,
+) {
+  const normalized = (label || "").trim().toLowerCase();
+  if (normalized === "kelancaran") return "Kelancaran";
+  if (normalized === "makhraj" || normalized === "makhorijul huruf") {
+    return "Makhorijul Huruf";
+  }
+  if (normalized === "tajwid" || normalized === "hukum tajwid") {
+    return "Hukum Tajwid";
+  }
+  if (normalized === "hafalan" || normalized === "sambung ayat") {
+    return "Sambung Ayat";
+  }
+  return label || MUNAQOSYAH_CRITERIA[index]?.label || `Komponen ${index + 1}`;
+}
+
 export function buildMunaqosyahScoreRow(
   label: string,
   rawScore: string | number,
