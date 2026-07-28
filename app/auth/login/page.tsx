@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   createUserRole,
   isSupabaseConfigured,
   supabase,
 } from "@/lib/supabase";
-import { Button } from "@/components/Button";
-import { Input } from "@/components/Input";
-import { ArrowLeft, LogIn, Loader2, AlertCircle } from "lucide-react";
+import { AuthInput } from "@/components/AuthInput";
+import { AuthSplitLayout } from "@/components/AuthSplitLayout";
+import { AlertCircle, Loader2, LockKeyhole, LogIn, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,8 +20,8 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [needsVerification, setNeedsVerification] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError("");
     setNeedsVerification(false);
     setLoading(true);
@@ -55,12 +54,10 @@ export default function LoginPage() {
         );
       }
 
-      const { data, error: authError } = await supabase.auth.signInWithPassword(
-        {
-          email: normalizedEmail,
-          password,
-        },
-      );
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
 
       if (authError) throw authError;
 
@@ -99,15 +96,18 @@ export default function LoginPage() {
           );
         }
       }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Gagal login";
+    } catch (caughtError: unknown) {
+      const message =
+        caughtError instanceof Error ? caughtError.message : "Gagal login";
       if (message.toLowerCase().includes("invalid login credentials")) {
         setError(
           "Email atau password tidak cocok. Pastikan akun dibuat pada database Supabase yang sedang dipakai.",
         );
       } else if (message.toLowerCase().includes("email not confirmed")) {
         setNeedsVerification(true);
-        setError("Email belum diverifikasi. Buka halaman status verifikasi untuk mengirim ulang email.");
+        setError(
+          "Email belum diverifikasi. Buka halaman status verifikasi untuk mengirim ulang email.",
+        );
       } else {
         setError(message);
       }
@@ -117,100 +117,97 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#2dc653] via-[#2dc653] to-[#1f9c3b] flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-20 right-20 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
-
-      {/* Button Kembali ke Beranda */}
-      <Link 
-        href="/" 
-        className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-2 text-white font-bold bg-black/20 hover:bg-black/30 px-5 py-2.5 rounded-full backdrop-blur-md transition-all z-20 shadow-lg hover:shadow-xl hover:-translate-x-1"
-      >
-        <ArrowLeft size={18} /> Beranda
-      </Link>
-
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-10 relative z-10">
-        <div className="flex justify-center mb-6">
-          <Image src="/logo.png" alt="Logo Sekolah" width={96} height={96} className="h-24 w-24 object-contain drop-shadow-md" />
-        </div>
-
-        <h1 className="text-4xl font-black text-center text-gray-900 mb-2 uppercase">
-          Catatan Mengaji
-        </h1>
-        <p className="text-center text-[#2dc653] font-black mb-8 text-2xl uppercase tracking-widest">
-          Digital
+    <AuthSplitLayout mode="login">
+      <div className="mb-7">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2b8053]">
+          Selamat Datang Kembali
         </p>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-medium flex items-start gap-3">
-            <AlertCircle size={18} className="shrink-0 mt-0.5 text-red-500" />
-            <p>{error}</p>
-          </div>
-        )}
-
-        {!isSupabaseConfigured && (
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-            Status sistem: database belum terhubung. Login akun Supabase belum dapat digunakan.
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-5">
-          <Input
-            label="Email"
-            type="text"
-            inputMode="email"
-            placeholder="nama@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-
-          <Input
-            label="Password"
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-
-          <div className="-mt-2 text-right">
-            <Link
-              href={`/auth/reset-password?email=${encodeURIComponent(email.trim())}`}
-              className="text-sm font-bold text-emerald-700 hover:underline"
-            >
-              Lupa password?
-            </Link>
-          </div>
-
-          <Button type="submit" disabled={loading} className="w-full mt-8 py-3 flex items-center justify-center gap-2 text-lg">
-            {loading ? (
-              <><Loader2 className="animate-spin" size={20} /> Memproses...</>
-            ) : (
-              <><LogIn size={20} /> Masuk</>
-            )}
-          </Button>
-        </form>
-
-        {needsVerification && (
-          <Link
-            href={`/auth/verify?email=${encodeURIComponent(email)}`}
-            className="mt-4 block rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-bold text-emerald-700 hover:bg-emerald-100"
-          >
-            Cek status & kirim ulang verifikasi
-          </Link>
-        )}
-
-        <p className="text-center text-gray-600 mt-8 font-medium">
-          Belum punya akun?{" "}
-          <Link
-            href="/auth/signup"
-            className="text-[#2dc653] font-bold hover:underline"
-          >
-            Daftar di sini
-          </Link>
+        <h1 className="mt-3 text-3xl font-black tracking-[-0.035em] text-[#12271d] sm:text-4xl">
+          Masuk ke akun
+        </h1>
+        <p className="mt-2 text-sm font-medium leading-6 text-gray-500">
+          Gunakan akun guru, orang tua, atau administrator Anda.
         </p>
       </div>
-    </div>
+
+      {error && (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm font-medium text-red-700">
+          <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-500" />
+          <p>{error}</p>
+        </div>
+      )}
+
+      {!isSupabaseConfigured && (
+        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm font-semibold text-amber-800">
+          Status sistem: database belum terhubung. Login akun Supabase belum dapat digunakan.
+        </div>
+      )}
+
+      <form onSubmit={handleLogin} className="space-y-4">
+        <AuthInput
+          label="Email atau username admin"
+          icon={Mail}
+          type="text"
+          inputMode="email"
+          autoComplete="username"
+          placeholder="nama@email.com"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+        />
+
+        <AuthInput
+          label="Password"
+          icon={LockKeyhole}
+          type="password"
+          autoComplete="current-password"
+          placeholder="Masukkan password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
+
+        <div className="-mt-1 text-right">
+          <Link
+            href={`/auth/reset-password?email=${encodeURIComponent(email.trim())}`}
+            className="text-xs font-bold text-[#246b48] transition hover:text-[#174a32] hover:underline"
+          >
+            Lupa password?
+          </Link>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0e622f] px-5 text-sm font-black uppercase tracking-[0.04em] text-white shadow-[0_12px_28px_rgba(14,98,47,0.18)] transition hover:bg-[#0a5127] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="animate-spin" size={18} /> Memproses...
+            </>
+          ) : (
+            <>
+              <LogIn size={18} /> Masuk ke Dashboard
+            </>
+          )}
+        </button>
+      </form>
+
+      {needsVerification && (
+        <Link
+          href={`/auth/verify?email=${encodeURIComponent(email)}`}
+          className="mt-4 block rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-bold text-emerald-700 hover:bg-emerald-100"
+        >
+          Cek status &amp; kirim ulang verifikasi
+        </Link>
+      )}
+
+      <p className="mt-7 text-center text-sm font-medium text-gray-500">
+        Belum punya akun?{" "}
+        <Link href="/auth/signup" className="font-black text-[#246b48] hover:underline">
+          Buat akun
+        </Link>
+      </p>
+    </AuthSplitLayout>
   );
 }

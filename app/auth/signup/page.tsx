@@ -1,14 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { createUserRole, isSupabaseConfigured, supabase } from "@/lib/supabase";
-import { Button } from "@/components/Button";
-import { Input } from "@/components/Input";
-import { UserRole } from "@/types";
-import { ArrowLeft, UserPlus, Loader2, AlertCircle } from "lucide-react";
+import { AuthInput } from "@/components/AuthInput";
+import { AuthSplitLayout } from "@/components/AuthSplitLayout";
+import type { UserRole } from "@/types";
+import {
+  AlertCircle,
+  IdCard,
+  Loader2,
+  LockKeyhole,
+  Mail,
+  UserPlus,
+  UserRound,
+  Users,
+} from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -21,8 +29,8 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSignup = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError("");
     setLoading(true);
 
@@ -36,15 +44,18 @@ export default function SignupPage() {
       }
 
       if (!isSupabaseConfigured) {
-        throw new Error("Database belum terhubung. Konfigurasi Supabase harus dipasang terlebih dahulu.");
+        throw new Error(
+          "Database belum terhubung. Konfigurasi Supabase harus dipasang terlebih dahulu.",
+        );
       }
 
       if (role === "orang_tua" && !nisAnak.trim()) {
         throw new Error("NIS anak wajib diisi untuk akun orang tua");
       }
 
+      const normalizedEmail = email.trim().toLowerCase();
       const { data, error: authError } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/verify`,
@@ -58,16 +69,13 @@ export default function SignupPage() {
 
       if (authError) throw authError;
 
-      // Handle the case where the user already exists and email enumeration protection is on
       if (data.user?.identities?.length === 0) {
         throw new Error("Email sudah terdaftar. Silakan gunakan email lain atau login.");
       }
 
       if (data.user) {
-        // Jika konfirmasi email aktif, Supabase belum memberi session.
-        // Role dibuat setelah tautan verifikasi berhasil dibuka.
         if (data.session) {
-          await createUserRole(data.user.id, email, role);
+          await createUserRole(data.user.id, normalizedEmail, role);
         }
 
         setName("");
@@ -76,141 +84,165 @@ export default function SignupPage() {
         setConfirmPassword("");
 
         router.push(
-          `/auth/verify?sent=1&email=${encodeURIComponent(email)}`,
+          `/auth/verify?sent=1&email=${encodeURIComponent(normalizedEmail)}`,
         );
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Gagal mendaftar");
+    } catch (caughtError: unknown) {
+      setError(
+        caughtError instanceof Error ? caughtError.message : "Gagal mendaftar",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#2dc653] via-[#2dc653] to-[#1f9c3b] flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-20 right-20 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
-      
-      {/* Button Kembali ke Beranda */}
-      <Link 
-        href="/" 
-        className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-2 text-white font-bold bg-black/20 hover:bg-black/30 px-5 py-2.5 rounded-full backdrop-blur-md transition-all z-20 shadow-lg hover:shadow-xl hover:-translate-x-1"
-      >
-        <ArrowLeft size={18} /> Beranda
-      </Link>
-
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-10 relative z-10 max-h-screen overflow-y-auto custom-scrollbar">
-        <div className="flex justify-center mb-6">
-          <Image src="/logo.png" alt="Logo Sekolah" width={80} height={80} className="h-20 w-20 object-contain drop-shadow-md" />
-        </div>
-
-        <h1 className="text-3xl font-black text-center text-gray-900 mb-2">
-          Buat Akun Baru
+    <AuthSplitLayout mode="signup">
+      <div className="mb-5">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2b8053]">
+          Pendaftaran Akun
+        </p>
+        <h1 className="mt-2 text-3xl font-black tracking-[-0.035em] text-[#12271d] sm:text-4xl">
+          Buat akun baru
         </h1>
-        <p className="text-center text-[#2dc653] font-black mb-8 text-lg uppercase tracking-wider">Catatan Mengaji Digital</p>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-medium flex items-start gap-3">
-            <AlertCircle size={18} className="shrink-0 mt-0.5 text-red-500" />
-            <p>{error}</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSignup} className="space-y-4">
-          <Input
-            label="Nama Lengkap"
-            type="text"
-            placeholder="Masukkan nama Anda"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-
-          <Input
-            label="Email"
-            type="email"
-            placeholder="Masukkan email Anda"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-
-          <div className="w-full">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tipe Akun
-            </label>
-            <div className="flex gap-4">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="radio"
-                  value="guru"
-                  checked={role === "guru"}
-                  onChange={(e) => setRole(e.target.value as UserRole)}
-                  className="mr-2 w-4 h-4 accent-[#2dc653]"
-                />
-                <span className="text-gray-700">Guru</span>
-              </label>
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="radio"
-                  value="orang_tua"
-                  checked={role === "orang_tua"}
-                  onChange={(e) => setRole(e.target.value as UserRole)}
-                  className="mr-2 w-4 h-4 accent-[#2dc653]"
-                />
-                <span className="text-gray-700">Orang Tua</span>
-              </label>
-            </div>
-          </div>
-
-          {role === "orang_tua" && (
-            <Input
-              label="NIS Anak"
-              type="text"
-              placeholder="Masukkan NIS satu anak yang terdaftar"
-              value={nisAnak}
-              onChange={(e) => setNisAnak(e.target.value)}
-              required
-            />
-          )}
-
-          <Input
-            label="Password"
-            type="password"
-            placeholder="Minimal 6 karakter"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-
-          <Input
-            label="Konfirmasi Password"
-            type="password"
-            placeholder="Ulang password Anda"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
-
-          <Button type="submit" disabled={loading} className="w-full mt-6 py-3 flex items-center justify-center gap-2 text-lg">
-            {loading ? (
-              <><Loader2 className="animate-spin" size={20} /> Memproses...</>
-            ) : (
-              <><UserPlus size={20} /> Daftar</>
-            )}
-          </Button>
-        </form>
-
-        <p className="text-center text-gray-600 mt-6">
-          Sudah punya akun?{" "}
-          <Link
-            href="/auth/login"
-            className="text-[#2dc653] font-semibold hover:underline"
-          >
-            Login di sini
-          </Link>
+        <p className="mt-1.5 text-sm font-medium leading-6 text-gray-500">
+          Pilih akses yang sesuai, lalu lengkapi data akun Anda.
         </p>
       </div>
-    </div>
+
+      {error && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+          <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-500" />
+          <p>{error}</p>
+        </div>
+      )}
+
+      <form onSubmit={handleSignup} className="space-y-3.5">
+        <AuthInput
+          label="Nama Lengkap"
+          icon={UserRound}
+          type="text"
+          autoComplete="name"
+          placeholder="Masukkan nama lengkap"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+        />
+
+        <AuthInput
+          label="Email"
+          icon={Mail}
+          type="email"
+          autoComplete="email"
+          placeholder="nama@email.com"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+        />
+
+        <fieldset>
+          <legend className="mb-2 text-[11px] font-black uppercase tracking-[0.1em] text-[#263c32]">
+            Tipe Akun
+          </legend>
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1.5">
+            <label
+              className={`flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg text-xs font-black transition ${
+                role === "guru"
+                  ? "bg-white text-[#17643f] shadow-sm ring-1 ring-gray-200"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <input
+                type="radio"
+                value="guru"
+                checked={role === "guru"}
+                onChange={(event) => setRole(event.target.value as UserRole)}
+                className="sr-only"
+              />
+              <UserRound size={16} />
+              Guru
+            </label>
+            <label
+              className={`flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg text-xs font-black transition ${
+                role === "orang_tua"
+                  ? "bg-white text-[#17643f] shadow-sm ring-1 ring-gray-200"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <input
+                type="radio"
+                value="orang_tua"
+                checked={role === "orang_tua"}
+                onChange={(event) => setRole(event.target.value as UserRole)}
+                className="sr-only"
+              />
+              <Users size={16} />
+              Orang Tua
+            </label>
+          </div>
+        </fieldset>
+
+        {role === "orang_tua" && (
+          <AuthInput
+            label="NIS Anak"
+            icon={IdCard}
+            type="text"
+            inputMode="numeric"
+            placeholder="Masukkan NIS anak yang terdaftar"
+            value={nisAnak}
+            onChange={(event) => setNisAnak(event.target.value)}
+            required
+          />
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <AuthInput
+            label="Password"
+            icon={LockKeyhole}
+            type="password"
+            autoComplete="new-password"
+            minLength={6}
+            placeholder="Minimal 6 karakter"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+          <AuthInput
+            label="Konfirmasi Password"
+            icon={LockKeyhole}
+            type="password"
+            autoComplete="new-password"
+            minLength={6}
+            placeholder="Ulangi password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0e622f] px-5 text-sm font-black uppercase tracking-[0.04em] text-white shadow-[0_12px_28px_rgba(14,98,47,0.18)] transition hover:bg-[#0a5127] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="animate-spin" size={18} /> Memproses...
+            </>
+          ) : (
+            <>
+              <UserPlus size={18} /> Daftar Akun
+            </>
+          )}
+        </button>
+      </form>
+
+      <p className="mt-5 text-center text-sm font-medium text-gray-500">
+        Sudah punya akun?{" "}
+        <Link href="/auth/login" className="font-black text-[#246b48] hover:underline">
+          Masuk di sini
+        </Link>
+      </p>
+    </AuthSplitLayout>
   );
 }
