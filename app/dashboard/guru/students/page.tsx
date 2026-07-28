@@ -16,6 +16,7 @@ import {
   TAHFIDZ_LEVELS,
 } from "@/lib/tahfidz-levels";
 import { parseStudentWorksheet } from "@/lib/student-import";
+import { isMissingDatabaseFeatureError } from "@/lib/app-errors";
 import * as XLSX from "xlsx";
 
 const getNextAvailableNis = (students: any[]) => {
@@ -55,16 +56,24 @@ const createInitialStudentForm = () => ({
 
 const optionalText = (value: string) => value.trim() || null;
 
-const getStudentSaveError = (error: unknown, prefix: string) => {
-  const message =
-    error instanceof Error
+const getErrorMessage = (error: unknown) =>
+  error instanceof Error
+    ? error.message
+    : typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof error.message === "string"
       ? error.message
-      : typeof error === "object" &&
-          error !== null &&
-          "message" in error &&
-          typeof error.message === "string"
-        ? error.message
-        : "Terjadi kesalahan yang tidak diketahui.";
+      : "Terjadi kesalahan yang tidak diketahui.";
+
+const isMissingStudentProfileColumnError = (error: unknown) =>
+  isMissingDatabaseFeatureError(error) &&
+  /jenis_kelamin|nama_ayah|nama_ibu|students.*nik/i.test(
+    getErrorMessage(error),
+  );
+
+const getStudentSaveError = (error: unknown, prefix: string) => {
+  const message = getErrorMessage(error);
   const needsMigration =
     /jenis_kelamin|nama_ayah|nama_ibu|students.*nik|schema cache/i.test(
       message,
@@ -76,6 +85,28 @@ const getStudentSaveError = (error: unknown, prefix: string) => {
       : ""
   }`;
 };
+
+const getCoreStudentPayload = (student: {
+  teacher_id: string;
+  nama_lengkap: string;
+  nis: string;
+  kelas: string;
+  level: string;
+  tempat_tanggal_lahir: string;
+  wali_murid: string;
+  no_telp: string;
+  alamat: string;
+}) => ({
+  teacher_id: student.teacher_id,
+  nama_lengkap: student.nama_lengkap,
+  nis: student.nis,
+  kelas: student.kelas,
+  level: student.level,
+  tempat_tanggal_lahir: student.tempat_tanggal_lahir,
+  wali_murid: student.wali_murid,
+  no_telp: student.no_telp,
+  alamat: student.alamat,
+});
 
 export default function DaftarSiswaFull() {
   const router = useRouter();
@@ -356,12 +387,35 @@ export default function DaftarSiswaFull() {
           await new Promise(resolve => setTimeout(resolve, 800)); // Efek loading buatan
           let createdCount = 0;
           let updatedCount = 0;
+          let profileColumnsAvailable = true;
+          let usedCoreDataFallback = false;
 
           for (const student of studentsToSave) {
             const existingStudent = students.find((item) => normalizeNis(item.nis) === student.nis);
-            const { error } = existingStudent
-              ? await supabase.from("students").update(student).eq("id", existingStudent.id)
-              : await supabase.from("students").insert([student]);
+            const saveStudent = async (
+              payload: typeof student | ReturnType<typeof getCoreStudentPayload>,
+            ) =>
+              existingStudent
+                ? supabase
+                    .from("students")
+                    .update(payload)
+                    .eq("id", existingStudent.id)
+                : supabase.from("students").insert([payload]);
+
+            let { error } = await saveStudent(
+              profileColumnsAvailable
+                ? student
+                : getCoreStudentPayload(student),
+            );
+            if (
+              error &&
+              profileColumnsAvailable &&
+              isMissingStudentProfileColumnError(error)
+            ) {
+              profileColumnsAvailable = false;
+              usedCoreDataFallback = true;
+              ({ error } = await saveStudent(getCoreStudentPayload(student)));
+            }
             if (error) throw error;
             if (existingStudent) {
               updatedCount += 1;
@@ -375,7 +429,10 @@ export default function DaftarSiswaFull() {
             message:
               `Import selesai dari header baris ${parsedWorksheet.headerRowNumber}: ` +
               `${createdCount} siswa baru, ${updatedCount} siswa diperbarui` +
-              `${parsedWorksheet.skippedRows ? `, ${parsedWorksheet.skippedRows} baris dilewati` : ""}.`,
+              `${parsedWorksheet.skippedRows ? `, ${parsedWorksheet.skippedRows} baris dilewati` : ""}.` +
+              (usedCoreDataFallback
+                ? " Data nama, NIS, kelas, level, TTL, wali, telepon, dan alamat sudah masuk. Jalankan migrasi profil siswa lalu import ulang agar L/P, NIK, nama ayah, dan nama ibu ikut tersimpan."
+                : ""),
             type: 'success',
           });
           await checkUserAndFetchStudents();

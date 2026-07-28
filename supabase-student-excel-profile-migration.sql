@@ -43,3 +43,6 @@ comment on column public.students.nama_ayah is
   'Nama ayah sesuai data administrasi sekolah';
 comment on column public.students.nama_ibu is
   'Nama ibu sesuai data administrasi sekolah';
+
+-- Minta PostgREST/Supabase membaca kolom baru tanpa menunggu cache kedaluwarsa.
+notify pgrst, 'reload schema';
