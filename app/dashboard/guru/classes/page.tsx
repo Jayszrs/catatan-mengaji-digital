@@ -18,6 +18,7 @@ import {
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Input } from "@/components/Input";
 import { supabase } from "@/lib/supabase";
+import { getAppErrorMessage } from "@/lib/app-errors";
 
 interface ClassRow {
   id: string;
@@ -110,10 +111,7 @@ export default function ClassesPage() {
       } catch (error) {
         setNotification({
           type: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Gagal memuat data kelas.",
+          message: getAppErrorMessage(error, "Gagal memuat data kelas."),
         });
       } finally {
         setLoading(false);
@@ -165,8 +163,7 @@ export default function ClassesPage() {
     } catch (error) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error ? error.message : "Gagal menyimpan kelas.",
+        message: getAppErrorMessage(error, "Gagal menyimpan kelas."),
       });
     } finally {
       setSubmitting(false);
@@ -190,7 +187,10 @@ export default function ClassesPage() {
     if (!window.confirm(`Hapus kelas ${classItem.nama_kelas}?`)) return;
     const { error } = await supabase.from("classes").delete().eq("id", classItem.id);
     if (error) {
-      setNotification({ type: "error", message: error.message });
+      setNotification({
+        type: "error",
+        message: getAppErrorMessage(error, "Gagal menghapus kelas."),
+      });
       return;
     }
     setClasses((current) => current.filter((item) => item.id !== classItem.id));

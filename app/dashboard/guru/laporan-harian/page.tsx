@@ -22,6 +22,7 @@ import {
   downloadDailyReports,
 } from "@/lib/report-exports";
 import { supabase } from "@/lib/supabase";
+import { getAppErrorMessage } from "@/lib/app-errors";
 
 interface StudentRow {
   id: string;
@@ -95,10 +96,7 @@ export default function DailyReportsPage() {
       } catch (error) {
         setNotification({
           type: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Gagal memuat data laporan.",
+          message: getAppErrorMessage(error, "Gagal memuat data laporan."),
         });
       } finally {
         setLoading(false);
@@ -118,7 +116,10 @@ export default function DailyReportsPage() {
         .eq("student_id", form.student_id)
         .order("tanggal", { ascending: false });
       if (error) {
-        setNotification({ type: "error", message: error.message });
+        setNotification({
+          type: "error",
+          message: getAppErrorMessage(error, "Gagal memuat laporan harian."),
+        });
         return;
       }
       setHistory(data || []);
@@ -173,10 +174,10 @@ export default function DailyReportsPage() {
     } catch (error) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Gagal menyimpan laporan harian.",
+        message: getAppErrorMessage(
+          error,
+          "Gagal menyimpan laporan harian.",
+        ),
       });
     } finally {
       setSubmitting(false);
@@ -202,7 +203,7 @@ export default function DailyReportsPage() {
     } catch (error) {
       setNotification({
         type: "error",
-        message: error instanceof Error ? error.message : "Gagal mengunduh laporan.",
+        message: getAppErrorMessage(error, "Gagal mengunduh laporan."),
       });
     }
   };

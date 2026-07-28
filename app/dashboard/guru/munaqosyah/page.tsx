@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Award, CheckCircle2, Clock3, Loader2, Printer, Save } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/lib/supabase";
+import { getAppErrorMessage } from "@/lib/app-errors";
 
 interface StudentRow {
   id: string;
@@ -72,7 +73,12 @@ export default function MunaqosyahPage() {
   useEffect(() => {
     queueMicrotask(() => {
       loadData()
-        .catch((error) => setMessage({ type: "error", text: error.message }))
+        .catch((error) =>
+          setMessage({
+            type: "error",
+            text: getAppErrorMessage(error, "Gagal memuat Munaqosyah."),
+          }),
+        )
         .finally(() => setLoading(false));
     });
     // loadData only runs once; form selection is initialized from the response.
@@ -129,7 +135,7 @@ export default function MunaqosyahPage() {
     } catch (error) {
       setMessage({
         type: "error",
-        text: error instanceof Error ? error.message : "Gagal menyimpan Munaqosyah.",
+        text: getAppErrorMessage(error, "Gagal menyimpan Munaqosyah."),
       });
     } finally {
       setSaving(false);

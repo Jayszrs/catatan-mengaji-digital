@@ -5,6 +5,7 @@ import { Camera, CheckCircle2, Loader2, Save, UserRound } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { uploadTeacherPhoto } from "@/lib/profile-photos";
 import { supabase } from "@/lib/supabase";
+import { getAppErrorMessage } from "@/lib/app-errors";
 
 const emptyProfile = {
   full_name: "",
@@ -45,7 +46,12 @@ export default function TeacherProfilePage() {
       setPreview(next.photo_url);
     };
     load()
-      .catch((error) => setMessage({ type: "error", text: error.message }))
+      .catch((error) =>
+        setMessage({
+          type: "error",
+          text: getAppErrorMessage(error, "Gagal memuat profil guru."),
+        }),
+      )
       .finally(() => setLoading(false));
   }, []);
 
@@ -74,7 +80,10 @@ export default function TeacherProfilePage() {
       setPhoto(null);
       setMessage({ type: "success", text: "Biodata dan foto guru berhasil disimpan." });
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "Gagal menyimpan profil." });
+      setMessage({
+        type: "error",
+        text: getAppErrorMessage(error, "Gagal menyimpan profil."),
+      });
     } finally {
       setSaving(false);
     }

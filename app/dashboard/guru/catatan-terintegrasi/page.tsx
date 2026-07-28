@@ -21,6 +21,7 @@ import { StudentAvatar } from "@/components/StudentAvatar";
 import { downloadTadarusHarian } from "@/lib/export-tadarus";
 import { getStudentRouteKey } from "@/lib/students";
 import { supabase } from "@/lib/supabase";
+import { getAppErrorMessage } from "@/lib/app-errors";
 
 type Notification = {
   type: "success" | "error";
@@ -178,7 +179,7 @@ export default function CatatanTerintegrasiPage() {
       } catch (error) {
         setNotification({
           type: "error",
-          message: error instanceof Error ? error.message : "Gagal memuat data.",
+          message: getAppErrorMessage(error, "Gagal memuat data."),
         });
       } finally {
         setLoading(false);
@@ -301,10 +302,10 @@ export default function CatatanTerintegrasiPage() {
     } catch (error) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Gagal menyimpan catatan terintegrasi.",
+        message: getAppErrorMessage(
+          error,
+          "Gagal menyimpan catatan terintegrasi.",
+        ),
       });
     } finally {
       setSubmitting(false);
@@ -317,7 +318,7 @@ export default function CatatanTerintegrasiPage() {
     } catch (error) {
       setNotification({
         type: "error",
-        message: error instanceof Error ? error.message : "Gagal mengunduh data.",
+        message: getAppErrorMessage(error, "Gagal mengunduh data."),
       });
     }
   };

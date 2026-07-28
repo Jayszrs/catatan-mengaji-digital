@@ -13,6 +13,7 @@ import {
   MunaqosyahExportRow,
 } from "@/lib/report-exports";
 import { supabase } from "@/lib/supabase";
+import { getAppErrorMessage } from "@/lib/app-errors";
 
 interface StudentOption {
   id: string;
@@ -38,7 +39,11 @@ function AutomaticReportContent() {
       setStudents(data || []);
       setStudentId((current) => current || data?.[0]?.id || "");
     };
-    loadStudents().catch((issue) => setError(issue.message)).finally(() => setLoading(false));
+    loadStudents()
+      .catch((issue) =>
+        setError(getAppErrorMessage(issue, "Gagal memuat daftar siswa.")),
+      )
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -57,7 +62,11 @@ function AutomaticReportContent() {
       setLevels(levelResult.data || []);
       setMunaq(munaqResult.data || undefined);
     };
-    loadReports().catch((issue) => setError(issue.message)).finally(() => setLoading(false));
+    loadReports()
+      .catch((issue) =>
+        setError(getAppErrorMessage(issue, "Gagal memuat rapor otomatis.")),
+      )
+      .finally(() => setLoading(false));
   }, [studentId]);
 
   const selected = students.find((student) => student.id === studentId);

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
+import { getAppErrorMessage } from "@/lib/app-errors";
 import { BookOpen, Save, Users, Calendar, History, Edit2, Trash2, Loader2, CheckCircle2, AlertCircle, X } from "lucide-react";
 
 export default function InputTahsinPage() {
@@ -148,8 +149,12 @@ export default function InputTahsinPage() {
       }));
       setEditingId(null);
       fetchHistory(formData.student_id);
-    } catch (err: any) {
-      setNotification({ show: true, message: "Error: " + err.message, type: 'error' });
+    } catch (err: unknown) {
+      setNotification({
+        show: true,
+        message: getAppErrorMessage(err, "Gagal menyimpan nilai hafalan."),
+        type: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -167,8 +172,12 @@ export default function InputTahsinPage() {
       if (error) throw error;
       setNotification({ show: true, message: "Data berhasil dihapus.", type: 'success' });
       fetchHistory(formData.student_id);
-    } catch (err: any) {
-      setNotification({ show: true, message: "Gagal menghapus: " + err.message, type: 'error' });
+    } catch (err: unknown) {
+      setNotification({
+        show: true,
+        message: getAppErrorMessage(err, "Gagal menghapus data."),
+        type: "error",
+      });
     }
   };
 

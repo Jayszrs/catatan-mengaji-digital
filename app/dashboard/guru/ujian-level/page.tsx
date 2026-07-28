@@ -20,6 +20,7 @@ import {
   LevelExamExportRow,
 } from "@/lib/report-exports";
 import { supabase } from "@/lib/supabase";
+import { getAppErrorMessage } from "@/lib/app-errors";
 
 interface StudentRow {
   id: string;
@@ -119,10 +120,7 @@ export default function LevelExamPage() {
       } catch (error) {
         setNotification({
           type: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Gagal memuat data ujian.",
+          message: getAppErrorMessage(error, "Gagal memuat data ujian."),
         });
       } finally {
         setLoading(false);
@@ -141,7 +139,10 @@ export default function LevelExamPage() {
         .eq("student_id", form.student_id)
         .order("tanggal", { ascending: false });
       if (error) {
-        setNotification({ type: "error", message: error.message });
+        setNotification({
+          type: "error",
+          message: getAppErrorMessage(error, "Gagal memuat data ujian."),
+        });
         return;
       }
       setHistory(data || []);
@@ -224,10 +225,10 @@ export default function LevelExamPage() {
     } catch (error) {
       setNotification({
         type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Gagal menyimpan ujian kenaikan level.",
+        message: getAppErrorMessage(
+          error,
+          "Gagal menyimpan ujian kenaikan level.",
+        ),
       });
     } finally {
       setSubmitting(false);
@@ -240,7 +241,7 @@ export default function LevelExamPage() {
     } catch (error) {
       setNotification({
         type: "error",
-        message: error instanceof Error ? error.message : "Gagal mengunduh rapor.",
+        message: getAppErrorMessage(error, "Gagal mengunduh rapor."),
       });
     }
   };

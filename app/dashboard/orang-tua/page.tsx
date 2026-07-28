@@ -23,6 +23,7 @@ import {
   MunaqosyahExportRow,
 } from "@/lib/report-exports";
 import { supabase } from "@/lib/supabase";
+import { getAppErrorMessage } from "@/lib/app-errors";
 
 type ActiveOutput = "harian" | "level" | "munaqosyah";
 
@@ -116,7 +117,12 @@ export default function ParentDashboard() {
   useEffect(() => {
     queueMicrotask(() => {
       load()
-        .catch((error) => setMessage({ type: "error", text: error.message }))
+        .catch((error) =>
+          setMessage({
+            type: "error",
+            text: getAppErrorMessage(error, "Gagal memuat data anak."),
+          }),
+        )
         .finally(() => setLoading(false));
     });
     // Authentication and parent link are checked once on page entry.
@@ -135,7 +141,10 @@ export default function ParentDashboard() {
       await loadStudentData(studentId);
       setMessage({ type: "success", text: "Akun orang tua berhasil dihubungkan ke satu anak." });
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "NIS anak tidak dapat dihubungkan." });
+      setMessage({
+        type: "error",
+        text: getAppErrorMessage(error, "NIS anak tidak dapat dihubungkan."),
+      });
     } finally {
       setLinking(false);
     }
@@ -152,7 +161,10 @@ export default function ParentDashboard() {
       if (active === "level") downloadLevelExamReports(student.nama_lengkap, levels);
       if (active === "munaqosyah") downloadMunaqosyahReport(student.nama_lengkap, munaqosyah);
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "Data belum tersedia." });
+      setMessage({
+        type: "error",
+        text: getAppErrorMessage(error, "Data belum tersedia."),
+      });
     }
   };
 
@@ -191,7 +203,12 @@ export default function ParentDashboard() {
             <button
               onClick={() => {
                 try { downloadTadarusHarian(student.nama_lengkap, tadarus); }
-                catch (error) { setMessage({ type: "error", text: error instanceof Error ? error.message : "Belum ada tadarus." }); }
+                catch (error) {
+                  setMessage({
+                    type: "error",
+                    text: getAppErrorMessage(error, "Belum ada tadarus."),
+                  });
+                }
               }}
               className="flex items-center justify-center gap-2 rounded-xl bg-white/15 px-5 py-3 font-bold hover:bg-white/25 print:hidden"
             >

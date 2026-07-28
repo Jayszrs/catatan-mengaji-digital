@@ -12,6 +12,7 @@ import {
   Mail,
 } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getAppErrorMessage } from "@/lib/app-errors";
 
 type Mode = "request" | "update" | "success";
 
@@ -59,7 +60,7 @@ function ResetPasswordContent() {
         }
       } catch (error) {
         if (active) {
-          setMessage(error instanceof Error ? error.message : "Tautan reset tidak valid.");
+          setMessage(getAppErrorMessage(error, "Tautan reset tidak valid."));
           setMode("request");
         }
       } finally {
@@ -87,7 +88,7 @@ function ResetPasswordContent() {
       setMode("success");
       setMessage("Email reset password sudah dikirim. Periksa inbox dan folder spam.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Gagal mengirim email reset.");
+      setMessage(getAppErrorMessage(error, "Gagal mengirim email reset."));
     } finally {
       setLoading(false);
     }
@@ -106,7 +107,7 @@ function ResetPasswordContent() {
       setMode("success");
       setMessage("Password berhasil diubah. Silakan login menggunakan password baru.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Gagal mengubah password.");
+      setMessage(getAppErrorMessage(error, "Gagal mengubah password."));
     } finally {
       setLoading(false);
     }
