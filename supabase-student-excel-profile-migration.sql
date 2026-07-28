@@ -7,6 +7,11 @@ alter table public.students
   add column if not exists nama_ayah text,
   add column if not exists nama_ibu text;
 
+-- File sekolah dapat berisi lebih dari satu nomor telepon dalam satu sel.
+-- Gunakan text agar data tidak dipotong oleh batas varchar(20) schema lama.
+alter table public.students
+  alter column no_telp type text using no_telp::text;
+
 do $$
 begin
   if not exists (

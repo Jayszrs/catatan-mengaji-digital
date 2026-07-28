@@ -72,6 +72,20 @@ const isMissingStudentProfileColumnError = (error: unknown) =>
     getErrorMessage(error),
   );
 
+const isValueTooLongForLegacyPhoneError = (error: unknown) => {
+  const code =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string"
+      ? error.code
+      : "";
+  return (
+    code === "22001" ||
+    /value too long.*character varying\(20\)/i.test(getErrorMessage(error))
+  );
+};
+
 const getStudentSaveError = (error: unknown, prefix: string) => {
   const message = getErrorMessage(error);
   const needsMigration =
@@ -106,6 +120,13 @@ const getCoreStudentPayload = (student: {
   wali_murid: student.wali_murid,
   no_telp: student.no_telp,
   alamat: student.alamat,
+});
+
+const limitPhoneForLegacySchema = <T extends { no_telp: string }>(
+  student: T,
+) => ({
+  ...student,
+  no_telp: student.no_telp.split(" / ")[0].slice(0, 20),
 });
 
 export default function DaftarSiswaFull() {
@@ -389,6 +410,8 @@ export default function DaftarSiswaFull() {
           let updatedCount = 0;
           let profileColumnsAvailable = true;
           let usedCoreDataFallback = false;
+          let legacyPhoneLimitRequired = false;
+          let usedLegacyPhoneFallback = false;
 
           for (const student of studentsToSave) {
             const existingStudent = students.find((item) => normalizeNis(item.nis) === student.nis);
@@ -402,11 +425,16 @@ export default function DaftarSiswaFull() {
                     .eq("id", existingStudent.id)
                 : supabase.from("students").insert([payload]);
 
-            let { error } = await saveStudent(
-              profileColumnsAvailable
+            const getCompatiblePayload = () => {
+              const payload = profileColumnsAvailable
                 ? student
-                : getCoreStudentPayload(student),
-            );
+                : getCoreStudentPayload(student);
+              return legacyPhoneLimitRequired
+                ? limitPhoneForLegacySchema(payload)
+                : payload;
+            };
+
+            let { error } = await saveStudent(getCompatiblePayload());
             if (
               error &&
               profileColumnsAvailable &&
@@ -414,9 +442,18 @@ export default function DaftarSiswaFull() {
             ) {
               profileColumnsAvailable = false;
               usedCoreDataFallback = true;
-              ({ error } = await saveStudent(getCoreStudentPayload(student)));
+              ({ error } = await saveStudent(getCompatiblePayload()));
             }
-            if (error) throw error;
+            if (error && isValueTooLongForLegacyPhoneError(error)) {
+              legacyPhoneLimitRequired = true;
+              usedLegacyPhoneFallback = true;
+              ({ error } = await saveStudent(getCompatiblePayload()));
+            }
+            if (error) {
+              throw new Error(
+                `${student.nama_lengkap}: ${getErrorMessage(error)}`,
+              );
+            }
             if (existingStudent) {
               updatedCount += 1;
             } else {
@@ -432,6 +469,9 @@ export default function DaftarSiswaFull() {
               `${parsedWorksheet.skippedRows ? `, ${parsedWorksheet.skippedRows} baris dilewati` : ""}.` +
               (usedCoreDataFallback
                 ? " Data nama, NIS, kelas, level, TTL, wali, telepon, dan alamat sudah masuk. Jalankan migrasi profil siswa lalu import ulang agar L/P, NIK, nama ayah, dan nama ibu ikut tersimpan."
+                : "") +
+              (usedLegacyPhoneFallback
+                ? " Database masih membatasi nomor telepon 20 karakter, jadi sementara hanya nomor pertama yang disimpan. Jalankan migrasi profil siswa lalu import ulang agar semua nomor tersimpan utuh."
                 : ""),
             type: 'success',
           });
@@ -440,6 +480,7 @@ export default function DaftarSiswaFull() {
           setNotification({ show: true, message: "File Excel kosong atau format tidak sesuai.", type: 'error' });
         }
       } catch (err: unknown) {
+        await checkUserAndFetchStudents();
         setNotification({
           show: true,
           message: getStudentSaveError(err, "Gagal mengimpor file: "),
