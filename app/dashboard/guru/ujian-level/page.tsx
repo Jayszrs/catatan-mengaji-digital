@@ -26,6 +26,7 @@ import {
   MAX_TAHFIDZ_LEVEL,
   TAHFIDZ_LEVELS,
 } from "@/lib/tahfidz-levels";
+import { numberToIndonesianDecimalWords } from "@/lib/munaqosyah";
 
 interface StudentRow {
   id: string;
@@ -54,6 +55,13 @@ const initialForm = {
   catatan_guru: "",
 };
 
+const levelScoreFields = [
+  { label: "Kelancaran", key: "nilai_kelancaran" },
+  { label: "Makhorijul Huruf", key: "nilai_makhraj" },
+  { label: "Hukum Tajwid", key: "nilai_tajwid" },
+  { label: "Sambung Ayat", key: "nilai_hafalan" },
+] as const;
+
 export default function LevelExamPage() {
   const router = useRouter();
   const [students, setStudents] = useState<StudentRow[]>([]);
@@ -67,24 +75,23 @@ export default function LevelExamPage() {
   } | null>(null);
 
   const selectedStudent = students.find((student) => student.id === form.student_id);
-  const average = useMemo(() => {
-    const values = [
-      form.nilai_kelancaran,
-      form.nilai_makhraj,
-      form.nilai_tajwid,
-      form.nilai_hafalan,
-    ].map(Number);
-    return Math.round(
-      values.reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0) /
-        values.length,
-    );
-  }, [
-    form.nilai_hafalan,
-    form.nilai_kelancaran,
-    form.nilai_makhraj,
-    form.nilai_tajwid,
-  ]);
+  const scoreRows = useMemo(() => {
+    return levelScoreFields.map((field) => {
+      const score = Number(form[field.key]);
+      const safeScore = Number.isFinite(score) ? score : 0;
+      return {
+        ...field,
+        score: safeScore,
+        valid: form[field.key].trim() !== "" && Number.isFinite(score),
+        words: numberToIndonesianDecimalWords(form[field.key]),
+        description: safeScore >= 75 ? "Tercapai" : "Perlu Bimbingan",
+      };
+    });
+  }, [form]);
+  const total = scoreRows.reduce((sum, row) => sum + row.score, 0);
+  const average = Number((total / scoreRows.length).toFixed(2));
   const predictedStatus = average >= 75 ? "Lulus" : "Mengulang";
+  const category = predictedStatus === "Lulus" ? "Naik" : "Tidak Naik";
 
   useEffect(() => {
     const load = async () => {
@@ -211,6 +218,15 @@ export default function LevelExamPage() {
     setSubmitting(true);
     setNotification(null);
     try {
+      if (
+        scoreRows.some(
+          (row) =>
+            !row.valid || row.score < 0 || row.score > 100,
+        )
+      ) {
+        throw new Error("Semua nilai harus berada di antara 0 dan 100.");
+      }
+
       const { error } = await supabase.rpc("save_level_promotion_exam", {
         p_student_id: form.student_id,
         p_tanggal: form.tanggal,
@@ -266,7 +282,14 @@ export default function LevelExamPage() {
 
   const handleDownload = () => {
     try {
-      downloadLevelExamReports(selectedStudent?.nama_lengkap || "Siswa", history);
+      downloadLevelExamReports(
+        selectedStudent?.nama_lengkap || "Siswa",
+        history,
+        {
+          nis: selectedStudent?.nis,
+          kelas: selectedStudent?.kelas,
+        },
+      );
     } catch (error) {
       setNotification({
         type: "error",
@@ -286,7 +309,8 @@ export default function LevelExamPage() {
             Ujian Kenaikan Level
           </h1>
           <p className="mt-2 text-sm font-medium text-gray-500">
-            Penilaian kelancaran, makhraj, tajwid, dan hafalan dengan KKM 75.
+            Form rekap sesuai Excel: nilai, terbilang, keterangan, jumlah,
+            rata-rata, dan hasil kenaikan level. KKM 75.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -352,7 +376,7 @@ export default function LevelExamPage() {
               >
                 <p className="text-xs font-bold uppercase">Prediksi Hasil</p>
                 <p className="text-2xl font-black">
-                  {average} · {predictedStatus}
+                  {average} · {category}
                 </p>
               </div>
             </div>
@@ -438,23 +462,88 @@ export default function LevelExamPage() {
                 )}
               </div>
 
-              {[
-                ["Kelancaran", "nilai_kelancaran"],
-                ["Makhraj", "nilai_makhraj"],
-                ["Tajwid", "nilai_tajwid"],
-                ["Hafalan", "nilai_hafalan"],
-              ].map(([label, key]) => (
+              {levelScoreFields.map(({ label, key }) => (
                 <Input
                   key={key}
                   label={label}
                   type="number"
                   min="0"
                   max="100"
-                  value={form[key as keyof typeof form]}
+                  step="0.01"
+                  value={form[key]}
                   onChange={(event) => setForm({ ...form, [key]: event.target.value })}
                   required
                 />
               ))}
+            </div>
+
+            <div className="mt-7 overflow-x-auto rounded-2xl border border-gray-200">
+              <table className="w-full min-w-[760px] border-collapse text-sm">
+                <thead className="bg-gray-100 text-gray-700">
+                  <tr>
+                    <th className="border-b border-r border-gray-200 p-3 text-left">
+                      Komponen
+                    </th>
+                    <th className="border-b border-r border-gray-200 p-3">
+                      Nilai
+                    </th>
+                    <th className="border-b border-r border-gray-200 p-3 text-left">
+                      Terbilang
+                    </th>
+                    <th className="border-b border-gray-200 p-3">
+                      Keterangan
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scoreRows.map((row) => (
+                    <tr key={row.key}>
+                      <td className="border-b border-r border-gray-200 p-3 font-bold">
+                        {row.label}
+                      </td>
+                      <td className="border-b border-r border-gray-200 p-3 text-center text-lg font-black">
+                        {row.score}
+                      </td>
+                      <td className="border-b border-r border-gray-200 p-3">
+                        {row.words}
+                      </td>
+                      <td className="border-b border-gray-200 p-3 text-center font-bold">
+                        {row.description}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-purple-50 font-black">
+                  <tr>
+                    <td className="border-r border-gray-200 p-3">Jumlah</td>
+                    <td className="border-r border-gray-200 p-3 text-center">
+                      {Number(total.toFixed(2))}
+                    </td>
+                    <td className="border-r border-gray-200 p-3">
+                      {numberToIndonesianDecimalWords(
+                        Number(total.toFixed(2)),
+                      )}
+                    </td>
+                    <td className="p-3 text-center">Rata-rata {average}</td>
+                  </tr>
+                  <tr>
+                    <td className="border-r border-t border-gray-200 p-3">
+                      Kategori
+                    </td>
+                    <td
+                      className="border-r border-t border-gray-200 p-3 text-center"
+                      colSpan={2}
+                    >
+                      {category}
+                    </td>
+                    <td className="border-t border-gray-200 p-3 text-center">
+                      {form.level_tujuan
+                        ? `${category} ke ${getTahfidzLevelLabel(form.level_tujuan)}`
+                        : "Pilih jenjang tujuan"}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
 
             <div className="mt-5">
@@ -496,7 +585,8 @@ export default function LevelExamPage() {
                   Rapor Ujian Level {selectedStudent?.nama_lengkap || "Siswa"}
                 </h2>
                 <p className="text-sm font-medium text-gray-500">
-                  NIS {selectedStudent?.nis || "-"} · Kelas {selectedStudent?.kelas || "-"}
+                  NIS/NISN {selectedStudent?.nis || "-"} · Kelas{" "}
+                  {selectedStudent?.kelas || "-"}
                 </p>
               </div>
             </div>
@@ -515,9 +605,9 @@ export default function LevelExamPage() {
                         "Tanggal",
                         "Kenaikan",
                         "Kelancaran",
-                        "Makhraj",
-                        "Tajwid",
-                        "Hafalan",
+                        "Makhorijul Huruf",
+                        "Hukum Tajwid",
+                        "Sambung Ayat",
                         "Rata-rata",
                         "Status",
                         "Catatan",

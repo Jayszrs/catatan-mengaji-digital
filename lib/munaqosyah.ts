@@ -110,6 +110,25 @@ export function numberToIndonesianWords(value: number) {
   return capitalize(indonesianWords(Math.round(value)));
 }
 
+export function numberToIndonesianDecimalWords(value: number | string) {
+  const normalized = String(value).trim().replace(",", ".");
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) return "-";
+
+  const [wholePart, decimalPart = ""] = normalized.split(".");
+  const wholeNumber = Math.abs(Number(wholePart || 0));
+  const meaningfulDecimals = decimalPart.replace(/0+$/, "");
+  const wholeWords = indonesianWords(wholeNumber);
+
+  if (!meaningfulDecimals) return capitalize(wholeWords);
+
+  const decimalWords = meaningfulDecimals
+    .split("")
+    .map((digit) => (digit === "0" ? "nol" : INDONESIAN_UNITS[Number(digit)]))
+    .join(" ");
+  return capitalize(`${wholeWords} koma ${decimalWords}`);
+}
+
 export function toArabicIndicDigits(value: number | string) {
   return String(value).replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]);
 }

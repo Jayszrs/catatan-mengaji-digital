@@ -2,6 +2,7 @@
 
 import * as XLSX from "xlsx";
 import { getTahfidzLevelLabel } from "@/lib/tahfidz-levels";
+import { numberToIndonesianDecimalWords } from "@/lib/munaqosyah";
 
 const safeName = (value: string) =>
   value
@@ -68,39 +69,105 @@ export interface LevelExamExportRow {
   catatan_guru?: string | null;
 }
 
+export interface LevelExamStudentInfo {
+  nis?: string | null;
+  kelas?: string | null;
+}
+
 export function downloadLevelExamReports(
   studentName: string,
   rows: LevelExamExportRow[],
+  student?: LevelExamStudentInfo,
 ) {
   if (rows.length === 0) throw new Error("Belum ada hasil ujian level untuk diunduh.");
 
   const sheet = XLSX.utils.json_to_sheet(
-    rows.map((row, index) => ({
-      No: index + 1,
-      Tanggal: row.tanggal || "-",
-      "Jenjang Asal": getTahfidzLevelLabel(row.level_asal),
-      "Jenjang Tujuan": getTahfidzLevelLabel(row.level_tujuan),
-      Kelancaran: row.nilai_kelancaran ?? "-",
-      Makhraj: row.nilai_makhraj ?? "-",
-      Tajwid: row.nilai_tajwid ?? "-",
-      Hafalan: row.nilai_hafalan ?? "-",
-      "Rata-rata": row.nilai_rata_rata ?? "-",
-      Status: row.status || "-",
-      "Tahun Ajaran": row.tahun_ajaran || "-",
-      "Catatan Guru": row.catatan_guru || "-",
-    })),
+    rows.map((row, index) => {
+      const scores = [
+        row.nilai_kelancaran,
+        row.nilai_makhraj,
+        row.nilai_tajwid,
+        row.nilai_hafalan,
+      ];
+      const total = scores.reduce<number>(
+        (sum, value) => sum + (Number(value) || 0),
+        0,
+      );
+      const scoreDescription = (value?: number) =>
+        value === undefined
+          ? "-"
+          : value >= 75
+            ? "Tercapai"
+            : "Perlu Bimbingan";
+      const category = row.status === "Lulus" ? "Naik" : "Tidak Naik";
+
+      return {
+        No: index + 1,
+        "Nama Peserta Didik": studentName,
+        "NIS/NISN": student?.nis || "-",
+        Kelas: student?.kelas || "-",
+        Level: getTahfidzLevelLabel(row.level_asal),
+        Tanggal: row.tanggal || "-",
+        "Kelancaran Nilai": row.nilai_kelancaran ?? "-",
+        "Kelancaran Terbilang":
+          row.nilai_kelancaran === undefined
+            ? "-"
+            : numberToIndonesianDecimalWords(row.nilai_kelancaran),
+        "Kelancaran Keterangan": scoreDescription(row.nilai_kelancaran),
+        "Makhorijul Huruf Nilai": row.nilai_makhraj ?? "-",
+        "Makhorijul Huruf Terbilang":
+          row.nilai_makhraj === undefined
+            ? "-"
+            : numberToIndonesianDecimalWords(row.nilai_makhraj),
+        "Makhorijul Huruf Keterangan": scoreDescription(row.nilai_makhraj),
+        "Hukum Tajwid Nilai": row.nilai_tajwid ?? "-",
+        "Hukum Tajwid Terbilang":
+          row.nilai_tajwid === undefined
+            ? "-"
+            : numberToIndonesianDecimalWords(row.nilai_tajwid),
+        "Hukum Tajwid Keterangan": scoreDescription(row.nilai_tajwid),
+        "Sambung Ayat Nilai": row.nilai_hafalan ?? "-",
+        "Sambung Ayat Terbilang":
+          row.nilai_hafalan === undefined
+            ? "-"
+            : numberToIndonesianDecimalWords(row.nilai_hafalan),
+        "Sambung Ayat Keterangan": scoreDescription(row.nilai_hafalan),
+        Jumlah: Number(total.toFixed(2)),
+        "Rata-rata": row.nilai_rata_rata ?? "-",
+        Kategori: category,
+        "Naik Level":
+          row.status === "Lulus"
+            ? `Naik ke ${getTahfidzLevelLabel(row.level_tujuan)}`
+            : "Mengulang",
+        "Tahun Ajaran": row.tahun_ajaran || "-",
+        "Catatan Guru": row.catatan_guru || "-",
+      };
+    }),
   );
   sheet["!cols"] = [
     { wch: 6 },
+    { wch: 32 },
+    { wch: 18 },
+    { wch: 10 },
+    { wch: 24 },
     { wch: 14 },
     { wch: 12 },
+    { wch: 28 },
+    { wch: 20 },
+    { wch: 12 },
+    { wch: 28 },
+    { wch: 20 },
+    { wch: 12 },
+    { wch: 28 },
+    { wch: 20 },
+    { wch: 12 },
+    { wch: 28 },
+    { wch: 20 },
+    { wch: 12 },
     { wch: 14 },
     { wch: 14 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 14 },
-    { wch: 12 },
+    { wch: 20 },
+    { wch: 18 },
     { wch: 16 },
     { wch: 40 },
   ];

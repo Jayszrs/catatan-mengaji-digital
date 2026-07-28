@@ -379,7 +379,10 @@ export default function ParentDashboard() {
         );
       }
       if (active === "level") {
-        downloadLevelExamReports(student.nama_lengkap, levels);
+        downloadLevelExamReports(student.nama_lengkap, levels, {
+          nis: student.nis,
+          kelas: student.kelas,
+        });
       }
       if (active === "munaqosyah") {
         downloadMunaqosyahReport(student.nama_lengkap, munaqosyah);

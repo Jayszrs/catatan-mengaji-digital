@@ -203,7 +203,10 @@ function AutomaticReportContent() {
           selectedMemorization,
         );
       } else if (activeReport === "level") {
-        downloadLevelExamReports(name, levels);
+        downloadLevelExamReports(name, levels, {
+          nis: selected?.nis,
+          kelas: selected?.kelas,
+        });
       } else {
         downloadMunaqosyahReport(name, munaq);
       }
