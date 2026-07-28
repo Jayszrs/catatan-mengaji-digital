@@ -1,842 +1,257 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Award,
-  BookOpen,
-  CalendarDays,
-  Camera,
-  ChevronDown,
-  ChevronUp,
+  BookOpenCheck,
   Download,
-  FileText,
   GraduationCap,
+  Link2,
   Loader2,
-  Search,
-  Sun,
-  XCircle,
+  Printer,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { StudentAvatar } from "@/components/StudentAvatar";
 import { downloadTadarusHarian } from "@/lib/export-tadarus";
 import {
-  downloadDailyReports,
+  DailyMemorizationExportRow,
+  downloadDailyMemorizationReports,
   downloadLevelExamReports,
+  downloadMunaqosyahReport,
+  LevelExamExportRow,
+  MunaqosyahExportRow,
 } from "@/lib/report-exports";
-import { getStudentRouteKey } from "@/lib/students";
-import { uploadStudentPhoto } from "@/lib/student-photos";
 import { supabase } from "@/lib/supabase";
 
-type ActiveTab = "tadarus" | "tahfidz" | "harian" | "level" | "munaqasyah";
+type ActiveOutput = "harian" | "level" | "munaqosyah";
 
-interface StudentData {
+interface StudentRow {
   id: string;
   nama_lengkap: string;
-  kelas: string;
-  nis: string;
-  level: string;
+  nis?: string | null;
+  kelas?: string | null;
+  level?: number | string | null;
   foto_url?: string | null;
-  tadarus: TadarusEntry[];
-  tahfidz: TahfidzEntry[];
-  dailyReports: DailyReportEntry[];
-  levelExams: LevelExamEntry[];
-  reports: StudentReport[];
 }
 
-interface TadarusEntry {
-  [key: string]: unknown;
-  id: string;
-  student_id: string;
+interface TadarusRow {
   tanggal?: string;
   nama_surah?: string;
   hal_ayat?: string;
   keterangan?: string;
 }
 
-interface TahfidzEntry {
-  [key: string]: unknown;
-  id: string;
-  student_id: string;
-  tanggal?: string;
-  nama_surah?: string;
-  ayat?: string;
-  makhraj?: string;
-  murojaah?: string;
-  nilai?: number | string | null;
-  keterangan?: string;
-}
-
-interface DailyReportEntry {
-  [key: string]: unknown;
-  id: string;
-  student_id: string;
-  tanggal?: string;
-  status_presensi?: string;
-  kegiatan?: string | null;
-  ringkasan_tadarus?: string | null;
-  ringkasan_hafalan?: string | null;
-  catatan_guru?: string | null;
-}
-
-interface LevelExamEntry {
-  [key: string]: unknown;
-  id: string;
-  student_id: string;
-  tanggal?: string;
-  level_asal?: number;
-  level_tujuan?: number;
-  nilai_kelancaran?: number;
-  nilai_makhraj?: number;
-  nilai_tajwid?: number;
-  nilai_hafalan?: number;
-  nilai_rata_rata?: number;
-  status?: string;
-  tahun_ajaran?: string;
-  catatan_guru?: string | null;
-}
-
-interface MunaqasyahScoreRow {
-  angka?: string | number;
-  huruf?: string;
-  arab_huruf?: string;
-  arab_angka?: string;
-}
-
-interface MunaqasyahPayload {
-  rowsMunaqosyah?: MunaqasyahScoreRow[];
-  kategoriMunaqosyah?: { indo?: string; arab?: string };
-  catatanMunaqosyah?: string;
-}
-
-interface StudentReport {
-  id: string;
-  student_id: string;
-  bulan_tahun?: string;
-  data_rapor?: MunaqasyahPayload;
-}
-
-const getPredikat = (nilai: number) => {
-  if (nilai >= 90) return "Mumtaz";
-  if (nilai >= 80) return "Jayyid Jiddan";
-  if (nilai >= 65) return "Jayyid";
-  if (nilai >= 50) return "Maqbul";
-  return "Perlu Bimbingan";
-};
-
-export default function OrangTuaDashboard() {
+export default function ParentDashboard() {
   const router = useRouter();
-  const [userId, setUserId] = useState("");
+  const [student, setStudent] = useState<StudentRow | null>(null);
+  const [tadarus, setTadarus] = useState<TadarusRow[]>([]);
+  const [daily, setDaily] = useState<DailyMemorizationExportRow[]>([]);
+  const [levels, setLevels] = useState<LevelExamExportRow[]>([]);
+  const [munaqosyah, setMunaqosyah] = useState<MunaqosyahExportRow | undefined>();
+  const [active, setActive] = useState<ActiveOutput>("harian");
+  const [nis, setNis] = useState("");
+  const [needsLink, setNeedsLink] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [students, setStudents] = useState<StudentData[]>([]);
-  const [activeTabs, setActiveTabs] = useState<Record<string, ActiveTab>>({});
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterKelas, setFilterKelas] = useState("Semua");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [uploadingStudentId, setUploadingStudentId] = useState<string | null>(null);
-  const [notification, setNotification] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [linking, setLinking] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const fetchAllData = async () => {
-    const [
-      studentsResult,
-      tadarusResult,
-      tahfidzResult,
-      reportsResult,
-      dailyResult,
-      levelResult,
-    ] =
-      await Promise.all([
-        supabase.from("students").select("*").order("nama_lengkap", { ascending: true }),
-        supabase
-          .from("laporan_tadarus_pagi")
-          .select("*")
-          .order("tanggal", { ascending: false }),
-        supabase
-          .from("laporan_tahsin_tahfidz")
-          .select("*")
-          .order("tanggal", { ascending: false }),
-        supabase
-          .from("student_reports")
-          .select("*")
-          .eq("jenis_rapor", "munaqosyah")
-          .order("updated_at", { ascending: false }),
-        supabase
-          .from("daily_student_reports")
-          .select("*")
-          .order("tanggal", { ascending: false }),
-        supabase
-          .from("level_promotion_exams")
-          .select("*")
-          .order("tanggal", { ascending: false }),
-      ]);
-
-    if (studentsResult.error) throw studentsResult.error;
+  const loadStudentData = async (studentId: string) => {
+    const [studentResult, tadarusResult, dailyResult, levelResult, munaqResult] = await Promise.all([
+      supabase.from("students").select("id,nama_lengkap,nis,kelas,level,foto_url").eq("id", studentId).single(),
+      supabase.from("laporan_tadarus_pagi").select("tanggal,nama_surah,hal_ayat,keterangan").eq("student_id", studentId).order("tanggal", { ascending: false }),
+      supabase.from("laporan_tahsin_tahfidz").select("tanggal,nama_surah,ayat,murojaah,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,keterangan").eq("student_id", studentId).order("tanggal", { ascending: false }),
+      supabase.from("level_promotion_exams").select("tanggal,level_asal,level_tujuan,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,status,tahun_ajaran,catatan_guru").eq("student_id", studentId).order("tanggal", { ascending: false }),
+      supabase.from("munaqosyah_exams").select("tanggal,hasil_ujian,catatan_guru").eq("student_id", studentId).maybeSingle(),
+    ]);
+    if (studentResult.error) throw studentResult.error;
     if (tadarusResult.error) throw tadarusResult.error;
-    if (tahfidzResult.error) throw tahfidzResult.error;
+    if (dailyResult.error) throw dailyResult.error;
+    if (levelResult.error) throw levelResult.error;
+    if (munaqResult.error) throw munaqResult.error;
+    setStudent(studentResult.data);
+    setTadarus(tadarusResult.data || []);
+    setDaily(dailyResult.data || []);
+    setLevels(levelResult.data || []);
+    setMunaqosyah(munaqResult.data || undefined);
+    setNeedsLink(false);
+  };
 
-    const studentList: StudentData[] = (studentsResult.data || []).map((student) => ({
-      id: student.id,
-      nama_lengkap: student.nama_lengkap || "Siswa",
-      kelas: student.kelas || "Tanpa Kelas",
-      nis: student.nis || "-",
-      level: String(student.level || "-"),
-      foto_url: student.foto_url,
-      tadarus: (tadarusResult.data || []).filter((item) => item.student_id === student.id),
-      tahfidz: (tahfidzResult.data || []).filter((item) => item.student_id === student.id),
-      dailyReports: dailyResult.error
-        ? []
-        : (dailyResult.data || []).filter((item) => item.student_id === student.id),
-      levelExams: levelResult.error
-        ? []
-        : (levelResult.data || []).filter((item) => item.student_id === student.id),
-      reports: reportsResult.error
-        ? []
-        : (reportsResult.data || []).filter((item) => item.student_id === student.id),
-    }));
+  const load = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/auth/login");
+      return;
+    }
+    const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", user.id).maybeSingle();
+    if (roleData?.role !== "orang_tua") {
+      router.push("/auth/login");
+      return;
+    }
 
-    setStudents(studentList);
-    setActiveTabs((current) => {
-      const next = { ...current };
-      studentList.forEach((student) => {
-        next[student.id] ||= "tadarus";
+    const linkResult = await supabase
+      .from("parent_student_links")
+      .select("student_id")
+      .eq("parent_id", user.id)
+      .eq("status", "active")
+      .maybeSingle();
+    if (linkResult.error) throw linkResult.error;
+    let link = linkResult.data;
+
+    const metadataNis = user.user_metadata?.nis_anak;
+    if (!link && metadataNis) {
+      const { data: claimedId, error } = await supabase.rpc("claim_parent_student_by_nis", {
+        p_nis: String(metadataNis),
       });
-      return next;
-    });
+      if (!error && claimedId) link = { student_id: claimedId };
+    }
+
+    if (!link) {
+      setNeedsLink(true);
+      return;
+    }
+    await loadStudentData(link.student_id);
   };
 
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
-          router.push("/auth/login");
-          return;
-        }
+    queueMicrotask(() => {
+      load()
+        .catch((error) => setMessage({ type: "error", text: error.message }))
+        .finally(() => setLoading(false));
+    });
+    // Authentication and parent link are checked once on page entry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .single();
-
-        if (roleData?.role !== "orang_tua") {
-          router.push("/auth/login");
-          return;
-        }
-
-        setUserId(user.id);
-        await fetchAllData();
-      } catch (error) {
-        setNotification({
-          type: "error",
-          message: error instanceof Error ? error.message : "Gagal memuat data siswa.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void checkUser();
-  }, [router]);
-
-  const handlePhotoUpload = async (
-    student: StudentData,
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file || !userId) return;
-
-    setUploadingStudentId(student.id);
-    setNotification(null);
+  const connectChild = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLinking(true);
+    setMessage(null);
     try {
-      const publicUrl = await uploadStudentPhoto({
-        file,
-        studentId: student.id,
-        userId,
+      const { data: studentId, error } = await supabase.rpc("claim_parent_student_by_nis", {
+        p_nis: nis.trim(),
       });
-      setStudents((current) =>
-        current.map((item) =>
-          item.id === student.id ? { ...item, foto_url: publicUrl } : item,
-        ),
-      );
-      setNotification({
-        type: "success",
-        message: `Foto ${student.nama_lengkap} berhasil diperbarui.`,
-      });
+      if (error) throw error;
+      await loadStudentData(studentId);
+      setMessage({ type: "success", text: "Akun orang tua berhasil dihubungkan ke satu anak." });
     } catch (error) {
-      setNotification({
-        type: "error",
-        message: error instanceof Error ? error.message : "Gagal mengunggah foto.",
-      });
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "NIS anak tidak dapat dihubungkan." });
     } finally {
-      setUploadingStudentId(null);
+      setLinking(false);
     }
   };
 
-  const handleDownload = (student: StudentData) => {
+  const latestDailyAverage = useMemo(() => Number(daily[0]?.nilai_rata_rata ?? 0), [daily]);
+  const latestLevel = levels[0];
+  const munaqAverage = Number(munaqosyah?.hasil_ujian?.nilaiRataRata ?? 0);
+
+  const downloadActive = () => {
+    if (!student) return;
     try {
-      downloadTadarusHarian(student.nama_lengkap, student.tadarus);
+      if (active === "harian") downloadDailyMemorizationReports(student.nama_lengkap, daily);
+      if (active === "level") downloadLevelExamReports(student.nama_lengkap, levels);
+      if (active === "munaqosyah") downloadMunaqosyahReport(student.nama_lengkap, munaqosyah);
     } catch (error) {
-      setNotification({
-        type: "error",
-        message: error instanceof Error ? error.message : "Gagal mengunduh data.",
-      });
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "Data belum tersedia." });
     }
   };
-
-  const handleDailyDownload = (student: StudentData) => {
-    try {
-      downloadDailyReports(student.nama_lengkap, student.dailyReports);
-    } catch (error) {
-      setNotification({
-        type: "error",
-        message: error instanceof Error ? error.message : "Gagal mengunduh laporan harian.",
-      });
-    }
-  };
-
-  const handleLevelDownload = (student: StudentData) => {
-    try {
-      downloadLevelExamReports(student.nama_lengkap, student.levelExams);
-    } catch (error) {
-      setNotification({
-        type: "error",
-        message: error instanceof Error ? error.message : "Gagal mengunduh rapor level.",
-      });
-    }
-  };
-
-  const filteredStudents = students
-    .filter(
-      (student) =>
-        student.nama_lengkap.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        (filterKelas === "Semua" || student.kelas === filterKelas),
-    )
-    .sort((a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap));
-
-  const groupedStudents = filteredStudents.reduce<Record<string, StudentData[]>>(
-    (groups, student) => {
-      const kelas = student.kelas || "Tanpa Kelas";
-      groups[kelas] ||= [];
-      groups[kelas].push(student);
-      return groups;
-    },
-    {},
-  );
-
-  if (loading) {
-    return (
-      <DashboardLayout userRole="orang_tua">
-        <div className="flex h-64 items-center justify-center">
-          <Loader2 className="animate-spin text-[#1b4332]" size={44} />
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout userRole="orang_tua">
-      <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-gray-900 md:text-4xl">
-            Progres Mengaji Anak
-          </h1>
-          <p className="mt-2 font-medium text-gray-500">
-            Tadarus, hafalan, level tahfidz, dan rapor munaqasyah dalam satu tampilan.
-          </p>
-        </div>
-
-        <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
-          <div className="relative z-20 w-full sm:w-44">
-            <button
-              type="button"
-              onClick={() => setIsDropdownOpen((open) => !open)}
-              onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
-              className="flex w-full items-center justify-between rounded-2xl border border-gray-200 bg-white px-5 py-4 font-bold text-gray-700 shadow-sm"
-            >
-              {filterKelas === "Semua" ? "Semua Kelas" : `Kelas ${filterKelas}`}
-              <ChevronDown
-                size={19}
-                className={`transition ${isDropdownOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-            {isDropdownOpen && (
-              <div className="absolute top-full mt-2 w-full overflow-hidden rounded-2xl border border-gray-100 bg-white py-2 shadow-xl">
-                {["Semua", "1", "2", "3", "4", "5", "6"].map((kelas) => (
-                  <button
-                    key={kelas}
-                    type="button"
-                    onMouseDown={() => {
-                      setFilterKelas(kelas);
-                      setIsDropdownOpen(false);
-                    }}
-                    className={`w-full px-5 py-3 text-left text-sm font-bold ${
-                      filterKelas === kelas
-                        ? "bg-green-50 text-green-700"
-                        : "text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    {kelas === "Semua" ? "Semua Kelas" : `Kelas ${kelas}`}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="relative w-full sm:w-72">
-            <Search
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-              size={19}
-            />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Cari nama anak..."
-              className="w-full rounded-2xl border border-gray-200 bg-white py-4 pl-12 pr-4 font-bold text-gray-900 outline-none transition focus:ring-2 focus:ring-[#2dc653]"
-            />
-          </div>
-        </div>
+      <div className="mb-8 print:hidden">
+        <h1 className="text-4xl font-black text-gray-900">Preview Rapor Anak</h1>
+        <p className="mt-2 font-medium text-gray-500">Akun ini hanya dapat melihat satu anak yang telah ditautkan.</p>
       </div>
 
-      {notification && (
-        <div
-          className={`mb-6 flex items-center gap-3 rounded-2xl border p-4 font-bold ${
-            notification.type === "success"
-              ? "border-green-200 bg-green-50 text-green-800"
-              : "border-red-200 bg-red-50 text-red-700"
-          }`}
-        >
-          {notification.type === "error" && <XCircle size={21} />}
-          <p>{notification.message}</p>
-        </div>
-      )}
+      {message && <div className={`mb-6 rounded-2xl border p-4 font-bold print:hidden ${message.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>{message.text}</div>}
 
-      {filteredStudents.length === 0 ? (
-        <div className="rounded-3xl border border-gray-100 bg-white p-16 text-center shadow-sm">
-          <FileText className="mx-auto mb-4 text-gray-300" size={64} />
-          <h2 className="text-2xl font-black text-gray-900">Belum ada data siswa</h2>
-          <p className="mt-2 font-medium text-gray-500">Coba ubah kata pencarian atau filter kelas.</p>
-        </div>
-      ) : (
-        Object.keys(groupedStudents)
-          .sort()
-          .map((kelas) => (
-            <section key={kelas} className="mb-9">
-              <h2 className="mb-4 flex items-center gap-3 text-xl font-black text-gray-800">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-50 text-[#1b4332]">
-                  <BookOpen size={18} />
-                </span>
-                {kelas === "Tanpa Kelas" ? kelas : `Kelas ${kelas}`}
-                <span className="ml-auto rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-500">
-                  {groupedStudents[kelas].length} siswa
-                </span>
-              </h2>
-
-              <div className="space-y-5">
-                {groupedStudents[kelas].map((student) => {
-                  const selected = selectedStudentId === student.id;
-                  const activeTab = activeTabs[student.id] || "tadarus";
-                  const latestReport = student.reports[0];
-                  const reportPayload: MunaqasyahPayload = latestReport?.data_rapor || {};
-                  const rowsMunaqosyah = reportPayload.rowsMunaqosyah || [];
-                  const reportAverage =
-                    rowsMunaqosyah.length > 0
-                      ? Math.round(
-                          rowsMunaqosyah.reduce(
-                            (sum: number, row: MunaqasyahScoreRow) =>
-                              sum + Number(row.angka || 0),
-                            0,
-                          ) / rowsMunaqosyah.length,
-                        )
-                      : null;
-                  const scoredTahfidz = student.tahfidz.filter(
-                    (item) => item.nilai !== null && item.nilai !== undefined,
-                  );
-                  const dailyAverage =
-                    scoredTahfidz.length > 0
-                      ? Math.round(
-                          scoredTahfidz.reduce(
-                            (sum, item) => sum + Number(item.nilai || 0),
-                            0,
-                          ) / scoredTahfidz.length,
-                        )
-                      : null;
-
-                  return (
-                    <article key={student.id}>
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setSelectedStudentId(selected ? null : student.id)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            setSelectedStudentId(selected ? null : student.id);
-                          }
-                        }}
-                        className={`relative flex cursor-pointer flex-col gap-5 overflow-hidden rounded-3xl border bg-white p-6 shadow-sm transition hover:shadow-md sm:flex-row sm:items-center sm:justify-between ${
-                          selected
-                            ? "border-[#2dc653] ring-4 ring-[#2dc653]/10"
-                            : "border-gray-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <StudentAvatar
-                            name={student.nama_lengkap}
-                            photoUrl={student.foto_url}
-                            className="h-16 w-16 rounded-2xl"
-                            textClassName="text-xl"
-                          />
-                          <div>
-                            <p className="mb-1 text-xs font-bold uppercase tracking-widest text-gray-400">
-                              NIS {student.nis} · Kelas {student.kelas} · Level {student.level}
-                            </p>
-                            <h3 className="text-xl font-black text-gray-900 sm:text-2xl">
-                              {student.nama_lengkap}
-                            </h3>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3" onClick={(event) => event.stopPropagation()}>
-                          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100">
-                            {uploadingStudentId === student.id ? (
-                              <Loader2 className="animate-spin" size={16} />
-                            ) : (
-                              <Camera size={16} />
-                            )}
-                            {student.foto_url ? "Ganti Foto" : "Tambah Foto"}
-                            <input
-                              type="file"
-                              accept="image/jpeg,image/png,image/webp"
-                              disabled={uploadingStudentId === student.id}
-                              onChange={(event) => void handlePhotoUpload(student, event)}
-                              className="hidden"
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedStudentId(selected ? null : student.id)}
-                            className="rounded-xl p-2 text-gray-400 hover:bg-gray-50"
-                            aria-label={selected ? "Tutup detail" : "Buka detail"}
-                          >
-                            {selected ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {selected && (
-                        <div className="mt-5 animate-in fade-in slide-in-from-top-3">
-                          <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            {[
-                              [
-                                "Total Catatan",
-                                student.tadarus.length +
-                                  student.tahfidz.length +
-                                  student.dailyReports.length +
-                                  student.levelExams.length,
-                              ],
-                              ["Tadarus", student.tadarus.length],
-                              ["Nilai Harian", dailyAverage ?? "-"],
-                              ["Munaqasyah", reportAverage ?? "-"],
-                            ].map(([label, value], index) => (
-                              <div
-                                key={label}
-                                className={`rounded-2xl border p-5 ${
-                                  index === 0
-                                    ? "border-[#1b4332] bg-[#1b4332] text-white"
-                                    : "border-gray-100 bg-white text-gray-900"
-                                }`}
-                              >
-                                <p className={`text-xs font-bold uppercase tracking-wider ${index === 0 ? "text-white/70" : "text-gray-400"}`}>
-                                  {label}
-                                </p>
-                                <p className="mt-2 text-3xl font-black">{value}</p>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                            {[
-                              { key: "tadarus" as const, label: "Tadarus", icon: Sun, activeClass: "bg-green-600" },
-                              { key: "tahfidz" as const, label: "Tahfidz", icon: BookOpen, activeClass: "bg-blue-600" },
-                              { key: "harian" as const, label: "Harian", icon: CalendarDays, activeClass: "bg-orange-500" },
-                              { key: "level" as const, label: "Ujian Level", icon: Award, activeClass: "bg-cyan-600" },
-                              { key: "munaqasyah" as const, label: "Munaqasyah", icon: GraduationCap, activeClass: "bg-purple-600" },
-                            ].map((tab) => {
-                              const Icon = tab.icon;
-                              const active = activeTab === tab.key;
-                              return (
-                                <button
-                                  key={tab.key}
-                                  type="button"
-                                  onClick={() =>
-                                    setActiveTabs((current) => ({
-                                      ...current,
-                                      [student.id]: tab.key,
-                                    }))
-                                  }
-                                  className={`flex items-center justify-center gap-2 rounded-2xl px-5 py-4 font-bold transition ${
-                                    active
-                                      ? `${tab.activeClass} text-white shadow-lg`
-                                      : "border border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
-                                  }`}
-                                >
-                                  <Icon size={20} />
-                                  {tab.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-                            {activeTab === "tadarus" && (
-                              <>
-                                <div className="flex flex-col gap-3 border-b border-green-100 bg-green-50/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <Sun className="text-green-600" size={22} />
-                                    <h4 className="text-lg font-black text-gray-900">Riwayat Tadarus Harian</h4>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDownload(student)}
-                                    disabled={!student.tadarus.length}
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold text-green-700 shadow-sm ring-1 ring-green-200 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    <Download size={16} />
-                                    Download Tadarus
-                                  </button>
-                                </div>
-                                <ReportTable
-                                  rows={student.tadarus}
-                                  columns={[
-                                    ["tanggal", "Tanggal"],
-                                    ["nama_surah", "Surah"],
-                                    ["hal_ayat", "Halaman / Ayat"],
-                                    ["keterangan", "Keterangan"],
-                                  ]}
-                                  emptyText="Belum ada riwayat tadarus."
-                                />
-                              </>
-                            )}
-
-                            {activeTab === "tahfidz" && (
-                              <>
-                                <div className="flex items-center gap-3 border-b border-blue-100 bg-blue-50/70 px-6 py-5">
-                                  <BookOpen className="text-blue-600" size={22} />
-                                  <h4 className="text-lg font-black text-gray-900">Riwayat Hafalan & Tahfidz</h4>
-                                </div>
-                                <ReportTable
-                                  rows={student.tahfidz}
-                                  columns={[
-                                    ["tanggal", "Tanggal"],
-                                    ["nama_surah", "Surah"],
-                                    ["ayat", "Ayat"],
-                                    ["makhraj", "Makhraj"],
-                                    ["murojaah", "Muroja'ah"],
-                                    ["nilai", "Nilai"],
-                                    ["keterangan", "Keterangan"],
-                                  ]}
-                                  emptyText="Belum ada riwayat hafalan."
-                                />
-                              </>
-                            )}
-
-                            {activeTab === "harian" && (
-                              <>
-                                <div className="flex flex-col gap-3 border-b border-orange-100 bg-orange-50/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <CalendarDays className="text-orange-600" size={22} />
-                                    <h4 className="text-lg font-black text-gray-900">
-                                      Presensi & Laporan Harian
-                                    </h4>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDailyDownload(student)}
-                                    disabled={!student.dailyReports.length}
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold text-orange-700 shadow-sm ring-1 ring-orange-200 disabled:opacity-50"
-                                  >
-                                    <Download size={16} /> Download Harian
-                                  </button>
-                                </div>
-                                <ReportTable
-                                  rows={student.dailyReports}
-                                  columns={[
-                                    ["tanggal", "Tanggal"],
-                                    ["status_presensi", "Presensi"],
-                                    ["kegiatan", "Kegiatan"],
-                                    ["ringkasan_tadarus", "Tadarus"],
-                                    ["ringkasan_hafalan", "Hafalan"],
-                                    ["catatan_guru", "Catatan Guru"],
-                                  ]}
-                                  emptyText="Belum ada presensi atau laporan harian."
-                                />
-                              </>
-                            )}
-
-                            {activeTab === "level" && (
-                              <>
-                                <div className="flex flex-col gap-3 border-b border-cyan-100 bg-cyan-50/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <Award className="text-cyan-700" size={22} />
-                                    <h4 className="text-lg font-black text-gray-900">
-                                      Rapor Ujian Kenaikan Level
-                                    </h4>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleLevelDownload(student)}
-                                    disabled={!student.levelExams.length}
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold text-cyan-700 shadow-sm ring-1 ring-cyan-200 disabled:opacity-50"
-                                  >
-                                    <Download size={16} /> Download Rapor
-                                  </button>
-                                </div>
-                                <ReportTable
-                                  rows={student.levelExams}
-                                  columns={[
-                                    ["tanggal", "Tanggal"],
-                                    ["level_asal", "Level Asal"],
-                                    ["level_tujuan", "Level Tujuan"],
-                                    ["nilai_kelancaran", "Kelancaran"],
-                                    ["nilai_makhraj", "Makhraj"],
-                                    ["nilai_tajwid", "Tajwid"],
-                                    ["nilai_hafalan", "Hafalan"],
-                                    ["nilai_rata_rata", "Rata-rata"],
-                                    ["status", "Status"],
-                                    ["catatan_guru", "Catatan Guru"],
-                                  ]}
-                                  emptyText="Belum ada ujian kenaikan level."
-                                />
-                              </>
-                            )}
-
-                            {activeTab === "munaqasyah" && (
-                              <div className="p-6 md:p-8">
-                                {!latestReport ? (
-                                  <div className="py-10 text-center">
-                                    <GraduationCap className="mx-auto mb-4 text-gray-300" size={60} />
-                                    <p className="font-bold text-gray-500">Rapor munaqasyah belum tersedia.</p>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                      <div>
-                                        <p className="text-xs font-bold uppercase tracking-wider text-purple-500">
-                                          Periode {latestReport.bulan_tahun}
-                                        </p>
-                                        <h4 className="mt-1 text-2xl font-black text-gray-900">
-                                          {reportPayload.kategoriMunaqosyah?.indo ||
-                                            (reportAverage !== null ? getPredikat(reportAverage) : "-")}
-                                        </h4>
-                                      </div>
-                                      <div className="rounded-2xl bg-purple-50 px-6 py-4 text-center">
-                                        <p className="text-xs font-bold uppercase text-purple-500">Rata-rata</p>
-                                        <p className="text-3xl font-black text-purple-800">{reportAverage ?? "-"}</p>
-                                      </div>
-                                    </div>
-
-                                    <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                      {["Kelancaran", "Makhorijul Huruf", "Hukum Tajwid", "Sambung Ayat"].map(
-                                        (label, index) => (
-                                          <div key={label} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                                            <p className="text-xs font-bold text-gray-500">{label}</p>
-                                            <p className="mt-1 text-2xl font-black text-gray-900">
-                                              {rowsMunaqosyah[index]?.angka || "-"}
-                                            </p>
-                                          </div>
-                                        ),
-                                      )}
-                                    </div>
-
-                                    {reportPayload.catatanMunaqosyah && (
-                                      <div className="mb-6 rounded-2xl border border-purple-100 bg-purple-50/50 p-5">
-                                        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-purple-600">Catatan Guru</p>
-                                        <p className="font-medium leading-relaxed text-gray-700">
-                                          {reportPayload.catatanMunaqosyah}
-                                        </p>
-                                      </div>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        router.push(
-                                          `/dashboard/guru/reports/print/${getStudentRouteKey(student)}?type=munaqosyah&mode=view`,
-                                        )
-                                      }
-                                      className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-3 font-bold text-white transition hover:bg-purple-700"
-                                    >
-                                      <FileText size={18} />
-                                      Lihat & Cetak Rapor
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
+      {loading ? (
+        <div className="flex min-h-72 items-center justify-center"><Loader2 className="animate-spin text-emerald-600" size={38} /></div>
+      ) : needsLink ? (
+        <form onSubmit={connectChild} className="mx-auto max-w-xl rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Link2 size={30} /></div>
+          <h2 className="mt-5 text-2xl font-black text-gray-900">Hubungkan Satu Anak</h2>
+          <p className="mt-2 font-medium text-gray-500">Masukkan NIS anak. Setelah terhubung, akun ini tidak akan melihat daftar siswa lain.</p>
+          <input value={nis} onChange={(event) => setNis(event.target.value)} required placeholder="NIS anak" className="mt-6 w-full rounded-xl border border-gray-200 px-5 py-4 text-center text-lg font-bold outline-none focus:ring-2 focus:ring-emerald-500" />
+          <button disabled={linking} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-4 font-black text-white disabled:opacity-50">
+            {linking ? <Loader2 className="animate-spin" size={20} /> : <Link2 size={20} />} Hubungkan Anak
+          </button>
+        </form>
+      ) : student ? (
+        <>
+          <section className="mb-7 flex flex-col gap-5 rounded-3xl bg-emerald-800 p-6 text-white shadow-lg sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <StudentAvatar name={student.nama_lengkap} photoUrl={student.foto_url} className="h-20 w-20 rounded-2xl" />
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-emerald-200">Siswa yang ditautkan</p>
+                <h2 className="mt-1 text-2xl font-black">{student.nama_lengkap}</h2>
+                <p className="mt-1 font-semibold text-emerald-100">NIS {student.nis || "-"} · Kelas {student.kelas || "-"} · Level {student.level || "-"}</p>
               </div>
-            </section>
-          ))
-      )}
+            </div>
+            <button
+              onClick={() => {
+                try { downloadTadarusHarian(student.nama_lengkap, tadarus); }
+                catch (error) { setMessage({ type: "error", text: error instanceof Error ? error.message : "Belum ada tadarus." }); }
+              }}
+              className="flex items-center justify-center gap-2 rounded-xl bg-white/15 px-5 py-3 font-bold hover:bg-white/25 print:hidden"
+            >
+              <Download size={18} /> Download Tadarus
+            </button>
+          </section>
+
+          <div className="mb-7 grid gap-4 md:grid-cols-3 print:hidden">
+            <OutputCard active={active === "harian"} onClick={() => setActive("harian")} icon={<BookOpenCheck />} title="Hafalan Harian" value={daily.length ? latestDailyAverage.toFixed(2) : "-"} detail={`${daily.length} catatan`} />
+            <OutputCard active={active === "level"} onClick={() => setActive("level")} icon={<GraduationCap />} title="Hafalan Level" value={latestLevel?.nilai_rata_rata?.toFixed(2) || "-"} detail={latestLevel?.status || "Belum ada ujian"} />
+            <OutputCard active={active === "munaqosyah"} onClick={() => setActive("munaqosyah")} icon={<Award />} title="Munaqosyah" value={munaqosyah ? munaqAverage.toFixed(2) : "-"} detail={munaqosyah?.hasil_ujian?.kategoriMunaqosyah?.indo || "Belum ada ujian"} />
+          </div>
+
+          <section className="rounded-3xl border border-gray-100 bg-white p-7 shadow-sm print:border-0 print:shadow-none">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-emerald-600">Output otomatis</p>
+                <h2 className="mt-1 text-2xl font-black text-gray-900">{active === "harian" ? "Rapor Hafalan Harian" : active === "level" ? "Rapor Kenaikan Level" : "Rapor Munaqosyah"}</h2>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={downloadActive} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white"><Download size={18} /> Download</button>
+                <button onClick={() => window.print()} className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 font-bold text-gray-700"><Printer size={18} /> Cetak</button>
+              </div>
+            </div>
+
+            {active === "harian" && <DailyPreview rows={daily} />}
+            {active === "level" && <LevelPreview rows={levels} />}
+            {active === "munaqosyah" && <MunaqPreview row={munaqosyah} />}
+          </section>
+        </>
+      ) : null}
     </DashboardLayout>
   );
 }
 
-function ReportTable({
-  rows,
-  columns,
-  emptyText,
-}: {
-  rows: Array<Record<string, unknown> & { id: string }>;
-  columns: [string, string][];
-  emptyText: string;
-}) {
-  if (rows.length === 0) {
-    return (
-      <div className="p-12 text-center">
-        <FileText className="mx-auto mb-3 text-gray-300" size={48} />
-        <p className="font-bold text-gray-500">{emptyText}</p>
-      </div>
-    );
-  }
-
+function OutputCard({ active, onClick, icon, title, value, detail }: { active: boolean; onClick: () => void; icon: React.ReactNode; title: string; value: string; detail: string }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-gray-100 bg-gray-50">
-          <tr>
-            {columns.map(([, label]) => (
-              <th key={label} className="whitespace-nowrap px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-gray-50/50">
-              {columns.map(([key]) => (
-                <td key={key} className="whitespace-nowrap px-6 py-4 font-medium text-gray-700">
-                  {String(row[key] ?? "-")}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <button onClick={onClick} className={`rounded-2xl border p-5 text-left transition ${active ? "border-emerald-600 bg-emerald-600 text-white shadow-lg" : "border-gray-100 bg-white text-gray-900 hover:border-emerald-200"}`}>
+      <div className="flex items-center justify-between"><span className={active ? "text-white" : "text-emerald-600"}>{icon}</span><span className="text-3xl font-black">{value}</span></div>
+      <h3 className="mt-4 font-black">{title}</h3>
+      <p className={`mt-1 text-sm font-semibold ${active ? "text-emerald-100" : "text-gray-500"}`}>{detail}</p>
+    </button>
   );
+}
+
+function EmptyOutput({ text }: { text: string }) {
+  return <div className="rounded-2xl bg-gray-50 p-10 text-center font-bold text-gray-500">{text}</div>;
+}
+
+function DailyPreview({ rows }: { rows: DailyMemorizationExportRow[] }) {
+  if (!rows.length) return <EmptyOutput text="Guru belum menginput nilai hafalan harian." />;
+  return <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-gray-500"><th className="p-3">Tanggal</th><th className="p-3">Surah / Ayat</th><th className="p-3">Kelancaran</th><th className="p-3">Makhraj</th><th className="p-3">Tajwid</th><th className="p-3">Hafalan</th><th className="p-3">Rata-rata</th></tr></thead><tbody>{rows.map((row, index) => <tr key={`${row.tanggal}-${index}`} className="border-b border-gray-100"><td className="p-3 font-semibold">{row.tanggal}</td><td className="p-3">{row.nama_surah} {row.ayat}</td><td className="p-3">{row.nilai_kelancaran ?? "-"}</td><td className="p-3">{row.nilai_makhraj ?? "-"}</td><td className="p-3">{row.nilai_tajwid ?? "-"}</td><td className="p-3">{row.nilai_hafalan ?? "-"}</td><td className="p-3 font-black text-emerald-700">{row.nilai_rata_rata ?? "-"}</td></tr>)}</tbody></table></div>;
+}
+
+function LevelPreview({ rows }: { rows: LevelExamExportRow[] }) {
+  if (!rows.length) return <EmptyOutput text="Guru belum menginput ujian kenaikan level." />;
+  return <div className="grid gap-4">{rows.map((row, index) => <div key={`${row.tanggal}-${index}`} className="rounded-2xl border border-gray-100 p-5"><div className="flex items-center justify-between"><h3 className="font-black text-gray-900">Level {row.level_asal} → {row.level_tujuan}</h3><span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-700">{row.status}</span></div><p className="mt-3 text-3xl font-black text-emerald-700">{row.nilai_rata_rata?.toFixed(2) || "-"}</p><p className="mt-1 text-sm font-semibold text-gray-500">{row.tanggal} · {row.tahun_ajaran}</p></div>)}</div>;
+}
+
+function MunaqPreview({ row }: { row?: MunaqosyahExportRow }) {
+  if (!row) return <EmptyOutput text="Guru belum menginput ujian Munaqosyah." />;
+  return <div><div className="rounded-2xl bg-emerald-800 p-6 text-white"><p className="font-bold text-emerald-100">Nilai akhir Munaqosyah</p><div className="mt-2 flex items-end justify-between"><span className="text-5xl font-black">{Number(row.hasil_ujian?.nilaiRataRata || 0).toFixed(2)}</span><span className="rounded-full bg-white/15 px-4 py-2 font-black">{row.hasil_ujian?.kategoriMunaqosyah?.indo || "-"}</span></div></div><div className="mt-5 grid gap-3 sm:grid-cols-4">{(row.hasil_ujian?.rowsMunaqosyah || []).map((score, index) => <div key={`${score.label}-${index}`} className="rounded-xl bg-gray-50 p-4 text-center"><p className="text-sm font-bold text-gray-500">{score.label || `Komponen ${index + 1}`}</p><p className="mt-1 text-2xl font-black text-gray-900">{score.angka ?? "-"}</p></div>)}</div>{row.catatan_guru && <p className="mt-5 rounded-xl border border-amber-100 bg-amber-50 p-4 font-medium text-amber-900">{row.catatan_guru}</p>}</div>;
 }

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import Image from "next/image";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { ArrowLeft, LogIn, Loader2, AlertCircle } from "lucide-react";
@@ -14,10 +15,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setNeedsVerification(false);
     setLoading(true);
 
     try {
@@ -27,6 +30,12 @@ export default function LoginPage() {
         }
         router.push("/dashboard/admin");
         return;
+      }
+
+      if (!isSupabaseConfigured) {
+        throw new Error(
+          "Koneksi database belum dipasang. Tambahkan NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY di .env.local.",
+        );
       }
 
       const { data, error: authError } = await supabase.auth.signInWithPassword(
@@ -55,8 +64,18 @@ export default function LoginPage() {
           setError("Data Role tidak ditemukan. Karena database baru direset, silakan daftar akun (Sign Up) ulang.");
         }
       }
-    } catch (err: any) {
-      setError(err.message || "Gagal login");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal login";
+      if (message.toLowerCase().includes("invalid login credentials")) {
+        setError(
+          "Email atau password tidak cocok. Pastikan akun dibuat pada database Supabase yang sedang dipakai.",
+        );
+      } else if (message.toLowerCase().includes("email not confirmed")) {
+        setNeedsVerification(true);
+        setError("Email belum diverifikasi. Buka halaman status verifikasi untuk mengirim ulang email.");
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -77,7 +96,7 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-10 relative z-10">
         <div className="flex justify-center mb-6">
-          <img src="/logo.png" alt="Logo Sekolah" className="w-24 h-24 object-contain drop-shadow-md" />
+          <Image src="/logo.png" alt="Logo Sekolah" width={96} height={96} className="h-24 w-24 object-contain drop-shadow-md" />
         </div>
 
         <h1 className="text-4xl font-black text-center text-gray-900 mb-2 uppercase">
@@ -91,6 +110,12 @@ export default function LoginPage() {
           <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-medium flex items-start gap-3">
             <AlertCircle size={18} className="shrink-0 mt-0.5 text-red-500" />
             <p>{error}</p>
+          </div>
+        )}
+
+        {!isSupabaseConfigured && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+            Status sistem: database belum terhubung. Login akun Supabase belum dapat digunakan.
           </div>
         )}
 
@@ -121,6 +146,15 @@ export default function LoginPage() {
             )}
           </Button>
         </form>
+
+        {needsVerification && (
+          <Link
+            href={`/auth/verify?email=${encodeURIComponent(email)}`}
+            className="mt-4 block rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-bold text-emerald-700 hover:bg-emerald-100"
+          >
+            Cek status & kirim ulang verifikasi
+          </Link>
+        )}
 
         <p className="text-center text-gray-600 mt-8 font-medium">
           Belum punya akun?{" "}

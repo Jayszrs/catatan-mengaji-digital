@@ -1,7 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const configuredAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+export const isSupabaseConfigured = Boolean(configuredUrl && configuredAnonKey);
+
+// Nilai fallback hanya menjaga halaman tetap dapat dibuka sehingga UI bisa
+// menjelaskan bahwa konfigurasi belum tersedia. Nilai ini tidak dapat login.
+const supabaseUrl = configuredUrl || "https://configuration-required.supabase.co";
+const supabaseAnonKey =
+  configuredAnonKey ||
+  "configuration-required.configuration-required.configuration-required";
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -23,7 +32,7 @@ export async function createUserRole(
 ) {
   const { data, error } = await supabase
     .from("user_roles")
-    .insert([{ user_id: userId, email, role }]);
+    .upsert([{ user_id: userId, email, role }], { onConflict: "user_id" });
 
   if (error) throw error;
   return data;

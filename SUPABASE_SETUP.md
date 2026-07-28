@@ -1,5 +1,20 @@
 # Database Schema dan Setup Supabase
 
+## Konfigurasi lokal dan migrasi fitur terbaru
+
+1. Salin `.env.example` menjadi `.env.local`.
+2. Isi `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY` dari project Supabase yang menyimpan akun lama. Jika memakai project berbeda, akun lama memang akan menghasilkan `Invalid login credentials`.
+3. Jalankan SQL melalui Supabase SQL Editor sesuai urutan:
+   - skema dasar pada dokumen ini (hanya untuk database baru);
+   - `supabase-nis-shared-data-migration.sql`;
+   - `supabase-integrated-learning-migration.sql`;
+   - `supabase-parent-security-and-automation-migration.sql`.
+4. Pada **Authentication > URL Configuration**, tambahkan URL aplikasi dan `/auth/verify` sebagai redirect URL.
+
+Migrasi terakhir membuat hubungan satu akun orang tua ke satu siswa, RLS agar
+orang tua tidak dapat membaca siswa lain, profil guru, nilai hafalan harian,
+bucket foto guru, serta penyimpanan Munaqosyah dan rapor otomatis.
+
 ## Update penting: NIS dan data lintas akun
 
 Untuk perubahan terbaru, jalankan file [`supabase-nis-shared-data-migration.sql`](./supabase-nis-shared-data-migration.sql) di Supabase SQL Editor setelah backup data.
@@ -8,7 +23,7 @@ Perubahan tersebut membuat:
 
 - NIS otomatis wajib terisi dan unik sebagai kunci bisnis utama siswa.
 - Import CSV/Excel memakai NIS untuk update data yang sudah ada, bukan membuat duplikat.
-- Data siswa dan laporan bisa dilihat lintas akun guru/orang tua/admin selama memakai Supabase project yang sama.
+- Data guru tetap memakai satu sumber Supabase; setelah migrasi keamanan terakhir, orang tua hanya dapat membaca satu siswa yang ditautkan.
 
 ## Migrasi fitur catatan terintegrasi dan foto siswa
 
@@ -45,7 +60,7 @@ Menyimpan informasi role pengguna (Guru atau Orang Tua)
 ```sql
 CREATE TABLE user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   role VARCHAR(20) NOT NULL CHECK (role IN ('guru', 'orang_tua')),
   created_at TIMESTAMP DEFAULT NOW(),
@@ -135,7 +150,7 @@ DROP TABLE IF EXISTS user_roles;
 -- Create user_roles table
 CREATE TABLE user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   role VARCHAR(20) NOT NULL CHECK (role IN ('guru', 'orang_tua')),
   created_at TIMESTAMP DEFAULT NOW(),

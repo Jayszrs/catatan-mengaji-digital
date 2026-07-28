@@ -4,25 +4,27 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Printer, Download, Users, FileText, Search, Fingerprint, Award, GraduationCap, ChevronDown } from "lucide-react";
-import { Button } from "@/components/Button";
-import { getStudentRouteKey } from "@/lib/students";
+import { FileText, Search, ChevronDown } from "lucide-react";
+
+interface StudentRow {
+  id: string;
+  nama_lengkap?: string | null;
+  nis?: string | null;
+  kelas?: string | null;
+  level?: number | string | null;
+}
 
 export default function CetakRaporPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<StudentRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterKelas, setFilterKelas] = useState("Semua");
   const [filterLevel, setFilterLevel] = useState("Semua");
   const [isKelasOpen, setIsKelasOpen] = useState(false);
   const [isLevelOpen, setIsLevelOpen] = useState(false);
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  const fetchStudents = async () => {
+  async function fetchStudents() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -38,7 +40,11 @@ export default function CetakRaporPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    queueMicrotask(() => void fetchStudents());
+  }, []);
 
   const filteredStudents = students.filter(student => {
     const namaLengkap = student.nama_lengkap || "";
@@ -56,21 +62,17 @@ export default function CetakRaporPage() {
     if (!acc[k]) acc[k] = [];
     acc[k].push(student);
     return acc;
-  }, {} as Record<string, any[]>);
-
-  const handlePrint = (studentId: string) => {
-    router.push(`/dashboard/guru/reports/print/${studentId}`);
-  };
+  }, {} as Record<string, StudentRow[]>);
 
   return (
     <DashboardLayout userRole="guru">
       <div className="mb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-6">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mb-2">
-            Input & Cetak Rapor
+            Rapor Otomatis Siswa
           </h1>
           <p className="text-sm text-gray-500 font-medium">
-            Buat dan unduh laporan bulanan atau semester untuk wali murid.
+            Lihat keluaran nilai yang otomatis berasal dari tiga form penilaian.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
@@ -158,7 +160,7 @@ export default function CetakRaporPage() {
                   <span className="ml-auto text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full font-semibold">{groupedStudents[kelas].length} Siswa</span>
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {groupedStudents[kelas].map((student: any) => (
+                  {groupedStudents[kelas].map((student) => (
                     <div
                       key={student.id}
                       className="bg-white border border-gray-200 rounded-2xl p-5 hover:border-[#1b4332] hover:shadow-lg transition-all duration-300 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4"
@@ -182,17 +184,11 @@ export default function CetakRaporPage() {
                       </div>
                       
                       <div className="flex flex-wrap items-center gap-2 mt-4 xl:mt-0 w-full xl:w-auto">
-                        <button 
-                          onClick={() => router.push(`/dashboard/guru/reports/print/${getStudentRouteKey(student)}?type=rapor`)}
-                          className="flex-1 xl:flex-none px-4 py-2 border-2 border-blue-600 text-blue-700 hover:bg-blue-50 font-bold rounded-xl flex items-center justify-center gap-2 transition-all text-xs shadow-sm"
+                        <button
+                          onClick={() => router.push(`/dashboard/guru/rapor-otomatis?studentId=${student.id}`)}
+                          className="flex-1 xl:flex-none px-4 py-2 border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-bold rounded-xl flex items-center justify-center gap-2 transition-all text-xs shadow-sm"
                         >
-                          <FileText size={16} /> Input Rapor
-                        </button>
-                        <button 
-                          onClick={() => router.push(`/dashboard/guru/reports/print/${getStudentRouteKey(student)}?type=munaqosyah`)}
-                          className="flex-1 xl:flex-none px-4 py-2 border-2 border-purple-600 text-purple-700 hover:bg-purple-50 font-bold rounded-xl flex items-center justify-center gap-2 transition-all text-xs shadow-sm"
-                        >
-                          <GraduationCap size={16} /> Munaqosyah
+                          <FileText size={16} /> Lihat 3 Rapor Otomatis
                         </button>
 
                       </div>

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
-import { createUserRole } from "@/lib/supabase";
+import Image from "next/image";
+import { createUserRole, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { UserRole } from "@/types";
@@ -17,6 +17,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<UserRole>("guru");
+  const [nisAnak, setNisAnak] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,13 +35,23 @@ export default function SignupPage() {
         throw new Error("Password minimal 6 karakter");
       }
 
+      if (!isSupabaseConfigured) {
+        throw new Error("Database belum terhubung. Konfigurasi Supabase harus dipasang terlebih dahulu.");
+      }
+
+      if (role === "orang_tua" && !nisAnak.trim()) {
+        throw new Error("NIS anak wajib diisi untuk akun orang tua");
+      }
+
       const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth/verify`,
           data: {
             name,
             role,
+            nis_anak: role === "orang_tua" ? nisAnak.trim() : null,
           },
         },
       });
@@ -53,17 +64,23 @@ export default function SignupPage() {
       }
 
       if (data.user) {
-        await createUserRole(data.user.id, email, role);
+        // Jika konfirmasi email aktif, Supabase belum memberi session.
+        // Role dibuat setelah tautan verifikasi berhasil dibuka.
+        if (data.session) {
+          await createUserRole(data.user.id, email, role);
+        }
 
         setName("");
         setEmail("");
         setPassword("");
         setConfirmPassword("");
 
-        router.push("/auth/login?message=Pendaftaran berhasil, silakan login");
+        router.push(
+          `/auth/verify?sent=1&email=${encodeURIComponent(email)}`,
+        );
       }
-    } catch (err: any) {
-      setError(err.message || "Gagal mendaftar");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Gagal mendaftar");
     } finally {
       setLoading(false);
     }
@@ -84,7 +101,7 @@ export default function SignupPage() {
 
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-10 relative z-10 max-h-screen overflow-y-auto custom-scrollbar">
         <div className="flex justify-center mb-6">
-          <img src="/logo.png" alt="Logo Sekolah" className="w-20 h-20 object-contain drop-shadow-md" />
+          <Image src="/logo.png" alt="Logo Sekolah" width={80} height={80} className="h-20 w-20 object-contain drop-shadow-md" />
         </div>
 
         <h1 className="text-3xl font-black text-center text-gray-900 mb-2">
@@ -145,6 +162,17 @@ export default function SignupPage() {
               </label>
             </div>
           </div>
+
+          {role === "orang_tua" && (
+            <Input
+              label="NIS Anak"
+              type="text"
+              placeholder="Masukkan NIS satu anak yang terdaftar"
+              value={nisAnak}
+              onChange={(e) => setNisAnak(e.target.value)}
+              required
+            />
+          )}
 
           <Input
             label="Password"

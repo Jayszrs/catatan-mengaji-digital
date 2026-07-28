@@ -111,3 +111,71 @@ export function downloadLevelExamReports(
     `rapor-ujian-level-${safeName(studentName || "siswa")}.xlsx`,
   );
 }
+
+export interface DailyMemorizationExportRow {
+  tanggal?: string;
+  nama_surah?: string;
+  ayat?: string;
+  murojaah?: string | null;
+  nilai_kelancaran?: number | null;
+  nilai_makhraj?: number | null;
+  nilai_tajwid?: number | null;
+  nilai_hafalan?: number | null;
+  nilai_rata_rata?: number | null;
+  keterangan?: string | null;
+}
+
+export function downloadDailyMemorizationReports(
+  studentName: string,
+  rows: DailyMemorizationExportRow[],
+) {
+  if (rows.length === 0) throw new Error("Belum ada nilai hafalan harian untuk diunduh.");
+  const sheet = XLSX.utils.json_to_sheet(rows.map((row, index) => ({
+    No: index + 1,
+    Tanggal: row.tanggal || "-",
+    Surah: row.nama_surah || "-",
+    Ayat: row.ayat || "-",
+    Murojaah: row.murojaah || "-",
+    Kelancaran: row.nilai_kelancaran ?? "-",
+    Makhraj: row.nilai_makhraj ?? "-",
+    Tajwid: row.nilai_tajwid ?? "-",
+    Hafalan: row.nilai_hafalan ?? "-",
+    "Rata-rata": row.nilai_rata_rata ?? "-",
+    Keterangan: row.keterangan || "-",
+  })));
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Hafalan Harian");
+  XLSX.writeFile(workbook, `hafalan-harian-${safeName(studentName || "siswa")}.xlsx`);
+}
+
+export interface MunaqosyahExportRow {
+  tanggal?: string;
+  hasil_ujian?: {
+    nilaiRataRata?: number;
+    kategoriMunaqosyah?: { indo?: string };
+    rowsMunaqosyah?: Array<{ label?: string; angka?: number }>;
+  };
+  catatan_guru?: string | null;
+}
+
+export function downloadMunaqosyahReport(studentName: string, row?: MunaqosyahExportRow) {
+  if (!row) throw new Error("Belum ada hasil Munaqosyah untuk diunduh.");
+  const scores = row.hasil_ujian?.rowsMunaqosyah || [];
+  const score = (label: string, index: number) =>
+    scores.find((item) => item.label?.toLowerCase() === label.toLowerCase())?.angka ??
+    scores[index]?.angka ??
+    "-";
+  const sheet = XLSX.utils.json_to_sheet([{
+    Tanggal: row.tanggal || "-",
+    Kelancaran: score("Kelancaran", 0),
+    Makhraj: score("Makhraj", 1),
+    Tajwid: score("Tajwid", 2),
+    Hafalan: score("Hafalan", 3),
+    "Rata-rata": row.hasil_ujian?.nilaiRataRata ?? "-",
+    Predikat: row.hasil_ujian?.kategoriMunaqosyah?.indo || "-",
+    "Catatan Guru": row.catatan_guru || "-",
+  }]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Munaqosyah");
+  XLSX.writeFile(workbook, `rapor-munaqosyah-${safeName(studentName || "siswa")}.xlsx`);
+}

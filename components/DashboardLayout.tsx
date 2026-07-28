@@ -34,6 +34,7 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userName, setUserName] = useState("Guru");
   const [userEmail, setUserEmail] = useState("");
+  const [userPhoto, setUserPhoto] = useState("");
 
   useEffect(() => {
     if (userRole === "admin") {
@@ -46,6 +47,15 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
       if (user) {
         setUserName(user.user_metadata?.name || "Guru");
         setUserEmail(user.email || "");
+        if (userRole === "guru") {
+          const { data: profile } = await supabase
+            .from("teacher_profiles")
+            .select("full_name,photo_url")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (profile?.full_name) setUserName(profile.full_name);
+          if (profile?.photo_url) setUserPhoto(profile.photo_url);
+        }
       }
     };
     fetchUser();
@@ -150,6 +160,10 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
                   <Award size={20} />
                   <span>Ujian Kenaikan Level</span>
                 </Link>
+                <Link href="/dashboard/guru/munaqosyah" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/munaqosyah") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <Award size={20} />
+                  <span>Form Munaqosyah</span>
+                </Link>
                 <Link href="/dashboard/guru/input-tadarus" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/input-tadarus") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <Sun size={20} />
                   <span>Input Tadarus</span>
@@ -164,7 +178,7 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
                 </Link>
                 <Link href="/dashboard/guru/reports" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/reports") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <Printer size={20} />
-                  <span className="whitespace-nowrap">Input & Cetak Rapor</span>
+                  <span className="whitespace-nowrap">3 Rapor Otomatis</span>
                 </Link>
               </nav>
             </div>
@@ -173,6 +187,12 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
           <div>
             <p className="px-4 text-xs font-bold text-gray-400 mb-4 tracking-widest uppercase">Sistem</p>
             <nav className="space-y-1">
+              {userRole === "guru" && (
+                <Link href="/dashboard/guru/profile" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/profile") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <Settings size={20} />
+                  <span>Profil Guru</span>
+                </Link>
+              )}
               <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-red-500 hover:bg-red-50 transition-all">
                 <LogOut size={20} />
                 <span>Keluar</span>
@@ -195,9 +215,13 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
           <div className="flex items-center gap-5">
             <div className="hidden md:block h-8 w-px bg-gray-200 mx-2"></div>
             
-            <div className="flex items-center gap-3 cursor-pointer group">
+            <Link href={userRole === "guru" ? "/dashboard/guru/profile" : "#"} className="flex items-center gap-3 cursor-pointer group">
               <div className="w-11 h-11 bg-gradient-to-tr from-[#1b4332] to-[#2dc653] rounded-full flex items-center justify-center text-white font-black text-lg shadow-md group-hover:scale-105 transition-transform">
-                {userName.charAt(0).toUpperCase()}
+                {userPhoto ? (
+                  <img src={userPhoto} alt={userName} className="h-full w-full rounded-full object-cover" />
+                ) : (
+                  userName.charAt(0).toUpperCase()
+                )}
               </div>
               <div className="hidden md:flex flex-col">
                 <div className="flex items-center gap-2">
@@ -210,7 +234,7 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
                 </div>
                 <span className="text-xs font-semibold text-gray-500 mt-0.5">{userEmail}</span>
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 

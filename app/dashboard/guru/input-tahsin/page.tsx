@@ -26,6 +26,10 @@ export default function InputTahsinPage() {
     makhraj: "",
     murojaah: "",
     keterangan: "Lanjut",
+    nilai_kelancaran: "80",
+    nilai_makhraj: "80",
+    nilai_tajwid: "80",
+    nilai_hafalan: "80",
   });
 
   useEffect(() => {
@@ -80,7 +84,26 @@ export default function InputTahsinPage() {
 
     setIsSubmitting(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800)); // Efek loading buatan
+      const scoreValues = [
+        formData.nilai_kelancaran,
+        formData.nilai_makhraj,
+        formData.nilai_tajwid,
+        formData.nilai_hafalan,
+      ].map(Number);
+      if (scoreValues.some((value) => !Number.isFinite(value) || value < 0 || value > 100)) {
+        throw new Error("Semua nilai harus berada di antara 0 dan 100");
+      }
+      const averageScore = Number(
+        (scoreValues.reduce((total, value) => total + value, 0) / 4).toFixed(2),
+      );
+      const scorePayload = {
+        nilai_kelancaran: scoreValues[0],
+        nilai_makhraj: scoreValues[1],
+        nilai_tajwid: scoreValues[2],
+        nilai_hafalan: scoreValues[3],
+        nilai_rata_rata: averageScore,
+        nilai: averageScore,
+      };
       if (editingId) {
         const { error } = await supabase.from("laporan_tahsin_tahfidz").update({
           tanggal: formData.tanggal,
@@ -89,6 +112,7 @@ export default function InputTahsinPage() {
           makhraj: formData.makhraj,
           murojaah: formData.murojaah,
           keterangan: formData.keterangan,
+          ...scorePayload,
         }).eq("id", editingId);
         if (error) throw error;
         setNotification({ show: true, message: "Data tahsin berhasil diperbarui!", type: 'success' });
@@ -103,6 +127,7 @@ export default function InputTahsinPage() {
             makhraj: formData.makhraj,
             murojaah: formData.murojaah,
             keterangan: formData.keterangan,
+            ...scorePayload,
           },
         ]);
         if (error) throw error;
@@ -115,7 +140,11 @@ export default function InputTahsinPage() {
         ayat: "",
         makhraj: "",
         murojaah: "",
-        keterangan: "Lanjut"
+        keterangan: "Lanjut",
+        nilai_kelancaran: "80",
+        nilai_makhraj: "80",
+        nilai_tajwid: "80",
+        nilai_hafalan: "80",
       }));
       setEditingId(null);
       fetchHistory(formData.student_id);
@@ -153,6 +182,10 @@ export default function InputTahsinPage() {
       makhraj: item.makhraj || "",
       murojaah: item.murojaah || "",
       keterangan: item.keterangan,
+      nilai_kelancaran: String(item.nilai_kelancaran ?? item.nilai ?? 80),
+      nilai_makhraj: String(item.nilai_makhraj ?? item.nilai ?? 80),
+      nilai_tajwid: String(item.nilai_tajwid ?? item.nilai ?? 80),
+      nilai_hafalan: String(item.nilai_hafalan ?? item.nilai ?? 80),
     });
     document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -244,6 +277,38 @@ export default function InputTahsinPage() {
                 onChange={(e) => setFormData({ ...formData, murojaah: e.target.value })}
               />
 
+              {([
+                ["Kelancaran", "nilai_kelancaran"],
+                ["Makhraj", "nilai_makhraj"],
+                ["Tajwid", "nilai_tajwid"],
+                ["Hafalan", "nilai_hafalan"],
+              ] as const).map(([label, key]) => (
+                <Input
+                  key={key}
+                  label={`Nilai ${label}`}
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={formData[key]}
+                  onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                  required
+                />
+              ))}
+
+              <div className="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <p className="text-sm font-bold text-blue-700">Rata-rata otomatis</p>
+                <p className="mt-1 text-3xl font-black text-blue-900">
+                  {(
+                    (Number(formData.nilai_kelancaran || 0) +
+                      Number(formData.nilai_makhraj || 0) +
+                      Number(formData.nilai_tajwid || 0) +
+                      Number(formData.nilai_hafalan || 0)) /
+                    4
+                  ).toFixed(2)}
+                </p>
+              </div>
+
               <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-gray-800 mb-2">Keterangan</label>
                 <select
@@ -271,7 +336,7 @@ export default function InputTahsinPage() {
                   type="button"
                   onClick={() => {
                     setEditingId(null);
-                    setFormData(prev => ({ ...prev, surah: "", ayat: "", makhraj: "", murojaah: "", keterangan: "Lanjut" }));
+                    setFormData(prev => ({ ...prev, surah: "", ayat: "", makhraj: "", murojaah: "", keterangan: "Lanjut", nilai_kelancaran: "80", nilai_makhraj: "80", nilai_tajwid: "80", nilai_hafalan: "80" }));
                   }}
                   className="font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800"
                 >
@@ -305,6 +370,7 @@ export default function InputTahsinPage() {
                   <th className="px-6 py-4">Makhraj</th>
                   <th className="px-6 py-4">Muroja'ah</th>
                   <th className="px-6 py-4">Keterangan</th>
+                  <th className="px-6 py-4">Nilai</th>
                   <th className="px-6 py-4 text-center">Aksi</th>
                 </tr>
               </thead>
@@ -322,6 +388,7 @@ export default function InputTahsinPage() {
                           {item.keterangan}
                         </span>
                       </td>
+                      <td className="px-6 py-4 font-black text-blue-700">{Number(item.nilai_rata_rata ?? item.nilai ?? 0).toFixed(2)}</td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center gap-3">
                           <button onClick={() => handleEdit(item)} className="text-blue-500 hover:text-blue-700 transition-colors" title="Edit">
@@ -336,7 +403,7 @@ export default function InputTahsinPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500 font-medium">
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500 font-medium">
                       Belum ada laporan tahsin & tahfidz untuk siswa ini.
                     </td>
                   </tr>
