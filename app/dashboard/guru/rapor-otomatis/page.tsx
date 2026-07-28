@@ -26,6 +26,7 @@ import {
 } from "@/lib/report-exports";
 import { supabase } from "@/lib/supabase";
 import { getAppErrorMessage } from "@/lib/app-errors";
+import { loadDailyMemorizationRows } from "@/lib/report-queries";
 import { getTahfidzLevelLabel } from "@/lib/tahfidz-levels";
 
 interface StudentOption {
@@ -125,13 +126,7 @@ function AutomaticReportContent() {
             )
             .eq("student_id", studentId)
             .order("tanggal", { ascending: false }),
-          supabase
-            .from("laporan_tahsin_tahfidz")
-            .select(
-              "tanggal,tahun_ajaran,nama_surah,ayat,murojaah,nilai,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,keterangan",
-            )
-            .eq("student_id", studentId)
-            .order("tanggal", { ascending: false }),
+          loadDailyMemorizationRows(studentId),
           supabase
             .from("level_promotion_exams")
             .select(

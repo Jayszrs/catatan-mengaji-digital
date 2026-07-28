@@ -16,19 +16,28 @@ const readError = (error: unknown): ErrorLike => {
   return {};
 };
 
-export function getAppErrorMessage(error: unknown, fallback: string) {
+export function isMissingDatabaseFeatureError(error: unknown) {
   const { code, message } = readError(error);
   const normalized = (message || "").toLowerCase();
-
-  if (
+  return (
+    code === "PGRST204" ||
     code === "PGRST205" ||
     code === "42P01" ||
     code === "42703" ||
     normalized.includes("schema cache") ||
     normalized.includes("does not exist") ||
     normalized.includes("could not find the table") ||
-    normalized.includes("could not find the function")
-  ) {
+    normalized.includes("could not find the function") ||
+    normalized.includes("could not find the") &&
+      normalized.includes("column")
+  );
+}
+
+export function getAppErrorMessage(error: unknown, fallback: string) {
+  const { code, message } = readError(error);
+  const normalized = (message || "").toLowerCase();
+
+  if (isMissingDatabaseFeatureError(error)) {
     return "Fitur database belum diaktifkan. Jalankan migrasi Supabase production terlebih dahulu.";
   }
 
