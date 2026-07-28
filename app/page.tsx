@@ -1,109 +1,148 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/Button";
-import { BookOpen, Users, BarChart3, GraduationCap, CheckCircle2 } from "lucide-react";
+import {
+  ArrowRight,
+  Award,
+  BookOpen,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  FileText,
+  GraduationCap,
+  ShieldCheck,
+  Sparkles,
+  Users,
+} from "lucide-react";
+
+const featureCards = [
+  {
+    icon: <CalendarDays size={23} />,
+    title: "Catatan harian yang tertata",
+    description:
+      "Presensi, kegiatan, tadarus, hafalan, dan catatan guru tersimpan dalam satu alur kerja.",
+    className: "lg:col-span-7",
+    accent: "bg-emerald-50 text-emerald-700",
+  },
+  {
+    icon: <FileText size={23} />,
+    title: "Tiga rapor otomatis",
+    description:
+      "Rapor harian, kenaikan level, dan munaqosyah tersusun otomatis dalam format resmi sekolah.",
+    className: "lg:col-span-5",
+    accent: "bg-amber-50 text-amber-700",
+  },
+  {
+    icon: <BookOpen size={23} />,
+    title: "Kurikulum per level",
+    description:
+      "Target surat dari Level 1 hingga Mustawa Muttawasit tercatat jelas dan mudah diperbarui.",
+    className: "lg:col-span-5",
+    accent: "bg-sky-50 text-sky-700",
+  },
+  {
+    icon: <Users size={23} />,
+    title: "Guru dan orang tua tetap terhubung",
+    description:
+      "Perkembangan siswa dapat dipantau secara transparan tanpa menunggu pembagian rapor.",
+    className: "lg:col-span-7",
+    accent: "bg-violet-50 text-violet-700",
+  },
+];
+
+const workflowSteps = [
+  {
+    number: "01",
+    title: "Guru mencatat",
+    description: "Input kegiatan dan penilaian siswa melalui form yang ringkas.",
+  },
+  {
+    number: "02",
+    title: "Sistem merangkum",
+    description: "Data harian diolah menjadi progres dan rapor yang konsisten.",
+  },
+  {
+    number: "03",
+    title: "Orang tua memantau",
+    description: "Capaian anak dapat dilihat kapan saja dari akun orang tua.",
+  },
+];
 
 export default function Home() {
-  const [user, setUser] = useState<any>(null);
-  const [showSplash, setShowSplash] = useState(true);
-  const [isFadingOut, setIsFadingOut] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const checkUser = async () => {
       const {
-        data: { user },
+        data: { user: activeUser },
       } = await supabase.auth.getUser();
-      setUser(user);
+      setUser(activeUser);
     };
-    checkUser();
 
-    // Tampilkan splash screen setiap kali halaman dimuat (termasuk saat di-refresh)
-    const fadeTimer = setTimeout(() => {
-      setIsFadingOut(true);
-    }, 2500);
-    
-    // Hapus dari DOM setelah animasi fade out selesai
-    const removeTimer = setTimeout(() => {
-      setShowSplash(false);
-    }, 3500);
-    
-    return () => {
-      clearTimeout(fadeTimer);
-      clearTimeout(removeTimer);
-    };
+    checkUser();
   }, []);
 
+  const role = user?.user_metadata?.role;
+  const dashboardHref =
+    role === "orang_tua"
+      ? "/dashboard/orang-tua"
+      : role === "admin"
+        ? "/dashboard/admin"
+        : "/dashboard/guru";
+
   return (
-    <div className="min-h-screen bg-gray-50 relative">
-      {/* Splash Screen */}
-      {showSplash && (
-        <div 
-          className={`fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center transition-opacity duration-1000 ease-in-out ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}
-        >
-          {/* Subtle Background Decor */}
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#2dc653]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#2dc653]/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3"></div>
-
-          {/* Logo dengan Animasi Loading */}
-          <div className="relative mb-10 z-10">
-            <div className="w-36 h-36 bg-white rounded-full shadow-2xl shadow-[#2dc653]/20 relative z-10 flex items-center justify-center overflow-hidden border border-gray-50">
-              <img src="/logo.png" alt="Logo SD ILBS" className="w-full h-full object-cover scale-[1.35] mix-blend-multiply contrast-125 brightness-110" />
+    <main className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#f7faf7] text-[#10251c]">
+      <nav className="sticky top-0 z-50 w-full max-w-[100vw] overflow-hidden border-b border-[#163e2d]/10 bg-white/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-[76px] w-full min-w-0 max-w-7xl items-center justify-between gap-3 px-5 sm:px-6 lg:px-8">
+          <Link href="/" className="flex min-w-0 shrink items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-gray-200">
+              <Image
+                src="/logo.png"
+                alt="Logo SD Islam Labschool Bani Saleh"
+                width={44}
+                height={44}
+                priority
+                className="h-full w-full scale-[1.25] object-cover mix-blend-multiply"
+              />
             </div>
-            {/* Cincin berputar (Spinning Ring) */}
-            <div className="absolute -inset-2 border-[3px] border-gray-100 border-t-[#2dc653] rounded-full animate-spin" style={{ animationDuration: '1.2s' }}></div>
-          </div>
-
-          <h1 className="text-4xl md:text-5xl font-black text-gray-900 text-center mb-3 tracking-tight z-10">
-            Catatan Mengaji Digital
-          </h1>
-          <p className="text-gray-500 text-base md:text-lg text-center max-w-md px-6 font-medium leading-relaxed z-10">
-            Sistem Informasi Laporan Harian Digital
-            <br />
-            <span className="font-bold text-[#2dc653] mt-3 block tracking-widest uppercase text-xs">SD Islam Labschool Bani Saleh</span>
-          </p>
-
-          {/* Indikator Memuat (Loading Text) */}
-          <div className="mt-16 flex items-center gap-3 z-10 bg-gray-50/80 px-5 py-2.5 rounded-full border border-gray-100 backdrop-blur-sm">
-            <div className="flex gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-[#2dc653] animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-2 h-2 rounded-full bg-[#2dc653] animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-2 h-2 rounded-full bg-[#2dc653] animate-bounce" style={{ animationDelay: '300ms' }}></div>
-            </div>
-            <span className="text-[#2dc653] text-xs font-bold tracking-widest uppercase">Memuat</span>
-          </div>
-        </div>
-      )}
-
-      {/* Navbar */}
-      <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Logo SD Islam Labschool" className="w-14 h-14 object-contain scale-[1.4] mix-blend-multiply contrast-125 brightness-110" />
-            <div className="flex flex-col">
-              <span className="font-extrabold text-xl text-gray-900 tracking-tight leading-tight uppercase">
+            <div className="hidden min-w-0 min-[520px]:block">
+              <p className="truncate text-sm font-black uppercase tracking-[-0.02em] text-[#173d2e] sm:text-base">
                 Catatan Mengaji Digital
-              </span>
-              <span className="text-xs font-semibold text-[#2dc653] uppercase tracking-wider">
+              </p>
+              <p className="hidden text-[10px] font-bold uppercase tracking-[0.14em] text-[#2f8f5b] sm:block">
                 SD Islam Labschool Bani Saleh
-              </span>
+              </p>
             </div>
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-3">
             {user ? (
-              <Link href="/dashboard/guru">
-                <Button>Buka Dashboard</Button>
+              <Link
+                href={dashboardHref}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#173d2e] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0f2f23]"
+              >
+                Buka Dashboard
+                <ArrowRight size={16} />
               </Link>
             ) : (
               <>
-                <Link href="/auth/login" className="text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors hidden md:block">
+                <Link
+                  href="/auth/login"
+                  className="rounded-xl px-2.5 py-2.5 text-sm font-bold text-[#335648] transition hover:bg-[#edf5f0] hover:text-[#173d2e] sm:px-4"
+                >
                   Masuk
                 </Link>
-                <Link href="/auth/signup">
-                  <Button className="shadow-md hover:shadow-lg">Daftar Sekarang</Button>
+                <Link
+                  href="/auth/signup"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#173d2e] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0f2f23]"
+                >
+                  <span className="hidden sm:inline">Daftar Sekarang</span>
+                  <span className="sm:hidden">Daftar</span>
+                  <ArrowRight className="hidden sm:block" size={16} />
                 </Link>
               </>
             )}
@@ -111,175 +150,333 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="bg-white py-24 px-6 relative overflow-hidden">
-        {/* Abstract Background Element */}
-        <div className="absolute top-0 right-0 -mr-32 -mt-32 w-96 h-96 bg-green-50 rounded-full blur-3xl opacity-60"></div>
-        <div className="absolute bottom-0 left-0 -ml-32 -mb-32 w-96 h-96 bg-blue-50 rounded-full blur-3xl opacity-60"></div>
-        
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 bg-green-50 border border-green-100 text-[#2dc653] rounded-full text-sm font-bold tracking-wide">
-            <span className="w-2 h-2 rounded-full bg-[#2dc653] animate-pulse"></span>
-            Platform Laporan Digital Resmi
-          </div>
+      <section className="relative isolate overflow-hidden">
+        <div className="absolute inset-0 -z-20 bg-[linear-gradient(120deg,#f7faf7_0%,#ffffff_50%,#edf8f1_100%)]" />
+        <div className="absolute -right-40 -top-32 -z-10 h-[520px] w-[520px] rounded-full bg-[#65c98a]/15 blur-3xl" />
+        <div className="absolute -bottom-48 -left-48 -z-10 h-[500px] w-[500px] rounded-full bg-[#d9b45b]/10 blur-3xl" />
 
-          <h1 className="text-5xl md:text-7xl font-black text-gray-900 mb-8 leading-tight tracking-tight">
-            Catatan Mengaji <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2dc653] to-[#1f9c3b] uppercase">
-              Digital
-            </span>
-          </h1>
+        <div className="mx-auto grid min-h-[calc(100vh-76px)] w-full min-w-0 max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-14 px-5 py-16 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-20">
+          <div className="min-w-0">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#b9dcc8] bg-white/80 px-3.5 py-2 text-xs font-bold text-[#267449] shadow-sm backdrop-blur">
+              <Sparkles size={14} />
+              Sistem Tahfidz Terintegrasi
+            </div>
 
-          <p className="text-xl text-gray-500 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Platform modern yang dirancang khusus untuk mempermudah guru mencatat progress dan mempererat komunikasi dengan orang tua secara <i>real-time</i>.
-          </p>
+            <h1 className="max-w-2xl text-[38px] font-black leading-[1.08] tracking-[-0.045em] text-[#10251c] sm:text-5xl lg:text-[64px]">
+              Pendampingan hafalan yang lebih{" "}
+              <span className="text-[#2d8d58]">terarah</span>, setiap hari.
+            </h1>
 
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-            {!user ? (
-              <>
-                <Link href="/auth/signup">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto px-8 py-4 shadow-xl hover:shadow-2xl text-lg rounded-2xl"
-                  >
-                    Mulai Sekarang
-                  </Button>
-                </Link>
-                <Link href="/auth/login">
-                  <Button 
-                    size="lg" 
-                    variant="outline"
-                    className="w-full sm:w-auto px-8 py-4 text-lg rounded-2xl border-2"
-                  >
-                    Masuk ke Akun
-                  </Button>
-                </Link>
-              </>
-            ) : (
-              <Link href="/dashboard/guru">
-                <Button size="lg" className="px-8 py-4 shadow-xl text-lg rounded-2xl">Masuk ke Dashboard</Button>
+            <p className="mt-6 max-w-xl text-base font-medium leading-8 text-[#5a6f65] sm:text-lg">
+              Satu ruang digital untuk membantu guru mencatat, sekolah mengevaluasi,
+              dan orang tua mengikuti perkembangan Tahsin &amp; Tahfidz siswa secara
+              berkelanjutan.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href={user ? dashboardHref : "/auth/signup"}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#173d2e] px-6 py-3.5 text-sm font-bold text-white shadow-[0_14px_34px_rgba(23,61,46,0.2)] transition hover:-translate-y-0.5 hover:bg-[#0f2f23]"
+              >
+                {user ? "Masuk ke Dashboard" : "Mulai Menggunakan"}
+                <ArrowRight size={17} />
               </Link>
-            )}
+              {!user && (
+                <Link
+                  href="/auth/login"
+                  className="inline-flex items-center justify-center rounded-2xl border border-[#bfd3c6] bg-white/80 px-6 py-3.5 text-sm font-bold text-[#173d2e] transition hover:border-[#7eaa8f] hover:bg-white"
+                >
+                  Saya sudah punya akun
+                </Link>
+              )}
+            </div>
+
+            <div className="mt-10 grid max-w-xl grid-cols-3 border-t border-[#173d2e]/10 pt-6">
+              {[
+                ["3", "Rapor otomatis"],
+                ["9", "Jenjang tahfidz"],
+                ["2", "Akses terhubung"],
+              ].map(([value, label]) => (
+                <div key={label} className="pr-3">
+                  <p className="text-2xl font-black text-[#173d2e]">{value}</p>
+                  <p className="mt-1 text-[11px] font-bold uppercase leading-4 tracking-[0.08em] text-[#718279] sm:text-xs">
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative mx-auto w-full min-w-0 max-w-[590px] lg:mx-0 lg:ml-auto">
+            <div className="absolute -left-8 top-20 hidden h-20 w-20 rounded-3xl border border-white/80 bg-white/70 shadow-xl backdrop-blur lg:block" />
+            <div className="absolute -right-6 bottom-16 hidden h-28 w-28 rounded-full bg-[#d4ae55]/20 blur-sm lg:block" />
+
+            <div className="relative overflow-hidden rounded-[32px] border border-[#315948] bg-[#123729] p-3 shadow-[0_35px_90px_rgba(19,56,42,0.28)] sm:p-4">
+              <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#54bd79]/15 blur-2xl" />
+
+              <div className="relative overflow-hidden rounded-[24px] bg-[#f8faf8]">
+                <div className="flex items-center justify-between border-b border-gray-200 bg-white px-5 py-4 sm:px-6">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl ring-1 ring-gray-200">
+                      <Image
+                        src="/logo.png"
+                        alt=""
+                        width={36}
+                        height={36}
+                        className="h-full w-full scale-[1.25] object-cover mix-blend-multiply"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-[#173d2e]">Dashboard Perkembangan</p>
+                      <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-gray-400">
+                        Tahun Ajaran 2026/2027
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-[#2dc653]" />
+                    <span className="text-[10px] font-bold text-gray-500">Aktif</span>
+                  </div>
+                </div>
+
+                <div className="p-4 sm:p-6">
+                  <div className="rounded-2xl bg-[#173d2e] p-5 text-white shadow-lg">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200">
+                          Progres Tahfidz
+                        </p>
+                        <h2 className="mt-2 text-xl font-black">Jaelani Surya Saputra</h2>
+                        <p className="mt-1 text-xs font-medium text-white/60">
+                          Kelas 5 · Level 4
+                        </p>
+                      </div>
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[5px] border-[#62ce89] bg-white/10 text-sm font-black">
+                        82%
+                      </div>
+                    </div>
+                    <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/15">
+                      <div className="h-full w-[82%] rounded-full bg-[#62ce89]" />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2.5">
+                    {[
+                      { icon: <CalendarDays size={16} />, value: "24", label: "Laporan", color: "text-emerald-700 bg-emerald-50" },
+                      { icon: <Award size={16} />, value: "A-", label: "Predikat", color: "text-amber-700 bg-amber-50" },
+                      { icon: <BookOpen size={16} />, value: "5", label: "Surat", color: "text-sky-700 bg-sky-50" },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-2xl border border-gray-200 bg-white p-3">
+                        <div className={`mb-3 flex h-8 w-8 items-center justify-center rounded-lg ${item.color}`}>
+                          {item.icon}
+                        </div>
+                        <p className="text-lg font-black text-[#173d2e]">{item.value}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                          {item.label}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-xs font-black text-[#173d2e]">Aktivitas Terbaru</p>
+                      <span className="text-[10px] font-bold text-[#2d8d58]">Hari ini</span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {[
+                        ["Hafalan", "Al-Fajr ayat 1–10", "Sangat Baik"],
+                        ["Tadarus", "Al-Baqarah ayat 1–15", "Selesai"],
+                      ].map(([type, detail, status]) => (
+                        <div key={type} className="flex items-center gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#e5f4ea] text-[#2d8d58]">
+                            <Check size={14} strokeWidth={3} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{type}</p>
+                            <p className="truncate text-xs font-bold text-[#31483e]">{detail}</p>
+                          </div>
+                          <span className="hidden rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700 sm:block">
+                            {status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute -bottom-6 -left-5 hidden items-center gap-3 rounded-2xl border border-white bg-white px-4 py-3 shadow-xl sm:flex">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                <ShieldCheck size={19} />
+              </span>
+              <div>
+                <p className="text-xs font-black text-[#173d2e]">Data tersimpan aman</p>
+                <p className="text-[10px] font-medium text-gray-400">Terhubung secara real-time</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-24 px-6 bg-gray-50 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">
-              Fitur Unggulan
-            </h2>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto">Sistem terintegrasi yang memudahkan pengelolaan data dan pelaporan capaian siswa.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-3xl p-10 border border-gray-100 hover:shadow-xl transition-all duration-300 group">
-              <div className="w-14 h-14 bg-green-50 text-[#2dc653] rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <BookOpen size={28} strokeWidth={2.5} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Laporan Digital Terstruktur
-              </h3>
-              <p className="text-gray-500 leading-relaxed">
-                Input laporan tadarus pagi dan progress hafalan siswa dengan parameter yang jelas, mudah, dan tersimpan aman.
+      <section id="fitur" className="bg-white px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-8 lg:grid-cols-[0.7fr_1fr] lg:items-end">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#2d8d58]">
+                Satu sistem yang utuh
               </p>
+              <h2 className="mt-4 text-3xl font-black tracking-[-0.035em] text-[#10251c] sm:text-4xl">
+                Dibuat untuk alur belajar yang benar-benar berjalan.
+              </h2>
             </div>
-
-            <div className="bg-white rounded-3xl p-10 border border-gray-100 hover:shadow-xl transition-all duration-300 group">
-              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <Users size={28} strokeWidth={2.5} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Sinergi Guru & Orang Tua
-              </h3>
-              <p className="text-gray-500 leading-relaxed">
-                Orang tua dapat mengakses perkembangan hafalan anak secara real-time dari mana saja melalui perangkat mereka.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-3xl p-10 border border-gray-100 hover:shadow-xl transition-all duration-300 group">
-              <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <BarChart3 size={28} strokeWidth={2.5} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Analitik & Tracking
-              </h3>
-              <p className="text-gray-500 leading-relaxed">
-                Evaluasi statistik pembelajaran, makhraj, muroja'ah, dan rekam jejak penilaian siswa secara komprehensif.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* User Types Section */}
-      <section className="py-32 px-6 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6">
-              Satu Platform, Dua Akses
-            </h2>
-            <p className="text-xl text-gray-500 max-w-2xl mx-auto">
-              Sistem peran ganda yang mengoptimalkan alur informasi antara pendidik dan wali murid.
+            <p className="max-w-2xl text-base font-medium leading-8 text-[#67796f] lg:justify-self-end">
+              Setiap fitur dirancang mengikuti kebutuhan sekolah—mulai dari pencatatan di kelas
+              sampai laporan resmi yang diterima orang tua.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-10">
-            {/* Guru */}
-            <div className="bg-gray-50 border border-gray-100 rounded-3xl p-12 relative overflow-hidden group">
-              <div className="w-16 h-16 bg-white text-[#2dc653] rounded-2xl shadow-sm flex items-center justify-center mb-8">
-                <GraduationCap size={32} strokeWidth={2} />
-              </div>
-              <h3 className="text-3xl font-black text-gray-900 mb-8">Akses Guru</h3>
-              <ul className="space-y-5">
-                {[
-                  "Manajemen daftar siswa dalam satu kelas",
-                  "Input laporan tadarus pagi harian dengan efisien",
-                  "Pencatatan spesifik makhraj & kelancaran muroja'ah",
-                  "Sistem paraf digital tersentralisasi"
-                ].map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-4">
-                    <CheckCircle2 className="text-[#2dc653] shrink-0 mt-0.5" size={20} />
-                    <span className="text-gray-700 font-medium">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Orang Tua */}
-            <div className="bg-gray-50 border border-gray-100 rounded-3xl p-12 relative overflow-hidden group">
-              <div className="w-16 h-16 bg-white text-blue-600 rounded-2xl shadow-sm flex items-center justify-center mb-8">
-                <Users size={32} strokeWidth={2} />
-              </div>
-              <h3 className="text-3xl font-black text-gray-900 mb-8">Akses Orang Tua</h3>
-              <ul className="space-y-5">
-                {[
-                  "Akses transparan ke rekam jejak harian anak",
-                  "Monitoring target hafalan secara berkala",
-                  "Melihat catatan khusus dan masukan dari guru pengajar",
-                  "Notifikasi pembaruan data secara real-time"
-                ].map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-4">
-                    <CheckCircle2 className="text-blue-600 shrink-0 mt-0.5" size={20} />
-                    <span className="text-gray-700 font-medium">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          <div className="mt-12 grid gap-4 lg:grid-cols-12">
+            {featureCards.map((feature) => (
+              <article
+                key={feature.title}
+                className={`group rounded-[28px] border border-[#dfe8e2] bg-[#fbfcfb] p-6 transition duration-300 hover:-translate-y-1 hover:border-[#b7cdbf] hover:bg-white hover:shadow-[0_18px_50px_rgba(23,61,46,0.08)] sm:p-8 ${feature.className}`}
+              >
+                <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${feature.accent}`}>
+                  {feature.icon}
+                </div>
+                <h3 className="mt-7 text-xl font-black tracking-[-0.02em] text-[#173d2e]">
+                  {feature.title}
+                </h3>
+                <p className="mt-3 max-w-xl text-sm font-medium leading-7 text-[#6b7d74]">
+                  {feature.description}
+                </p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-[#2dc653] py-8 px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-center text-center">
-          <p className="text-sm font-medium text-gray-800">
-            &copy; {new Date().getFullYear()} <span className="text-gray-900 font-bold">SD Labschool Bani Saleh</span>. Hak Cipta Dilindungi.
+      <section className="border-y border-[#dfe8e2] bg-[#f1f6f2] px-5 py-20 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="text-center">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#2d8d58]">
+              Alur yang sederhana
+            </p>
+            <h2 className="mt-4 text-3xl font-black tracking-[-0.035em] text-[#10251c] sm:text-4xl">
+              Dari kelas hingga rumah, tetap tersambung.
+            </h2>
+          </div>
+
+          <div className="relative mt-12 grid gap-4 md:grid-cols-3">
+            <div className="absolute left-[16%] right-[16%] top-7 hidden border-t border-dashed border-[#9fb9aa] md:block" />
+            {workflowSteps.map((step) => (
+              <article key={step.number} className="relative rounded-3xl border border-[#d8e4dc] bg-white p-6 text-center shadow-sm">
+                <span className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#173d2e] text-sm font-black text-white shadow-lg">
+                  {step.number}
+                </span>
+                <h3 className="mt-6 text-lg font-black text-[#173d2e]">{step.title}</h3>
+                <p className="mx-auto mt-2 max-w-xs text-sm font-medium leading-6 text-[#6b7d74]">
+                  {step.description}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto grid max-w-7xl overflow-hidden rounded-[36px] bg-[#123729] lg:grid-cols-2">
+          <div className="relative border-b border-white/10 p-7 text-white sm:p-10 lg:border-b-0 lg:border-r lg:p-12">
+            <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-[#4dbd76]/10 blur-2xl" />
+            <GraduationCap className="relative text-[#75d695]" size={32} />
+            <p className="relative mt-8 text-xs font-black uppercase tracking-[0.18em] text-[#75d695]">
+              Untuk Guru
+            </p>
+            <h2 className="relative mt-3 text-3xl font-black tracking-[-0.03em]">
+              Lebih fokus mendampingi, lebih sedikit mengurus administrasi.
+            </h2>
+            <ul className="relative mt-7 space-y-3">
+              {[
+                "Input harian dalam satu halaman",
+                "Penilaian dan kenaikan level terstruktur",
+                "Rapor resmi siap cetak",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-3 text-sm font-semibold text-white/75">
+                  <CheckCircle2 className="shrink-0 text-[#75d695]" size={18} />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="relative p-7 text-white sm:p-10 lg:p-12">
+            <Users className="text-[#f1c96f]" size={30} />
+            <p className="mt-8 text-xs font-black uppercase tracking-[0.18em] text-[#f1c96f]">
+              Untuk Orang Tua
+            </p>
+            <h2 className="mt-3 text-3xl font-black tracking-[-0.03em]">
+              Perkembangan anak hadir dengan jelas, bukan sekadar angka.
+            </h2>
+            <ul className="mt-7 space-y-3">
+              {[
+                "Riwayat belajar mudah dipahami",
+                "Target hafalan terlihat transparan",
+                "Catatan guru dapat dipantau kapan saja",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-3 text-sm font-semibold text-white/75">
+                  <CheckCircle2 className="shrink-0 text-[#f1c96f]" size={18} />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white px-5 pb-20 sm:px-6 lg:px-8 lg:pb-28">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-7 rounded-[32px] border border-[#cfe0d5] bg-[linear-gradient(120deg,#f1f8f3,#ffffff)] p-8 text-center sm:p-10 lg:flex-row lg:text-left">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2d8d58]">
+              Mulai sekarang
+            </p>
+            <h2 className="mt-3 max-w-2xl text-2xl font-black tracking-[-0.03em] text-[#173d2e] sm:text-3xl">
+              Bangun pendampingan Tahsin &amp; Tahfidz yang lebih konsisten.
+            </h2>
+          </div>
+          <Link
+            href={user ? dashboardHref : "/auth/signup"}
+            className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-[#173d2e] px-6 py-3.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#0f2f23]"
+          >
+            {user ? "Buka Dashboard" : "Daftar Sekarang"}
+            <ArrowRight size={17} />
+          </Link>
+        </div>
+      </section>
+
+      <footer className="border-t border-[#173d2e]/10 bg-[#f7faf7] px-5 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt=""
+              width={34}
+              height={34}
+              className="h-9 w-9 rounded-lg object-cover mix-blend-multiply"
+            />
+            <div>
+              <p className="text-xs font-black uppercase text-[#173d2e]">Catatan Mengaji Digital</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#718279]">
+                SD Islam Labschool Bani Saleh
+              </p>
+            </div>
+          </div>
+          <p className="text-xs font-medium text-[#718279]">
+            © {new Date().getFullYear()} SD Islam Labschool Bani Saleh. Hak cipta dilindungi.
           </p>
         </div>
       </footer>
-    </div>
+    </main>
   );
 }
