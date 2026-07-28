@@ -25,6 +25,7 @@ export default function AdminDashboard() {
   const [role, setRole] = useState("guru");
 
   const [newPassword, setNewPassword] = useState("");
+  const [repairingUserId, setRepairingUserId] = useState("");
 
   useEffect(() => {
     // Check if admin is logged in (bypass from localStorage)
@@ -122,6 +123,36 @@ export default function AdminDashboard() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAssignRole = async (
+    userId: string,
+    selectedRole: "guru" | "orang_tua",
+  ) => {
+    setRepairingUserId(userId);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "assign_role",
+          userId,
+          role: selectedRole,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal memberikan role");
+      setSuccess(
+        `Role ${selectedRole === "orang_tua" ? "Orang Tua" : "Guru"} berhasil diberikan.`,
+      );
+      await fetchUsers();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Gagal memberikan role");
+    } finally {
+      setRepairingUserId("");
     }
   };
 
@@ -278,12 +309,38 @@ export default function AdminDashboard() {
                     <td className="px-6 py-5 text-gray-600 font-medium whitespace-nowrap">{u.email}</td>
                     <td className="px-6 py-5 whitespace-nowrap">
                       <span className={`px-3 py-1 text-xs font-bold rounded-lg uppercase tracking-wider ${
-                        u.role === 'guru' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'
+                        u.role === 'guru'
+                          ? 'bg-green-50 text-green-700'
+                          : u.role === 'orang_tua'
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'bg-amber-50 text-amber-700'
                       }`}>
                         {u.role.replace("_", " ")}
                       </span>
                     </td>
                     <td className="px-6 py-5 text-right whitespace-nowrap">
+                      {u.role === "Belum Ada Role" && (
+                        <div className="mb-2 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            disabled={repairingUserId === u.id}
+                            onClick={() => handleAssignRole(u.id, "orang_tua")}
+                            className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                          >
+                            {repairingUserId === u.id
+                              ? "Memproses..."
+                              : "Jadikan Orang Tua"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={repairingUserId === u.id}
+                            onClick={() => handleAssignRole(u.id, "guru")}
+                            className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                          >
+                            Jadikan Guru
+                          </button>
+                        </div>
+                      )}
                       <button 
                         onClick={() => {
                           setSelectedUser(u);

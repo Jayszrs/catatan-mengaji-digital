@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import {
+  createUserRole,
+  isSupabaseConfigured,
+  supabase,
+} from "@/lib/supabase";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { ArrowLeft, LogIn, Loader2, AlertCircle } from "lucide-react";
@@ -61,12 +65,25 @@ export default function LoginPage() {
 
         if (roleError) throw roleError;
 
-        if (roleData?.role === "guru") {
+        let resolvedRole = roleData?.role;
+        const metadataRole = data.user.user_metadata?.role;
+        if (
+          !resolvedRole &&
+          (metadataRole === "guru" || metadataRole === "orang_tua") &&
+          data.user.email
+        ) {
+          await createUserRole(data.user.id, data.user.email, metadataRole);
+          resolvedRole = metadataRole;
+        }
+
+        if (resolvedRole === "guru") {
           router.push("/dashboard/guru");
-        } else if (roleData?.role === "orang_tua") {
+        } else if (resolvedRole === "orang_tua") {
           router.push("/dashboard/orang-tua");
         } else {
-          setError("Data Role tidak ditemukan. Karena database baru direset, silakan daftar akun (Sign Up) ulang.");
+          setError(
+            "Role akun belum diberikan. Minta Administrator memilih tombol Jadikan Orang Tua atau Jadikan Guru pada Manajemen Akun.",
+          );
         }
       }
     } catch (err: unknown) {
