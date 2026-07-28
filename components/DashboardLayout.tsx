@@ -66,7 +66,7 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
   const isActive = (path: string) => pathname === path;
 
   return (
-    <div className="flex h-screen bg-[#f7f9fa] font-sans">
+    <div className="flex h-screen bg-[#f7f9fa] font-sans print:block print:h-auto print:bg-white">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -79,6 +79,7 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-100 flex flex-col
         transition-transform duration-300 ease-in-out
+        print:hidden
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}>
         {/* Logo */}
@@ -113,7 +114,7 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
               <nav className="space-y-1">
                 <Link href="/dashboard/orang-tua" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/orang-tua") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <BookOpen size={20} />
-                  <span>Progres Anak</span>
+                  <span>Daftar Siswa & Progres</span>
                 </Link>
                 <Link href="/dashboard/orang-tua/komposisi-nilai" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/orang-tua/komposisi-nilai") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <Award size={20} />
@@ -132,6 +133,22 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
                 <Link href="/dashboard/guru/students" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/students") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <Users size={20} />
                   <span>Daftar Siswa</span>
+                </Link>
+                <Link href="/dashboard/guru/classes" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/classes") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <Users size={20} />
+                  <span>Data Kelas</span>
+                </Link>
+                <Link href="/dashboard/guru/catatan-terintegrasi" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/catatan-terintegrasi") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <FileText size={20} />
+                  <span>Catatan Terintegrasi</span>
+                </Link>
+                <Link href="/dashboard/guru/laporan-harian" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/laporan-harian") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <FileText size={20} />
+                  <span>Presensi & Harian</span>
+                </Link>
+                <Link href="/dashboard/guru/ujian-level" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/ujian-level") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <Award size={20} />
+                  <span>Ujian Kenaikan Level</span>
                 </Link>
                 <Link href="/dashboard/guru/input-tadarus" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/input-tadarus") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <Sun size={20} />
@@ -166,9 +183,9 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative print:block print:h-auto print:overflow-visible">
         {/* Top Header */}
-        <header className="h-24 bg-[#f7f9fa] flex items-center justify-between px-8 lg:px-12 shrink-0 pt-4">
+        <header className="h-24 bg-[#f7f9fa] flex items-center justify-between px-8 lg:px-12 shrink-0 pt-4 print:hidden">
           <div className="flex items-center gap-4">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-xl">
               <Menu size={24} />
@@ -198,7 +215,7 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
         </header>
 
         {/* Scrollable Content */}
-        <main id="main-content" className="flex-1 overflow-y-auto px-8 lg:px-12 pb-12">
+        <main id="main-content" className="flex-1 overflow-y-auto px-8 lg:px-12 pb-12 print:overflow-visible print:p-0">
           {children}
         </main>
       </div>

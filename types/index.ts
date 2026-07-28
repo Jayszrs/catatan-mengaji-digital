@@ -38,6 +38,7 @@ export interface Student {
   name: string;
   school_id: string;
   level: number;
+  foto_url?: string | null;
   created_at: string;
 }
 

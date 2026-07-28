@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fetchStudentByRouteKey } from "@/lib/students";
 import { Printer, ArrowLeft, FileText, Award, Save, Loader2, CheckCircle2 } from "lucide-react";
 
-export default function PrintReportPage() {
+function PrintReportContent() {
   const { id } = useParams();
   const router = useRouter();
   const [student, setStudent] = useState<any>(null);
@@ -18,7 +18,11 @@ export default function PrintReportPage() {
   
   // Print Type
   const initialType = searchParams.get("type") as "rapor" | "munaqosyah" | null;
+  const readOnlyMode = searchParams.get("mode") === "view";
   const [printType, setPrintType] = useState<"rapor" | "munaqosyah">(initialType === "munaqosyah" ? "munaqosyah" : "rapor");
+  const [reportPeriod, setReportPeriod] = useState(
+    new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(new Date()),
+  );
 
   // Editable fields before printing
   const [kelas, setKelas] = useState("V");
@@ -79,13 +83,15 @@ export default function PrintReportPage() {
 
       const { data: reportData } = await supabase
         .from("student_reports")
-        .select("data_rapor")
+        .select("data_rapor, bulan_tahun")
         .eq("student_id", reportStudentId)
         .eq("jenis_rapor", "rapor")
-        .eq("bulan_tahun", "Juni 2026")
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (reportData && reportData.data_rapor) {
+        setReportPeriod(reportData.bulan_tahun || reportPeriod);
         const payload = reportData.data_rapor;
         setKelas(payload.kelas || "V");
         setJuz(payload.juz || "29");
@@ -101,13 +107,17 @@ export default function PrintReportPage() {
       // Coba fetch laporan munaqosyah
       const { data: munaqosyahData } = await supabase
         .from("student_reports")
-        .select("data_rapor")
+        .select("data_rapor, bulan_tahun")
         .eq("student_id", reportStudentId)
         .eq("jenis_rapor", "munaqosyah")
-        .eq("bulan_tahun", "Juni 2026")
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (munaqosyahData && munaqosyahData.data_rapor) {
+        if (initialType === "munaqosyah") {
+          setReportPeriod(munaqosyahData.bulan_tahun || reportPeriod);
+        }
         const payload = munaqosyahData.data_rapor;
         setTanggalMunaqosyah(payload.tanggalMunaqosyah || "24 Mei 2025");
         if (payload.rowsMunaqosyah) setRowsMunaqosyah(payload.rowsMunaqosyah);
@@ -156,7 +166,7 @@ export default function PrintReportPage() {
         .select("id")
         .eq("student_id", student.id)
         .eq("jenis_rapor", printType)
-        .eq("bulan_tahun", "Juni 2026")
+        .eq("bulan_tahun", reportPeriod)
         .maybeSingle();
 
       if (existing) {
@@ -168,10 +178,30 @@ export default function PrintReportPage() {
         await supabase.from("student_reports").insert([{
           student_id: student.id,
           teacher_id: user.id,
-          bulan_tahun: "Juni 2026",
+          bulan_tahun: reportPeriod,
           jenis_rapor: printType,
           data_rapor: payload
         }]);
+      }
+
+      if (printType === "munaqosyah") {
+        const { error: examError } = await supabase
+          .from("munaqosyah_exams")
+          .upsert(
+            {
+              student_id: student.id,
+              teacher_id: user.id,
+              tanggal: new Date().toISOString().split("T")[0],
+              jenjang: "SD/MI",
+              durasi_menit: 120,
+              status: "Selesai",
+              hasil_ujian: payload,
+              catatan_guru: catatanMunaqosyah,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "student_id" },
+          );
+        if (examError) throw examError;
       }
 
       setNotification({ show: true, message: `Data ${printType === "rapor" ? "Rapor" : "Munaqosyah"} Berhasil Disimpan!`, type: 'success' });
@@ -219,13 +249,15 @@ export default function PrintReportPage() {
 
 
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            <button 
-              onClick={handleSaveData}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg shadow-sm font-bold hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
-            >
-              {isSubmitting ? <><Loader2 size={18} className="animate-spin" /> Menyimpan...</> : <><Save size={18} /> Simpan Data</>}
-            </button>
+            {!readOnlyMode && (
+              <button
+                onClick={handleSaveData}
+                disabled={isSubmitting}
+                className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg shadow-sm font-bold hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
+              >
+                {isSubmitting ? <><Loader2 size={18} className="animate-spin" /> Menyimpan...</> : <><Save size={18} /> Simpan Data</>}
+              </button>
+            )}
             <button 
               onClick={handlePrint}
               className="flex items-center gap-2 bg-[#1b4332] text-white px-6 py-2 rounded-lg shadow-sm font-bold hover:bg-[#133c27] transition-colors"
@@ -242,8 +274,10 @@ export default function PrintReportPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-center gap-4 text-sm font-medium text-orange-600 bg-orange-50 px-4 py-2 rounded-lg border border-orange-200">
-          *Anda bisa klik dan edit langsung teks pada tabel sebelum dicetak!
+        <div className={`flex items-center justify-center gap-4 text-sm font-medium px-4 py-2 rounded-lg border ${readOnlyMode ? "text-green-700 bg-green-50 border-green-200" : "text-orange-600 bg-orange-50 border-orange-200"}`}>
+          {readOnlyMode
+            ? "Mode Orang Tua: data dapat dilihat dan dicetak."
+            : "*Anda bisa klik dan edit langsung teks pada tabel sebelum dicetak!"}
         </div>
       </div>
 
@@ -571,5 +605,13 @@ export default function PrintReportPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PrintReportPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center font-bold">Memuat data rapor...</div>}>
+      <PrintReportContent />
+    </Suspense>
   );
 }

@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import Link from "next/link";
-import { Users, BookOpen, Sun, ChevronRight, Inbox, Search, Fingerprint, Plus, X, UserPlus, Save, Edit2, Trash2, Upload, Loader2, CheckCircle2, AlertCircle, ChevronDown } from "lucide-react";
+import { Users, BookOpen, Sun, ChevronRight, Inbox, Search, Fingerprint, Plus, X, UserPlus, Save, Edit2, Trash2, Upload, Loader2, CheckCircle2, AlertCircle, ChevronDown, Camera, FileDown } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { StudentAvatar } from "@/components/StudentAvatar";
 import { getStudentRouteKey } from "@/lib/students";
+import { uploadStudentPhoto } from "@/lib/student-photos";
 import * as XLSX from "xlsx";
 
 const getNextAvailableNis = (students: any[]) => {
@@ -58,6 +60,8 @@ export default function DaftarSiswaFull() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState("");
   const [notification, setNotification] = useState<{ show: boolean, message: string, type: 'success' | 'error' | 'confirm', id?: string, isLoading?: boolean }>({ show: false, message: '', type: 'success' });
   const [formData, setFormData] = useState({
     nama_lengkap: "",
@@ -121,6 +125,8 @@ export default function DaftarSiswaFull() {
         students.filter((student) => student.id !== editingId),
       );
 
+      let savedStudentId = editingId;
+
       if (editingId) {
         const { data, error } = await supabase.from("students").update({
           nama_lengkap: formData.nama_lengkap,
@@ -131,12 +137,13 @@ export default function DaftarSiswaFull() {
           tempat_tanggal_lahir: formData.tempat_tanggal_lahir,
           kelas: formData.kelas,
           level: formData.level,
-        }).eq("id", editingId).select();
+        }).eq("id", editingId).select("id").single();
         
         if (error) throw error;
-        if (!data || data.length === 0) {
+        if (!data) {
           throw new Error("Gagal mengedit: Data tidak ditemukan atau diblokir oleh sistem keamanan (RLS).");
         }
+        savedStudentId = data.id;
         setNotification({ show: true, message: "Data siswa berhasil diperbarui!", type: 'success' });
       } else {
         const existingStudent = students.find((student) => normalizeNis(student.nis) === nis);
@@ -152,15 +159,24 @@ export default function DaftarSiswaFull() {
           level: formData.level,
         };
 
-        const { error } = existingStudent
-          ? await supabase.from("students").update(payload).eq("id", existingStudent.id)
+        const { data, error } = existingStudent
+          ? await supabase.from("students").update(payload).eq("id", existingStudent.id).select("id").single()
           : await supabase.from("students").insert([
           {
             ...payload,
           },
-        ]);
+        ]).select("id").single();
         if (error) throw error;
+        savedStudentId = data?.id || existingStudent?.id || null;
         setNotification({ show: true, message: existingStudent ? "Data siswa dengan NIS yang sama berhasil diperbarui!" : "Siswa baru berhasil ditambahkan!", type: 'success' });
+      }
+
+      if (photoFile && savedStudentId) {
+        await uploadStudentPhoto({
+          file: photoFile,
+          studentId: savedStudentId,
+          userId: user.id,
+        });
       }
       
       setFormData({
@@ -173,6 +189,8 @@ export default function DaftarSiswaFull() {
         kelas: "1",
         level: "1",
       });
+      setPhotoFile(null);
+      setPhotoPreview("");
       setEditingId(null);
       setShowForm(false);
       await checkUserAndFetchStudents();
@@ -194,6 +212,8 @@ export default function DaftarSiswaFull() {
       kelas: student.kelas || "1",
       level: student.level?.toString() || "1",
     });
+    setPhotoFile(null);
+    setPhotoPreview(student.foto_url || "");
     setEditingId(student.id);
     setShowForm(true);
     
@@ -201,6 +221,26 @@ export default function DaftarSiswaFull() {
     setTimeout(() => {
       document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
     }, 100);
+  };
+
+  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setNotification({ show: true, message: "Gunakan gambar JPG, PNG, atau WebP.", type: "error" });
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setNotification({ show: true, message: "Ukuran gambar maksimal 2 MB.", type: "error" });
+      event.target.value = "";
+      return;
+    }
+
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
   };
 
   const confirmDelete = (id: string) => {
@@ -304,6 +344,49 @@ export default function DaftarSiswaFull() {
     reader.readAsArrayBuffer(file);
   };
 
+  const handleDownloadTemplate = () => {
+    const templateRows = [
+      {
+        NIS: "1000001",
+        "Nama Lengkap": "Ahmad Fulan",
+        Kelas: "1",
+        Level: "1",
+        "Tempat, Tanggal Lahir": "Bekasi, 1 Januari 2019",
+        "Wali Murid": "Bapak/Ibu Fulan",
+        "No Telp": "081234567890",
+        Alamat: "Bekasi",
+      },
+    ];
+    const instructionRows = [
+      { Kolom: "NIS", Petunjuk: "Opsional. Jika kosong, sistem membuat NIS otomatis." },
+      { Kolom: "Nama Lengkap", Petunjuk: "Wajib diisi." },
+      { Kolom: "Kelas", Petunjuk: "Isi angka 1 sampai 6." },
+      { Kolom: "Level", Petunjuk: "Isi level tahfidz 1 sampai 6." },
+      { Kolom: "Tempat, Tanggal Lahir", Petunjuk: "Contoh: Bekasi, 1 Januari 2019." },
+      { Kolom: "Wali Murid", Petunjuk: "Nama orang tua atau wali." },
+      { Kolom: "No Telp", Petunjuk: "Gunakan format teks agar angka 0 di depan tidak hilang." },
+      { Kolom: "Alamat", Petunjuk: "Alamat lengkap siswa." },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    const dataSheet = XLSX.utils.json_to_sheet(templateRows);
+    const guideSheet = XLSX.utils.json_to_sheet(instructionRows);
+    dataSheet["!cols"] = [
+      { wch: 14 },
+      { wch: 28 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 30 },
+      { wch: 26 },
+      { wch: 18 },
+      { wch: 36 },
+    ];
+    guideSheet["!cols"] = [{ wch: 26 }, { wch: 64 }];
+    XLSX.utils.book_append_sheet(workbook, dataSheet, "DATA SISWA");
+    XLSX.utils.book_append_sheet(workbook, guideSheet, "PETUNJUK");
+    XLSX.writeFile(workbook, "template-import-data-siswa.xlsx");
+  };
+
   const filteredStudents = students.filter(student => {
     const namaLengkap = student.nama_lengkap || "";
     const matchQuery = namaLengkap.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -401,6 +484,13 @@ export default function DaftarSiswaFull() {
           </div>
           
           <div className="flex gap-2 w-full sm:w-auto justify-end">
+            <button
+              type="button"
+              onClick={handleDownloadTemplate}
+              className="px-4 py-3 font-bold rounded-xl bg-green-50 hover:bg-green-100 text-green-700 shadow-sm transition-all flex items-center gap-2"
+            >
+              <FileDown size={18} /> <span className="hidden lg:inline">Template Excel</span>
+            </button>
             <label className="cursor-pointer px-4 py-3 font-bold rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 shadow-sm transition-all flex items-center gap-2">
               <Upload size={18} /> <span className="hidden lg:inline">Import</span>
             <input 
@@ -417,6 +507,8 @@ export default function DaftarSiswaFull() {
               if (showForm) {
                 setEditingId(null);
                 setFormData({ nama_lengkap: "", nis: "", wali_murid: "", alamat: "", no_telp: "", tempat_tanggal_lahir: "", kelas: "1", level: "1" });
+                setPhotoFile(null);
+                setPhotoPreview("");
               }
             }}
             className="px-6 py-3 font-bold rounded-xl bg-[#1b4332] hover:bg-[#133c27] text-white shadow-lg transition-all flex items-center gap-2"
@@ -443,6 +535,33 @@ export default function DaftarSiswaFull() {
           
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-gray-800 mb-3">Foto Siswa</label>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-5">
+                  <StudentAvatar
+                    name={formData.nama_lengkap}
+                    photoUrl={photoPreview}
+                    className="h-24 w-24 rounded-2xl"
+                    textClassName="text-3xl"
+                  />
+                  <div className="flex-1">
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#1b4332] shadow-sm ring-1 ring-gray-200 transition hover:bg-green-50">
+                      <Camera size={18} />
+                      Pilih Gambar
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handlePhotoSelect}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="mt-2 text-xs font-medium text-gray-500">
+                      Format JPG, PNG, atau WebP. Maksimal 2 MB.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <Input
                 label="Nama Lengkap"
                 placeholder="Contoh: Ahmad Fulan"
@@ -577,9 +696,12 @@ export default function DaftarSiswaFull() {
                       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#1b4332]/5 to-transparent rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
                       
                       <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-[#1b4332] to-[#2dc653] rounded-2xl flex items-center justify-center text-white text-3xl font-black shadow-md group-hover:shadow-lg transition-all">
-                          {(student.nama_lengkap || "?").charAt(0).toUpperCase()}
-                        </div>
+                        <StudentAvatar
+                          name={student.nama_lengkap}
+                          photoUrl={student.foto_url}
+                          className="h-16 w-16 rounded-2xl"
+                          textClassName="text-2xl"
+                        />
                         <div className="flex-1 pt-1">
                           <h3 className="text-xl font-bold text-gray-900 transition-colors leading-tight">
                             {student.nama_lengkap || "Tanpa Nama"}

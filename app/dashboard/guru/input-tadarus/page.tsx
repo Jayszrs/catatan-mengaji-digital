@@ -6,7 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
-import { Sun, Save, Users, Calendar, History, Edit2, Trash2, Loader2, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { Sun, Save, Users, Calendar, History, Edit2, Trash2, Loader2, CheckCircle2, AlertCircle, X, Download } from "lucide-react";
+import { downloadTadarusHarian } from "@/lib/export-tadarus";
 
 export default function InputTadarusPage() {
   const router = useRouter();
@@ -42,8 +43,7 @@ export default function InputTadarusPage() {
         .from("laporan_tadarus_pagi")
         .select("*")
         .eq("student_id", studentId)
-        .order("tanggal", { ascending: false })
-        .limit(10);
+        .order("tanggal", { ascending: false });
       setHistory(data || []);
     } catch (err) {
       console.error(err);
@@ -147,15 +147,41 @@ export default function InputTadarusPage() {
     document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleDownload = () => {
+    try {
+      const studentName =
+        students.find((student) => student.id === formData.student_id)?.nama_lengkap ||
+        "Siswa";
+      downloadTadarusHarian(studentName, history);
+    } catch (err) {
+      setNotification({
+        show: true,
+        message: err instanceof Error ? err.message : "Gagal mengunduh data.",
+        type: "error",
+      });
+    }
+  };
+
   return (
     <DashboardLayout userRole="guru">
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mb-2">
-          Input Tadarus Pagi
-        </h1>
-        <p className="text-sm text-gray-500 font-medium">
-          Pilih siswa dan masukkan catatan muroja'ah/tadarus pagi mereka.
-        </p>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mb-2">
+            Input Tadarus Pagi
+          </h1>
+          <p className="text-sm text-gray-500 font-medium">
+            Pilih siswa dan masukkan catatan muroja&apos;ah/tadarus pagi mereka.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={!history.length}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#1b4332] shadow-sm ring-1 ring-gray-200 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Download size={18} />
+          Download Tadarus
+        </button>
       </div>
 
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 border-t-4 border-[#2dc653] max-w-3xl">

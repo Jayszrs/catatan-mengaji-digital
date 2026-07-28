@@ -10,6 +10,24 @@ Perubahan tersebut membuat:
 - Import CSV/Excel memakai NIS untuk update data yang sudah ada, bukan membuat duplikat.
 - Data siswa dan laporan bisa dilihat lintas akun guru/orang tua/admin selama memakai Supabase project yang sama.
 
+## Migrasi fitur catatan terintegrasi dan foto siswa
+
+Setelah setup utama, jalankan seluruh isi file
+[`supabase-integrated-learning-migration.sql`](./supabase-integrated-learning-migration.sql)
+di **Supabase SQL Editor**. Migrasi ini aman dijalankan ulang dan akan:
+
+- menambah kolom `foto_url` dan `nilai`;
+- memastikan tabel `student_reports` tersedia;
+- membuat master `classes`;
+- membuat `daily_student_reports` untuk presensi dan laporan harian;
+- membuat `level_promotion_exams` untuk rapor ujian kenaikan level;
+- membuat `munaqosyah_exams` dengan satu rekaman per siswa, durasi 120 menit,
+  dan jenjang SD/MI;
+- membuat bucket publik `student-photos` dengan batas 2 MB;
+- memasang kebijakan akses untuk Guru dan Orang Tua;
+- membuat fungsi transaksi `save_integrated_learning_entry` dan
+  `save_level_promotion_exam`.
+
 Kalau aplikasi dipasang di beberapa akun/domain Vercel, pastikan semua deployment memakai nilai environment variable yang sama:
 
 ```env
