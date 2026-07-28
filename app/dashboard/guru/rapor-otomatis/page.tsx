@@ -27,7 +27,10 @@ import {
 import { MunaqosyahOfficialTable } from "@/components/MunaqosyahOfficialTable";
 import { supabase } from "@/lib/supabase";
 import { getAppErrorMessage } from "@/lib/app-errors";
-import { loadDailyMemorizationRows } from "@/lib/report-queries";
+import {
+  loadDailyMemorizationRows,
+  loadLevelExamRows,
+} from "@/lib/report-queries";
 import { getTahfidzLevelLabel } from "@/lib/tahfidz-levels";
 
 interface StudentOption {
@@ -49,7 +52,7 @@ const reportOptions: Array<{
   {
     id: "daily",
     title: "Rapor Hafalan Harian",
-    description: "Nilai dari Input Tahsin & Tahfidz",
+    description: "Nilai dari Presensi & Laporan Harian",
     icon: BookOpenCheck,
   },
   {
@@ -151,13 +154,7 @@ function AutomaticReportContent() {
             .eq("student_id", studentId)
             .order("tanggal", { ascending: false }),
           loadDailyMemorizationRows(studentId),
-          supabase
-            .from("level_promotion_exams")
-            .select(
-              "tanggal,level_asal,level_tujuan,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,status,tahun_ajaran,catatan_guru",
-            )
-            .eq("student_id", studentId)
-            .order("tanggal", { ascending: false }),
+          loadLevelExamRows(studentId),
           supabase
             .from("munaqosyah_exams")
             .select("tanggal,hasil_ujian,catatan_guru")
@@ -703,6 +700,14 @@ function LevelReportTable({ row }: { row?: LevelExamExportRow }) {
               {row
                 ? `${getTahfidzLevelLabel(row.level_asal)} → ${getTahfidzLevelLabel(row.level_tujuan)}`
                 : "-"}
+            </td>
+          </tr>
+          <tr>
+            <th className="border border-black bg-gray-100 p-3 text-left">
+              Surat Ujian
+            </th>
+            <td className="border border-black p-3 font-bold" colSpan={3}>
+              {row?.nama_surah || "-"}
             </td>
           </tr>
           <tr>

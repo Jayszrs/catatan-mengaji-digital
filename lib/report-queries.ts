@@ -7,6 +7,12 @@ const memorizationColumns =
 const legacyMemorizationColumns =
   "tanggal,nama_surah,ayat,murojaah,nilai,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,keterangan";
 
+const levelExamColumns =
+  "tanggal,level_asal,level_tujuan,nama_surah,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,status,tahun_ajaran,catatan_guru";
+
+const legacyLevelExamColumns =
+  "tanggal,level_asal,level_tujuan,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,status,tahun_ajaran,catatan_guru";
+
 export async function loadDailyMemorizationRows(studentId: string) {
   const currentResult = await supabase
     .from("laporan_tahsin_tahfidz")
@@ -26,6 +32,28 @@ export async function loadDailyMemorizationRows(studentId: string) {
   return supabase
     .from("laporan_tahsin_tahfidz")
     .select(legacyMemorizationColumns)
+    .eq("student_id", studentId)
+    .order("tanggal", { ascending: false });
+}
+
+export async function loadLevelExamRows(studentId: string) {
+  const currentResult = await supabase
+    .from("level_promotion_exams")
+    .select(levelExamColumns)
+    .eq("student_id", studentId)
+    .order("tanggal", { ascending: false });
+
+  if (
+    !currentResult.error ||
+    !isMissingDatabaseFeatureError(currentResult.error)
+  ) {
+    return currentResult;
+  }
+
+  // Rapor lama tetap dapat dibuka sebelum kolom surat ujian dimigrasikan.
+  return supabase
+    .from("level_promotion_exams")
+    .select(legacyLevelExamColumns)
     .eq("student_id", studentId)
     .order("tanggal", { ascending: false });
 }

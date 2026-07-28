@@ -9,7 +9,6 @@ import {
   Users, 
   Target, 
   Printer, 
-  Sun,
   BookOpen, 
   Settings, 
   HelpCircle, 
@@ -165,14 +164,6 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
                 <Link href="/dashboard/guru/munaqosyah" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/munaqosyah") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <Award size={20} />
                   <span>Form Munaqosyah</span>
-                </Link>
-                <Link href="/dashboard/guru/input-tadarus" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/input-tadarus") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
-                  <Sun size={20} />
-                  <span>Input Tadarus</span>
-                </Link>
-                <Link href="/dashboard/guru/input-tahsin" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/input-tahsin") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
-                  <BookOpen size={20} />
-                  <span className="whitespace-nowrap">Input Tahsin & Tahfidz</span>
                 </Link>
                 <Link href="/dashboard/guru/data-surat" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/data-surat") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <BookOpen size={20} />

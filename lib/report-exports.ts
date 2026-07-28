@@ -59,6 +59,7 @@ export interface LevelExamExportRow {
   tanggal?: string;
   level_asal?: number;
   level_tujuan?: number;
+  nama_surah?: string | null;
   nilai_kelancaran?: number;
   nilai_makhraj?: number;
   nilai_tajwid?: number;
@@ -107,6 +108,7 @@ export function downloadLevelExamReports(
         "NIS/NISN": student?.nis || "-",
         Kelas: student?.kelas || "-",
         Level: getTahfidzLevelLabel(row.level_asal),
+        "Surat Ujian": row.nama_surah || "-",
         Tanggal: row.tanggal || "-",
         "Kelancaran Nilai": row.nilai_kelancaran ?? "-",
         "Kelancaran Terbilang":
@@ -150,6 +152,7 @@ export function downloadLevelExamReports(
     { wch: 18 },
     { wch: 10 },
     { wch: 24 },
+    { wch: 28 },
     { wch: 14 },
     { wch: 12 },
     { wch: 28 },

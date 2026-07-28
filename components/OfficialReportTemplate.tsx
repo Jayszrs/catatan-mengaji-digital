@@ -367,6 +367,14 @@ function LevelReportTable({ row }: { row?: LevelExamExportRow }) {
           </tr>
           <tr>
             <th className="border border-black bg-gray-100 p-3 text-left">
+              Surat Ujian
+            </th>
+            <td className="border border-black p-3 font-bold" colSpan={3}>
+              {row?.nama_surah || "-"}
+            </td>
+          </tr>
+          <tr>
+            <th className="border border-black bg-gray-100 p-3 text-left">
               Tahun Ajaran
             </th>
             <td className="border border-black p-3">

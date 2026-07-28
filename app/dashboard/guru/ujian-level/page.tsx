@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   CheckCircle2,
   Download,
@@ -22,6 +23,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import {
+  getCurrentAcademicYear,
   getTahfidzLevelLabel,
   MAX_TAHFIDZ_LEVEL,
   TAHFIDZ_LEVELS,
@@ -42,16 +44,23 @@ interface LevelExamRow extends LevelExamExportRow {
   student_id: string;
 }
 
+interface SurahOption {
+  id: string;
+  nama_surah: string;
+  urutan: number;
+}
+
 const initialForm = {
   student_id: "",
   tanggal: new Date().toISOString().split("T")[0],
   level_asal: "1",
   level_tujuan: "2",
+  nama_surah: "",
   nilai_kelancaran: "80",
   nilai_makhraj: "80",
   nilai_tajwid: "80",
   nilai_hafalan: "80",
-  tahun_ajaran: "2026/2027",
+  tahun_ajaran: getCurrentAcademicYear(),
   catatan_guru: "",
 };
 
@@ -66,6 +75,8 @@ export default function LevelExamPage() {
   const router = useRouter();
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [history, setHistory] = useState<LevelExamRow[]>([]);
+  const [surahOptions, setSurahOptions] = useState<SurahOption[]>([]);
+  const [loadingSurah, setLoadingSurah] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -172,6 +183,55 @@ export default function LevelExamPage() {
     void loadHistory();
   }, [form.student_id]);
 
+  useEffect(() => {
+    const level = Number(form.level_asal);
+    const academicYear = form.tahun_ajaran.trim();
+    if (!form.student_id || !academicYear || !Number.isInteger(level)) {
+      return;
+    }
+
+    let active = true;
+    const loadSurahOptions = async () => {
+      setLoadingSurah(true);
+      const { data, error } = await supabase
+        .from("surah_curriculum")
+        .select("id,nama_surah,urutan")
+        .eq("tahun_ajaran", academicYear)
+        .eq("level", level)
+        .order("urutan", { ascending: true });
+
+      if (!active) return;
+      setLoadingSurah(false);
+      if (error) {
+        setSurahOptions([]);
+        setNotification({
+          type: "error",
+          message: getAppErrorMessage(
+            error,
+            "Gagal memuat pilihan surat untuk jenjang ini.",
+          ),
+        });
+        return;
+      }
+
+      const options = data || [];
+      setSurahOptions(options);
+      setForm((current) => ({
+        ...current,
+        nama_surah: options.some(
+          (option) => option.nama_surah === current.nama_surah,
+        )
+          ? current.nama_surah
+          : options[0]?.nama_surah || "",
+      }));
+    };
+
+    void loadSurahOptions();
+    return () => {
+      active = false;
+    };
+  }, [form.level_asal, form.student_id, form.tahun_ajaran]);
+
   const refreshHistory = async () => {
     const { data, error } = await supabase
       .from("level_promotion_exams")
@@ -185,6 +245,8 @@ export default function LevelExamPage() {
   const handleStudentChange = (studentId: string) => {
     const student = students.find((item) => item.id === studentId);
     const currentLevel = Number(student?.level || 1);
+    setSurahOptions([]);
+    setLoadingSurah(false);
     setForm((current) => ({
       ...current,
       student_id: studentId,
@@ -193,6 +255,7 @@ export default function LevelExamPage() {
         currentLevel < MAX_TAHFIDZ_LEVEL
           ? String(currentLevel + 1)
           : "",
+      nama_surah: "",
     }));
   };
 
@@ -214,6 +277,14 @@ export default function LevelExamPage() {
       });
       return;
     }
+    if (!form.nama_surah) {
+      setNotification({
+        type: "error",
+        message:
+          "Pilih surat ujian sesuai jenjang asal sebelum menyimpan hasil.",
+      });
+      return;
+    }
 
     setSubmitting(true);
     setNotification(null);
@@ -232,11 +303,12 @@ export default function LevelExamPage() {
         p_tanggal: form.tanggal,
         p_level_asal: Number(form.level_asal),
         p_level_tujuan: Number(form.level_tujuan),
+        p_nama_surah: form.nama_surah,
         p_nilai_kelancaran: Number(form.nilai_kelancaran),
         p_nilai_makhraj: Number(form.nilai_makhraj),
         p_nilai_tajwid: Number(form.nilai_tajwid),
         p_nilai_hafalan: Number(form.nilai_hafalan),
-        p_tahun_ajaran: form.tahun_ajaran,
+        p_tahun_ajaran: form.tahun_ajaran.trim(),
         p_catatan_guru: form.catatan_guru,
       });
       if (error) throw error;
@@ -244,6 +316,7 @@ export default function LevelExamPage() {
       await refreshHistory();
       if (predictedStatus === "Lulus") {
         const promotedLevel = Number(form.level_tujuan);
+        setSurahOptions([]);
         setStudents((current) =>
           current.map((student) =>
             student.id === form.student_id
@@ -258,6 +331,7 @@ export default function LevelExamPage() {
             promotedLevel < MAX_TAHFIDZ_LEVEL
               ? String(promotedLevel + 1)
               : "",
+          nama_surah: "",
         }));
       }
       setNotification({
@@ -430,9 +504,15 @@ export default function LevelExamPage() {
               <Input
                 label="Tahun Ajaran"
                 value={form.tahun_ajaran}
-                onChange={(event) =>
-                  setForm({ ...form, tahun_ajaran: event.target.value })
-                }
+                onChange={(event) => {
+                  setSurahOptions([]);
+                  setLoadingSurah(false);
+                  setForm({
+                    ...form,
+                    tahun_ajaran: event.target.value,
+                    nama_surah: "",
+                  });
+                }}
                 required
               />
 
@@ -479,6 +559,47 @@ export default function LevelExamPage() {
                   <p className="mt-2 text-sm font-bold text-amber-700">
                     Siswa ini sudah di Mustawa Muttawasit 3 dan tidak memiliki
                     jenjang kenaikan berikutnya.
+                  </p>
+                )}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-3 block text-sm font-bold text-gray-800">
+                  Surat Ujian ({getTahfidzLevelLabel(form.level_asal)})
+                </label>
+                <select
+                  value={form.nama_surah}
+                  onChange={(event) =>
+                    setForm({ ...form, nama_surah: event.target.value })
+                  }
+                  className={fieldClass}
+                  disabled={loadingSurah || surahOptions.length === 0}
+                  required
+                >
+                  <option value="">
+                    {loadingSurah
+                      ? "Memuat daftar surat..."
+                      : surahOptions.length === 0
+                        ? "Belum ada surat untuk jenjang dan tahun ini"
+                        : "-- Pilih Surat Ujian --"}
+                  </option>
+                  {surahOptions.map((option) => (
+                    <option key={option.id} value={option.nama_surah}>
+                      {option.urutan}. {option.nama_surah}
+                    </option>
+                  ))}
+                </select>
+                {!loadingSurah && surahOptions.length === 0 && (
+                  <p className="mt-2 text-sm font-bold text-amber-700">
+                    Tambahkan surat untuk {getTahfidzLevelLabel(form.level_asal)}{" "}
+                    tahun {form.tahun_ajaran || "-"} melalui{" "}
+                    <Link
+                      href="/dashboard/guru/data-surat"
+                      className="underline"
+                    >
+                      Data Surat
+                    </Link>
+                    .
                   </p>
                 )}
               </div>
@@ -625,6 +746,7 @@ export default function LevelExamPage() {
                       {[
                         "Tanggal",
                         "Kenaikan",
+                        "Surat Ujian",
                         "Kelancaran",
                         "Makhorijul Huruf",
                         "Hukum Tajwid",
@@ -651,6 +773,9 @@ export default function LevelExamPage() {
                         <td className="whitespace-nowrap px-5 py-4">
                           {getTahfidzLevelLabel(row.level_asal)} →{" "}
                           {getTahfidzLevelLabel(row.level_tujuan)}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4 font-bold">
+                          {row.nama_surah || "-"}
                         </td>
                         <td className="px-5 py-4">{row.nilai_kelancaran}</td>
                         <td className="px-5 py-4">{row.nilai_makhraj}</td>

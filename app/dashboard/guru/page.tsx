@@ -250,14 +250,14 @@ export default function DaftarSiswaDashboard() {
         <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm">
           <h3 className="text-xl font-bold text-gray-900 mb-6">Tindakan Cepat</h3>
           
-          <Link href="/dashboard/guru/input-tahsin" className="block bg-white border border-gray-100 rounded-2xl p-5 hover:bg-blue-50 hover:border-blue-100 transition-all group cursor-pointer mb-4">
+          <Link href="/dashboard/guru/laporan-harian" className="block bg-white border border-gray-100 rounded-2xl p-5 hover:bg-blue-50 hover:border-blue-100 transition-all group cursor-pointer mb-4">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                 <BookOpen size={20} />
               </div>
               <div>
-                <h5 className="font-bold text-gray-900 text-sm group-hover:text-blue-900">Input Tahsin & Tahfidz</h5>
-                <p className="text-gray-500 text-xs">Catat ziyadah & muroja'ah</p>
+                <h5 className="font-bold text-gray-900 text-sm group-hover:text-blue-900">Presensi &amp; Harian</h5>
+                <p className="text-gray-500 text-xs">Isi presensi dan laporan harian siswa</p>
               </div>
             </div>
           </Link>

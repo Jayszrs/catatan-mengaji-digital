@@ -81,7 +81,7 @@ export default function KomposisiNilaiPage() {
           <div>
             <h4 className="font-bold text-blue-900 mb-1">Panduan Penggunaan</h4>
             <p className="text-sm text-blue-800 leading-relaxed">
-              Gunakan skala nilai di atas sebagai acuan standar saat memberikan keterangan atau penilaian pada halaman <strong>Input Tadarus</strong> dan <strong>Input Tahsin & Tahfidz</strong>. Pastikan nilai yang diberikan sesuai dengan kualitas bacaan dan hafalan siswa.
+              Gunakan skala nilai di atas sebagai acuan standar pada <strong>Presensi &amp; Harian</strong>, <strong>Ujian Kenaikan Level</strong>, dan <strong>Form Munaqosyah</strong>. Penilaian disesuaikan dengan kualitas bacaan dan hafalan siswa.
             </p>
           </div>
         </div>
