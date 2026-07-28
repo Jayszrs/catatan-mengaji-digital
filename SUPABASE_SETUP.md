@@ -8,12 +8,19 @@
    - skema dasar pada dokumen ini (hanya untuk database baru);
    - `supabase-nis-shared-data-migration.sql`;
    - `supabase-integrated-learning-migration.sql`;
-   - `supabase-parent-security-and-automation-migration.sql`.
+   - `supabase-parent-security-and-automation-migration.sql`;
+   - `supabase-surah-curriculum-and-levels-migration.sql`.
 4. Pada **Authentication > URL Configuration**, tambahkan URL aplikasi dan `/auth/verify` sebagai redirect URL.
 
 Migrasi terakhir membuat hubungan satu akun orang tua ke satu siswa, RLS agar
 orang tua tidak dapat membaca siswa lain, profil guru, nilai hafalan harian,
 bucket foto guru, serta penyimpanan Munaqosyah dan rapor otomatis.
+
+Migrasi `supabase-surah-curriculum-and-levels-migration.sql` membuat master
+surat per tahun ajaran, mengisi daftar awal dari Excel untuk 2026/2027,
+menambah Mustawa Muttawasit 1–3, dan memperluas ujian kenaikan jenjang sampai
+jenjang ke-9. Guru memperoleh akses tambah/edit/hapus, sedangkan Orang Tua
+hanya dapat membaca.
 
 ## Update penting: NIS dan data lintas akun
 

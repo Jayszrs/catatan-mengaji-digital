@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { FileText, Search, ChevronDown } from "lucide-react";
+import {
+  getTahfidzLevelLabel,
+  TAHFIDZ_LEVELS,
+} from "@/lib/tahfidz-levels";
 
 interface StudentRow {
   id: string;
@@ -105,17 +109,17 @@ export default function CetakRaporPage() {
               onBlur={() => setTimeout(() => setIsLevelOpen(false), 200)}
               className="flex items-center justify-between w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1b4332] shadow-sm transition-all"
             >
-              <span>{filterLevel === "Semua" ? "Semua Level" : `Level ${filterLevel}`}</span>
+              <span>{filterLevel === "Semua" ? "Semua Jenjang" : getTahfidzLevelLabel(filterLevel)}</span>
               <ChevronDown size={16} className={`text-gray-400 transition-transform duration-300 ${isLevelOpen ? "rotate-180" : ""}`} />
             </button>
             {isLevelOpen && (
               <div className="absolute top-full left-0 mt-2 w-full bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2">
                 <button onMouseDown={() => { setFilterLevel("Semua"); setIsLevelOpen(false); }} className={`w-full text-left px-5 py-3 text-sm font-bold transition-colors ${filterLevel === "Semua" ? "bg-green-50 text-green-700" : "text-gray-600 hover:bg-gray-50"}`}>
-                  Semua Level
+                  Semua Jenjang
                 </button>
-                {["1", "2", "3", "4", "5", "6"].map(l => (
-                  <button key={l} onMouseDown={() => { setFilterLevel(l); setIsLevelOpen(false); }} className={`w-full text-left px-5 py-3 text-sm font-bold transition-colors ${filterLevel === l ? "bg-green-50 text-green-700" : "text-gray-600 hover:bg-gray-50"}`}>
-                    Level {l}
+                {TAHFIDZ_LEVELS.map((level) => (
+                  <button key={level.value} onMouseDown={() => { setFilterLevel(String(level.value)); setIsLevelOpen(false); }} className={`w-full text-left px-5 py-3 text-sm font-bold transition-colors ${filterLevel === String(level.value) ? "bg-green-50 text-green-700" : "text-gray-600 hover:bg-gray-50"}`}>
+                    {level.label}
                   </button>
                 ))}
               </div>
@@ -178,7 +182,7 @@ export default function CetakRaporPage() {
                             <span className="mx-1 border-l border-gray-300 h-3"></span>
                             <span className="text-[#1b4332] font-bold whitespace-nowrap">Kelas {student.kelas || "-"}</span>
                             <span className="mx-1 border-l border-gray-300 h-3"></span>
-                            <span className="text-blue-600 font-bold whitespace-nowrap">Level {student.level || "-"}</span>
+                            <span className="text-blue-600 font-bold whitespace-nowrap">{getTahfidzLevelLabel(student.level)}</span>
                           </div>
                         </div>
                       </div>

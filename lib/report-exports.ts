@@ -1,6 +1,7 @@
 "use client";
 
 import * as XLSX from "xlsx";
+import { getTahfidzLevelLabel } from "@/lib/tahfidz-levels";
 
 const safeName = (value: string) =>
   value
@@ -77,8 +78,8 @@ export function downloadLevelExamReports(
     rows.map((row, index) => ({
       No: index + 1,
       Tanggal: row.tanggal || "-",
-      "Level Asal": row.level_asal ?? "-",
-      "Level Tujuan": row.level_tujuan ?? "-",
+      "Jenjang Asal": getTahfidzLevelLabel(row.level_asal),
+      "Jenjang Tujuan": getTahfidzLevelLabel(row.level_tujuan),
       Kelancaran: row.nilai_kelancaran ?? "-",
       Makhraj: row.nilai_makhraj ?? "-",
       Tajwid: row.nilai_tajwid ?? "-",
@@ -114,6 +115,7 @@ export function downloadLevelExamReports(
 
 export interface DailyMemorizationExportRow {
   tanggal?: string;
+  tahun_ajaran?: string | null;
   nama_surah?: string;
   ayat?: string;
   murojaah?: string | null;
@@ -134,6 +136,7 @@ export function downloadDailyMemorizationReports(
   const sheet = XLSX.utils.json_to_sheet(rows.map((row, index) => ({
     No: index + 1,
     Tanggal: row.tanggal || "-",
+    "Tahun Ajaran": row.tahun_ajaran || "-",
     Surah: row.nama_surah || "-",
     Ayat: row.ayat || "-",
     Murojaah: row.murojaah || "-",
@@ -180,6 +183,7 @@ export function downloadCompleteDailyReport(
       memorization.map((row, index) => ({
         No: index + 1,
         Tanggal: row.tanggal || "-",
+        "Tahun Ajaran": row.tahun_ajaran || "-",
         Surah: row.nama_surah || "-",
         Ayat: row.ayat || "-",
         Murojaah: row.murojaah || "-",

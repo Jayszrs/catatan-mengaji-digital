@@ -2,11 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 import { getAppErrorMessage } from "@/lib/app-errors";
+import {
+  getCurrentAcademicYear,
+  getTahfidzLevelLabel,
+} from "@/lib/tahfidz-levels";
 import { BookOpen, Save, Users, Calendar, History, Edit2, Trash2, Loader2, CheckCircle2, AlertCircle, X } from "lucide-react";
 
 export default function InputTahsinPage() {
@@ -16,12 +21,16 @@ export default function InputTahsinPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
+  const [surahOptions, setSurahOptions] = useState<
+    Array<{ id: string; nama_surah: string; urutan: number }>
+  >([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ show: boolean, message: string, type: 'success' | 'error' | 'confirm', id?: string, isLoading?: boolean }>({ show: false, message: '', type: 'success' });
   
   const [formData, setFormData] = useState({
     student_id: "",
     tanggal: new Date().toISOString().split('T')[0],
+    tahun_ajaran: getCurrentAcademicYear(),
     surah: "",
     ayat: "",
     makhraj: "",
@@ -42,6 +51,32 @@ export default function InputTahsinPage() {
       fetchHistory(formData.student_id);
     }
   }, [formData.student_id]);
+
+  useEffect(() => {
+    const student = students.find(
+      (item) => item.id === formData.student_id,
+    );
+    const level = Number(student?.level || 1);
+    if (!formData.student_id || !formData.tahun_ajaran) {
+      return;
+    }
+
+    const loadSurahOptions = async () => {
+      const { data, error } = await supabase
+        .from("surah_curriculum")
+        .select("id,nama_surah,urutan")
+        .eq("tahun_ajaran", formData.tahun_ajaran)
+        .eq("level", level)
+        .order("urutan", { ascending: true });
+      if (error) {
+        setSurahOptions([]);
+        return;
+      }
+      setSurahOptions(data || []);
+    };
+
+    void loadSurahOptions();
+  }, [formData.student_id, formData.tahun_ajaran, students]);
 
   const fetchHistory = async (studentId: string) => {
     try {
@@ -108,6 +143,7 @@ export default function InputTahsinPage() {
       if (editingId) {
         const { error } = await supabase.from("laporan_tahsin_tahfidz").update({
           tanggal: formData.tanggal,
+          tahun_ajaran: formData.tahun_ajaran,
           nama_surah: formData.surah,
           ayat: formData.ayat,
           makhraj: formData.makhraj,
@@ -123,6 +159,7 @@ export default function InputTahsinPage() {
             teacher_id: user.id,
             student_id: formData.student_id,
             tanggal: formData.tanggal,
+            tahun_ajaran: formData.tahun_ajaran,
             nama_surah: formData.surah,
             ayat: formData.ayat,
             makhraj: formData.makhraj,
@@ -186,6 +223,7 @@ export default function InputTahsinPage() {
     setFormData({
       student_id: item.student_id,
       tanggal: item.tanggal,
+      tahun_ajaran: item.tahun_ajaran || getCurrentAcademicYear(),
       surah: item.nama_surah,
       ayat: item.ayat,
       makhraj: item.makhraj || "",
@@ -257,12 +295,64 @@ export default function InputTahsinPage() {
               </div>
 
               <Input
-                label="Nama Surah Baru"
-                placeholder="Contoh: Al-Bayyinah"
-                value={formData.surah}
-                onChange={(e) => setFormData({ ...formData, surah: e.target.value })}
+                label="Tahun Ajaran"
+                placeholder="Contoh: 2026/2027"
+                value={formData.tahun_ajaran}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    tahun_ajaran: e.target.value,
+                    surah: "",
+                  })
+                }
                 required
               />
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-gray-800">
+                  Surat sesuai{" "}
+                  {getTahfidzLevelLabel(
+                    students.find(
+                      (student) => student.id === formData.student_id,
+                    )?.level,
+                  )}
+                </label>
+                <select
+                  value={formData.surah}
+                  onChange={(event) =>
+                    setFormData({ ...formData, surah: event.target.value })
+                  }
+                  className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-5 py-3 font-medium text-gray-900 outline-none transition-all focus:ring-2 focus:ring-[#3b82f6]"
+                  required
+                >
+                  <option value="">-- Pilih Surat --</option>
+                  {formData.surah &&
+                    !surahOptions.some(
+                      (option) => option.nama_surah === formData.surah,
+                    ) && (
+                      <option value={formData.surah}>
+                        {formData.surah} (data lama)
+                      </option>
+                    )}
+                  {surahOptions.map((option) => (
+                    <option key={option.id} value={option.nama_surah}>
+                      {option.urutan}. {option.nama_surah}
+                    </option>
+                  ))}
+                </select>
+                {surahOptions.length === 0 && (
+                  <p className="mt-2 text-xs font-bold text-amber-700">
+                    Belum ada surat untuk jenjang dan tahun ini.{" "}
+                    <Link
+                      href="/dashboard/guru/data-surat"
+                      className="underline"
+                    >
+                      Tambahkan di Data Surat
+                    </Link>
+                    .
+                  </p>
+                )}
+              </div>
 
               <Input
                 label="Ayat"

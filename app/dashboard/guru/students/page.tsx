@@ -11,6 +11,10 @@ import { Input } from "@/components/Input";
 import { StudentAvatar } from "@/components/StudentAvatar";
 import { getStudentRouteKey } from "@/lib/students";
 import { uploadStudentPhoto } from "@/lib/student-photos";
+import {
+  getTahfidzLevelLabel,
+  TAHFIDZ_LEVELS,
+} from "@/lib/tahfidz-levels";
 import * as XLSX from "xlsx";
 
 const getNextAvailableNis = (students: any[]) => {
@@ -361,7 +365,11 @@ export default function DaftarSiswaFull() {
       { Kolom: "NIS", Petunjuk: "Opsional. Jika kosong, sistem membuat NIS otomatis." },
       { Kolom: "Nama Lengkap", Petunjuk: "Wajib diisi." },
       { Kolom: "Kelas", Petunjuk: "Isi angka 1 sampai 6." },
-      { Kolom: "Level", Petunjuk: "Isi level tahfidz 1 sampai 6." },
+      {
+        Kolom: "Level",
+        Petunjuk:
+          "Isi jenjang tahfidz 1 sampai 9. Jenjang 7–9 adalah Mustawa Muttawasit 1–3.",
+      },
       { Kolom: "Tempat, Tanggal Lahir", Petunjuk: "Contoh: Bekasi, 1 Januari 2019." },
       { Kolom: "Wali Murid", Petunjuk: "Nama orang tua atau wali." },
       { Kolom: "No Telp", Petunjuk: "Gunakan format teks agar angka 0 di depan tidak hilang." },
@@ -455,17 +463,17 @@ export default function DaftarSiswaFull() {
               onBlur={() => setTimeout(() => setIsLevelOpen(false), 200)}
               className="flex items-center justify-between w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1b4332] shadow-sm transition-all"
             >
-              <span>{filterLevel === "Semua" ? "Semua Level" : `Level ${filterLevel}`}</span>
+              <span>{filterLevel === "Semua" ? "Semua Jenjang" : getTahfidzLevelLabel(filterLevel)}</span>
               <ChevronDown size={16} className={`text-gray-400 transition-transform duration-300 ${isLevelOpen ? "rotate-180" : ""}`} />
             </button>
             {isLevelOpen && (
               <div className="absolute top-full left-0 mt-2 w-full bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2">
                 <button onMouseDown={() => { setFilterLevel("Semua"); setIsLevelOpen(false); }} className={`w-full text-left px-5 py-3 text-sm font-bold transition-colors ${filterLevel === "Semua" ? "bg-green-50 text-green-700" : "text-gray-600 hover:bg-gray-50"}`}>
-                  Semua Level
+                  Semua Jenjang
                 </button>
-                {["1", "2", "3", "4", "5", "6"].map(l => (
-                  <button key={l} onMouseDown={() => { setFilterLevel(l); setIsLevelOpen(false); }} className={`w-full text-left px-5 py-3 text-sm font-bold transition-colors ${filterLevel === l ? "bg-green-50 text-green-700" : "text-gray-600 hover:bg-gray-50"}`}>
-                    Level {l}
+                {TAHFIDZ_LEVELS.map((level) => (
+                  <button key={level.value} onMouseDown={() => { setFilterLevel(String(level.value)); setIsLevelOpen(false); }} className={`w-full text-left px-5 py-3 text-sm font-bold transition-colors ${filterLevel === String(level.value) ? "bg-green-50 text-green-700" : "text-gray-600 hover:bg-gray-50"}`}>
+                    {level.label}
                   </button>
                 ))}
               </div>
@@ -616,19 +624,18 @@ export default function DaftarSiswaFull() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-800 mb-2">Level Tahsin</label>
+                <label className="block text-sm font-bold text-gray-800 mb-2">Jenjang Tahfidz</label>
                 <select
                   value={formData.level}
                   onChange={(e) => setFormData({ ...formData, level: e.target.value })}
                   className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1b4332] focus:border-transparent transition-all font-medium appearance-none"
                   style={{ backgroundImage: 'url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3E%3Cpath stroke=%27%236b7280%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27m6 8 4 4 4-4%27/%3E%3C/svg%3E")', backgroundPosition: 'right .5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
                 >
-                  <option value="1">Level 1</option>
-                  <option value="2">Level 2</option>
-                  <option value="3">Level 3</option>
-                  <option value="4">Level 4</option>
-                  <option value="5">Level 5</option>
-                  <option value="6">Level 6</option>
+                  {TAHFIDZ_LEVELS.map((level) => (
+                    <option key={level.value} value={level.value}>
+                      {level.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -728,7 +735,7 @@ export default function DaftarSiswaFull() {
                               Kelas {student.kelas || "-"}
                             </span>
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md text-xs font-bold tracking-wide">
-                              Level {student.level || "-"}
+                              {getTahfidzLevelLabel(student.level)}
                             </span>
                           </div>
                         </div>

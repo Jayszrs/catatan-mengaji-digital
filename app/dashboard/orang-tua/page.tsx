@@ -34,6 +34,7 @@ import {
 } from "@/lib/report-exports";
 import { supabase } from "@/lib/supabase";
 import { getAppErrorMessage } from "@/lib/app-errors";
+import { getTahfidzLevelLabel } from "@/lib/tahfidz-levels";
 
 type ActiveOutput = "harian" | "level" | "munaqosyah";
 
@@ -148,7 +149,7 @@ export default function ParentDashboard() {
       supabase
         .from("laporan_tahsin_tahfidz")
         .select(
-          "tanggal,nama_surah,ayat,murojaah,nilai,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,keterangan",
+          "tanggal,tahun_ajaran,nama_surah,ayat,murojaah,nilai,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,keterangan",
         )
         .eq("student_id", studentId)
         .order("tanggal", { ascending: false }),
@@ -470,7 +471,7 @@ export default function ParentDashboard() {
                 </h2>
                 <p className="mt-1 font-semibold text-emerald-100">
                   NIS {student.nis || "-"} · Kelas {student.kelas || "-"} ·
-                  Level {student.level || "-"}
+                  {getTahfidzLevelLabel(student.level)}
                 </p>
               </div>
             </div>

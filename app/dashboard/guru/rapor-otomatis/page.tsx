@@ -26,6 +26,7 @@ import {
 } from "@/lib/report-exports";
 import { supabase } from "@/lib/supabase";
 import { getAppErrorMessage } from "@/lib/app-errors";
+import { getTahfidzLevelLabel } from "@/lib/tahfidz-levels";
 
 interface StudentOption {
   id: string;
@@ -127,7 +128,7 @@ function AutomaticReportContent() {
           supabase
             .from("laporan_tahsin_tahfidz")
             .select(
-              "tanggal,nama_surah,ayat,murojaah,nilai,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,keterangan",
+              "tanggal,tahun_ajaran,nama_surah,ayat,murojaah,nilai,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,keterangan",
             )
             .eq("student_id", studentId)
             .order("tanggal", { ascending: false }),
@@ -461,9 +462,9 @@ function OfficialReportTemplate({
             <table className="w-[42%]">
               <tbody>
                 <tr>
-                  <td className="w-28 py-1">Level Tahfizh</td>
+                  <td className="w-28 py-1">Jenjang Tahfizh</td>
                   <td className="w-4">:</td>
-                  <td>{student?.level ? `Level ${student.level}` : "-"}</td>
+                  <td>{getTahfidzLevelLabel(student?.level)}</td>
                 </tr>
                 <tr>
                   <td className="py-1">Periode</td>
@@ -652,9 +653,11 @@ function LevelReportTable({ row }: { row?: LevelExamExportRow }) {
           <tr>
             <th className="w-1/4 border border-black bg-gray-100 p-3 text-left">Tanggal Ujian</th>
             <td className="w-1/4 border border-black p-3">{formatDate(row?.tanggal)}</td>
-            <th className="w-1/4 border border-black bg-gray-100 p-3 text-left">Kenaikan Level</th>
+            <th className="w-1/4 border border-black bg-gray-100 p-3 text-left">Kenaikan Jenjang</th>
             <td className="w-1/4 border border-black p-3 font-bold">
-              {row ? `Level ${row.level_asal} → Level ${row.level_tujuan}` : "-"}
+              {row
+                ? `${getTahfidzLevelLabel(row.level_asal)} → ${getTahfidzLevelLabel(row.level_tujuan)}`
+                : "-"}
             </td>
           </tr>
           <tr>

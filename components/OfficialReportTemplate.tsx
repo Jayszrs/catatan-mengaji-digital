@@ -4,6 +4,7 @@ import {
   LevelExamExportRow,
   MunaqosyahExportRow,
 } from "@/lib/report-exports";
+import { getTahfidzLevelLabel } from "@/lib/tahfidz-levels";
 
 export type OfficialReportType = "daily" | "level" | "munaqosyah";
 
@@ -142,9 +143,9 @@ export function OfficialReportTemplate({
             <table className="w-[42%]">
               <tbody>
                 <tr>
-                  <td className="w-28 py-1">Level Tahfizh</td>
+                  <td className="w-28 py-1">Jenjang Tahfizh</td>
                   <td className="w-4">:</td>
-                  <td>{student?.level ? `Level ${student.level}` : "-"}</td>
+                  <td>{getTahfidzLevelLabel(student?.level)}</td>
                 </tr>
                 <tr>
                   <td className="py-1">Periode</td>
@@ -349,11 +350,11 @@ function LevelReportTable({ row }: { row?: LevelExamExportRow }) {
               {formatDate(row?.tanggal)}
             </td>
             <th className="w-1/4 border border-black bg-gray-100 p-3 text-left">
-              Kenaikan Level
+              Kenaikan Jenjang
             </th>
             <td className="w-1/4 border border-black p-3 font-bold">
               {row
-                ? `Level ${row.level_asal} → Level ${row.level_tujuan}`
+                ? `${getTahfidzLevelLabel(row.level_asal)} → ${getTahfidzLevelLabel(row.level_tujuan)}`
                 : "-"}
             </td>
           </tr>

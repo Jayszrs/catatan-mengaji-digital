@@ -132,6 +132,10 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
                   <Award size={20} />
                   <span>Komposisi Nilai</span>
                 </Link>
+                <Link href="/dashboard/orang-tua/data-surat" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/orang-tua/data-surat") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <BookOpen size={20} />
+                  <span>Data Surat</span>
+                </Link>
               </nav>
             </div>
           ) : (
@@ -169,6 +173,10 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
                 <Link href="/dashboard/guru/input-tahsin" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/input-tahsin") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <BookOpen size={20} />
                   <span className="whitespace-nowrap">Input Tahsin & Tahfidz</span>
+                </Link>
+                <Link href="/dashboard/guru/data-surat" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/data-surat") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <BookOpen size={20} />
+                  <span>Data Surat</span>
                 </Link>
                 <Link href="/dashboard/guru/komposisi-nilai" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/komposisi-nilai") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <Award size={20} />

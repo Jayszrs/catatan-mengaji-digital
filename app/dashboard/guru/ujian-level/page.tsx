@@ -21,6 +21,11 @@ import {
 } from "@/lib/report-exports";
 import { supabase } from "@/lib/supabase";
 import { getAppErrorMessage } from "@/lib/app-errors";
+import {
+  getTahfidzLevelLabel,
+  MAX_TAHFIDZ_LEVEL,
+  TAHFIDZ_LEVELS,
+} from "@/lib/tahfidz-levels";
 
 interface StudentRow {
   id: string;
@@ -110,7 +115,10 @@ export default function LevelExamPage() {
         const studentRows = data || [];
         setStudents(studentRows);
         const initialStudent =
-          studentRows.find((student) => Number(student.level || 1) < 6) ||
+          studentRows.find(
+            (student) =>
+              Number(student.level || 1) < MAX_TAHFIDZ_LEVEL,
+          ) ||
           studentRows[0];
         if (initialStudent) {
           const currentLevel = Number(initialStudent.level || 1);
@@ -118,7 +126,10 @@ export default function LevelExamPage() {
             ...current,
             student_id: initialStudent.id,
             level_asal: String(currentLevel),
-            level_tujuan: currentLevel < 6 ? String(currentLevel + 1) : "",
+            level_tujuan:
+              currentLevel < MAX_TAHFIDZ_LEVEL
+                ? String(currentLevel + 1)
+                : "",
           }));
         }
       } catch (error) {
@@ -171,18 +182,21 @@ export default function LevelExamPage() {
       ...current,
       student_id: studentId,
       level_asal: String(currentLevel),
-      level_tujuan: currentLevel < 6 ? String(currentLevel + 1) : "",
+      level_tujuan:
+        currentLevel < MAX_TAHFIDZ_LEVEL
+          ? String(currentLevel + 1)
+          : "",
     }));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!form.student_id) return;
-    if (Number(form.level_asal) >= 6) {
+    if (Number(form.level_asal) >= MAX_TAHFIDZ_LEVEL) {
       setNotification({
         type: "error",
         message:
-          "Siswa sudah berada di Level 6 (level tertinggi), sehingga tidak memiliki level tujuan. Pilih siswa Level 1–5 untuk ujian kenaikan level.",
+          "Siswa sudah berada di Mustawa Muttawasit 3 (jenjang tertinggi), sehingga tidak memiliki jenjang tujuan.",
       });
       return;
     }
@@ -224,14 +238,17 @@ export default function LevelExamPage() {
         setForm((current) => ({
           ...current,
           level_asal: String(promotedLevel),
-          level_tujuan: promotedLevel < 6 ? String(promotedLevel + 1) : "",
+          level_tujuan:
+            promotedLevel < MAX_TAHFIDZ_LEVEL
+              ? String(promotedLevel + 1)
+              : "",
         }));
       }
       setNotification({
         type: "success",
         message:
           predictedStatus === "Lulus"
-            ? `Siswa lulus dan naik ke Level ${form.level_tujuan}.`
+            ? `Siswa lulus dan naik ke ${getTahfidzLevelLabel(form.level_tujuan)}.`
             : "Hasil ujian tersimpan. Siswa perlu mengulang.",
       });
     } catch (error) {
@@ -352,7 +369,8 @@ export default function LevelExamPage() {
                   <option value="">-- Pilih Siswa --</option>
                   {students.map((student) => (
                     <option key={student.id} value={student.id}>
-                      {student.nama_lengkap} · Level {student.level || 1}
+                      {student.nama_lengkap} ·{" "}
+                      {getTahfidzLevelLabel(student.level || 1)}
                     </option>
                   ))}
                 </select>
@@ -375,17 +393,17 @@ export default function LevelExamPage() {
 
               <div>
                 <label className="mb-3 block text-sm font-bold text-gray-800">
-                  Level Asal
+                  Jenjang Asal
                 </label>
                 <input
-                  value={`Level ${form.level_asal}`}
+                  value={getTahfidzLevelLabel(form.level_asal)}
                   readOnly
                   className={`${fieldClass} bg-gray-50`}
                 />
               </div>
               <div>
                 <label className="mb-3 block text-sm font-bold text-gray-800">
-                  Level Tujuan
+                  Jenjang Tujuan
                 </label>
                 <select
                   value={form.level_tujuan}
@@ -393,23 +411,29 @@ export default function LevelExamPage() {
                     setForm({ ...form, level_tujuan: event.target.value })
                   }
                   className={fieldClass}
-                  disabled={Number(form.level_asal) >= 6}
+                  disabled={
+                    Number(form.level_asal) >= MAX_TAHFIDZ_LEVEL
+                  }
                 >
                   <option value="">
-                    {Number(form.level_asal) >= 6
-                      ? "Level maksimum"
-                      : "-- Pilih Level Tujuan --"}
+                    {Number(form.level_asal) >= MAX_TAHFIDZ_LEVEL
+                      ? "Jenjang maksimum"
+                      : "-- Pilih Jenjang Tujuan --"}
                   </option>
-                  {[2, 3, 4, 5, 6]
-                    .filter((level) => level > Number(form.level_asal))
+                  {TAHFIDZ_LEVELS
+                    .filter(
+                      (level) => level.value > Number(form.level_asal),
+                    )
                     .map((level) => (
-                      <option key={level} value={level}>Level {level}</option>
+                      <option key={level.value} value={level.value}>
+                        {level.label}
+                      </option>
                     ))}
                 </select>
-                {Number(form.level_asal) >= 6 && (
+                {Number(form.level_asal) >= MAX_TAHFIDZ_LEVEL && (
                   <p className="mt-2 text-sm font-bold text-amber-700">
-                    Siswa ini sudah di Level 6. Pilih siswa Level 1–5 untuk
-                    menyimpan ujian kenaikan level.
+                    Siswa ini sudah di Mustawa Muttawasit 3 dan tidak memiliki
+                    jenjang kenaikan berikutnya.
                   </p>
                 )}
               </div>
@@ -514,7 +538,8 @@ export default function LevelExamPage() {
                           {row.tanggal || "-"}
                         </td>
                         <td className="whitespace-nowrap px-5 py-4">
-                          Level {row.level_asal} → {row.level_tujuan}
+                          {getTahfidzLevelLabel(row.level_asal)} →{" "}
+                          {getTahfidzLevelLabel(row.level_tujuan)}
                         </td>
                         <td className="px-5 py-4">{row.nilai_kelancaran}</td>
                         <td className="px-5 py-4">{row.nilai_makhraj}</td>

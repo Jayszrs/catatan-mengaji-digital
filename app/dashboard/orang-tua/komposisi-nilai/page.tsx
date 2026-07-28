@@ -216,6 +216,39 @@ export default function KomposisiNilaiPage() {
                   </div>
                 </td>
               </tr>
+              <tr className="hover:bg-gray-50/50 transition-colors">
+                <td className="px-6 py-4 font-black text-gray-900 border-r border-gray-200 align-middle">
+                  Mustawa Muttawasit 1
+                </td>
+                <td className="px-6 py-4 font-medium text-gray-700 border-r border-gray-200 align-top">
+                  Al-Mulk, Al-Qalam, Al-Haqqah
+                </td>
+                <td className="px-6 py-4 font-medium text-gray-700 align-top">
+                  Al-Ma&apos;arij, Nuh
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50/50 transition-colors">
+                <td className="px-6 py-4 font-black text-gray-900 border-r border-gray-200 align-middle">
+                  Mustawa Muttawasit 2
+                </td>
+                <td className="px-6 py-4 font-medium text-gray-700 border-r border-gray-200 align-top">
+                  Al-Jinn, Al-Muzammil
+                </td>
+                <td className="px-6 py-4 font-medium text-gray-700 align-top">
+                  Al-Muddasir
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50/50 transition-colors">
+                <td className="px-6 py-4 font-black text-gray-900 border-r border-gray-200 align-middle">
+                  Mustawa Muttawasit 3
+                </td>
+                <td className="px-6 py-4 font-medium text-gray-700 border-r border-gray-200 align-top">
+                  Al-Qiyamah, Al-Insan
+                </td>
+                <td className="px-6 py-4 font-medium text-gray-700 align-top">
+                  Al-Mursalat
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
