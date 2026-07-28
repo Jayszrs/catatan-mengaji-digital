@@ -130,6 +130,28 @@ export default function StudentDashboard(props: { params: Promise<{ id: string }
             <p className="text-gray-900 font-semibold">{student?.tempat_tanggal_lahir || "-"}</p>
           </div>
           <div>
+            <p className="text-sm text-gray-500 font-medium mb-1">Jenis Kelamin</p>
+            <p className="text-gray-900 font-semibold">
+              {student?.jenis_kelamin === "L"
+                ? "Laki-laki"
+                : student?.jenis_kelamin === "P"
+                  ? "Perempuan"
+                  : "-"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium mb-1">NIK</p>
+            <p className="text-gray-900 font-semibold">{student?.nik || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium mb-1">Nama Ayah</p>
+            <p className="text-gray-900 font-semibold">{student?.nama_ayah || "-"}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium mb-1">Nama Ibu</p>
+            <p className="text-gray-900 font-semibold">{student?.nama_ibu || "-"}</p>
+          </div>
+          <div>
             <p className="text-sm text-gray-500 font-medium mb-1">Nama Wali Murid / Orang Tua</p>
             <p className="text-gray-900 font-semibold">{student?.wali_murid || "-"}</p>
           </div>

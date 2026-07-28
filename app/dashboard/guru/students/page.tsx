@@ -15,6 +15,7 @@ import {
   getTahfidzLevelLabel,
   TAHFIDZ_LEVELS,
 } from "@/lib/tahfidz-levels";
+import { parseStudentWorksheet } from "@/lib/student-import";
 import * as XLSX from "xlsx";
 
 const getNextAvailableNis = (students: any[]) => {
@@ -37,18 +38,43 @@ const getNextAvailableNis = (students: any[]) => {
 
 const normalizeNis = (value: unknown) => value?.toString().trim() || "";
 
-const getRowValue = (row: any, keys: string[]) => {
-  const normalizedEntries: Array<[string, unknown]> = Object.entries(row).map(([key, value]) => [
-    key.trim().toLowerCase(),
-    value,
-  ]);
+const createInitialStudentForm = () => ({
+  nama_lengkap: "",
+  nis: "",
+  jenis_kelamin: "",
+  nik: "",
+  tempat_tanggal_lahir: "",
+  nama_ayah: "",
+  nama_ibu: "",
+  wali_murid: "",
+  alamat: "",
+  no_telp: "",
+  kelas: "1",
+  level: "1",
+});
 
-  for (const key of keys) {
-    const found = normalizedEntries.find(([rowKey]) => rowKey === key.toLowerCase());
-    if (found) return found[1] === null || found[1] === undefined ? "" : String(found[1]).trim();
-  }
+const optionalText = (value: string) => value.trim() || null;
 
-  return "";
+const getStudentSaveError = (error: unknown, prefix: string) => {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" &&
+          error !== null &&
+          "message" in error &&
+          typeof error.message === "string"
+        ? error.message
+        : "Terjadi kesalahan yang tidak diketahui.";
+  const needsMigration =
+    /jenis_kelamin|nama_ayah|nama_ibu|students.*nik|schema cache/i.test(
+      message,
+    );
+
+  return `${prefix}${message}${
+    needsMigration
+      ? " Jalankan supabase-student-excel-profile-migration.sql di Supabase SQL Editor."
+      : ""
+  }`;
 };
 
 export default function DaftarSiswaFull() {
@@ -67,16 +93,7 @@ export default function DaftarSiswaFull() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
   const [notification, setNotification] = useState<{ show: boolean, message: string, type: 'success' | 'error' | 'confirm', id?: string, isLoading?: boolean }>({ show: false, message: '', type: 'success' });
-  const [formData, setFormData] = useState({
-    nama_lengkap: "",
-    nis: "",
-    wali_murid: "",
-    alamat: "",
-    no_telp: "",
-    tempat_tanggal_lahir: "",
-    kelas: "1",
-    level: "1",
-  });
+  const [formData, setFormData] = useState(createInitialStudentForm);
 
   useEffect(() => {
     checkUserAndFetchStudents();
@@ -128,20 +145,38 @@ export default function DaftarSiswaFull() {
       const nis = normalizeNis(formData.nis) || getNextAvailableNis(
         students.filter((student) => student.id !== editingId),
       );
+      const nik = formData.nik.replace(/\D/g, "");
+      if (nik && nik.length !== 16) {
+        throw new Error("NIK harus terdiri dari 16 digit.");
+      }
+      const studentData = {
+        nama_lengkap: formData.nama_lengkap.trim(),
+        nis,
+        jenis_kelamin: optionalText(formData.jenis_kelamin),
+        nik: optionalText(nik),
+        tempat_tanggal_lahir: formData.tempat_tanggal_lahir.trim(),
+        nama_ayah: optionalText(formData.nama_ayah),
+        nama_ibu: optionalText(formData.nama_ibu),
+        wali_murid:
+          formData.wali_murid.trim() ||
+          [formData.nama_ayah.trim(), formData.nama_ibu.trim()]
+            .filter(Boolean)
+            .join(" / "),
+        alamat: formData.alamat.trim(),
+        no_telp: formData.no_telp.trim(),
+        kelas: formData.kelas,
+        level: formData.level,
+      };
 
       let savedStudentId = editingId;
 
       if (editingId) {
-        const { data, error } = await supabase.from("students").update({
-          nama_lengkap: formData.nama_lengkap,
-          nis,
-          wali_murid: formData.wali_murid,
-          alamat: formData.alamat,
-          no_telp: formData.no_telp,
-          tempat_tanggal_lahir: formData.tempat_tanggal_lahir,
-          kelas: formData.kelas,
-          level: formData.level,
-        }).eq("id", editingId).select("id").single();
+        const { data, error } = await supabase
+          .from("students")
+          .update(studentData)
+          .eq("id", editingId)
+          .select("id")
+          .single();
         
         if (error) throw error;
         if (!data) {
@@ -153,14 +188,7 @@ export default function DaftarSiswaFull() {
         const existingStudent = students.find((student) => normalizeNis(student.nis) === nis);
         const payload = {
           teacher_id: user.id,
-          nama_lengkap: formData.nama_lengkap,
-          nis,
-          wali_murid: formData.wali_murid,
-          alamat: formData.alamat,
-          no_telp: formData.no_telp,
-          tempat_tanggal_lahir: formData.tempat_tanggal_lahir,
-          kelas: formData.kelas,
-          level: formData.level,
+          ...studentData,
         };
 
         const { data, error } = existingStudent
@@ -183,23 +211,18 @@ export default function DaftarSiswaFull() {
         });
       }
       
-      setFormData({
-        nama_lengkap: "",
-        nis: "",
-        wali_murid: "",
-        alamat: "",
-        no_telp: "",
-        tempat_tanggal_lahir: "",
-        kelas: "1",
-        level: "1",
-      });
+      setFormData(createInitialStudentForm());
       setPhotoFile(null);
       setPhotoPreview("");
       setEditingId(null);
       setShowForm(false);
       await checkUserAndFetchStudents();
-    } catch (err: any) {
-      setNotification({ show: true, message: "Error: " + err.message, type: 'error' });
+    } catch (err: unknown) {
+      setNotification({
+        show: true,
+        message: getStudentSaveError(err, "Error: "),
+        type: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -209,10 +232,14 @@ export default function DaftarSiswaFull() {
     setFormData({
       nama_lengkap: student.nama_lengkap,
       nis: student.nis || "",
+      jenis_kelamin: student.jenis_kelamin || "",
+      nik: student.nik || "",
+      tempat_tanggal_lahir: student.tempat_tanggal_lahir || "",
+      nama_ayah: student.nama_ayah || "",
+      nama_ibu: student.nama_ibu || "",
       wali_murid: student.wali_murid || "",
       alamat: student.alamat || "",
       no_telp: student.no_telp || "",
-      tempat_tanggal_lahir: student.tempat_tanggal_lahir || "",
       kelas: student.kelas || "1",
       level: student.level?.toString() || "1",
     });
@@ -288,21 +315,32 @@ export default function DaftarSiswaFull() {
           return;
         }
 
-        const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+        const parsedWorksheet = parseStudentWorksheet(worksheet);
         const existingStudents = [...students];
         
-        const newStudents = json.map((row) => {
-          const nis = normalizeNis(getRowValue(row, ["NIS", "Nomor Induk Siswa", "No Induk", "NISN"])) || getNextAvailableNis(existingStudents);
+        const newStudents = parsedWorksheet.rows.map((row) => {
+          const nis =
+            normalizeNis(row.nis) || getNextAvailableNis(existingStudents);
+          const nik = row.nik.replace(/\D/g, "");
+          if (nik && nik.length !== 16) {
+            throw new Error(
+              `NIK ${row.nama_lengkap} harus terdiri dari 16 digit.`,
+            );
+          }
           const student = {
             teacher_id: user.id,
-            nama_lengkap: getRowValue(row, ["Nama Lengkap", "Nama", "NAMA"]) || "Tanpa Nama",
+            nama_lengkap: row.nama_lengkap,
             nis,
-            kelas: getRowValue(row, ["Kelas", "kelas"]) || "1",
-            level: getRowValue(row, ["Level", "level"]) || "1",
-            tempat_tanggal_lahir: getRowValue(row, ["Tempat, Tanggal Lahir", "TTL", "Tempat Tanggal Lahir"]),
-            wali_murid: getRowValue(row, ["Wali Murid", "Orang Tua", "Nama Wali Murid"]),
-            no_telp: getRowValue(row, ["No Telp", "No Telepon", "No HP", "WhatsApp", "Whatsapp"]),
-            alamat: getRowValue(row, ["Alamat", "alamat"]),
+            jenis_kelamin: optionalText(row.jenis_kelamin),
+            nik: optionalText(nik),
+            kelas: row.kelas,
+            level: row.level,
+            tempat_tanggal_lahir: row.tempat_tanggal_lahir,
+            nama_ayah: optionalText(row.nama_ayah),
+            nama_ibu: optionalText(row.nama_ibu),
+            wali_murid: row.wali_murid,
+            no_telp: row.no_telp,
+            alamat: row.alamat,
           };
 
           existingStudents.push(student);
@@ -332,13 +370,24 @@ export default function DaftarSiswaFull() {
             }
           }
 
-          setNotification({ show: true, message: `Import selesai: ${createdCount} siswa baru, ${updatedCount} siswa diperbarui. NIS kosong sudah dibuat otomatis.`, type: 'success' });
+          setNotification({
+            show: true,
+            message:
+              `Import selesai dari header baris ${parsedWorksheet.headerRowNumber}: ` +
+              `${createdCount} siswa baru, ${updatedCount} siswa diperbarui` +
+              `${parsedWorksheet.skippedRows ? `, ${parsedWorksheet.skippedRows} baris dilewati` : ""}.`,
+            type: 'success',
+          });
           await checkUserAndFetchStudents();
         } else {
           setNotification({ show: true, message: "File Excel kosong atau format tidak sesuai.", type: 'error' });
         }
-      } catch (err: any) {
-        setNotification({ show: true, message: "Gagal mengimpor file: " + err.message, type: 'error' });
+      } catch (err: unknown) {
+        setNotification({
+          show: true,
+          message: getStudentSaveError(err, "Gagal mengimpor file: "),
+          type: "error",
+        });
       } finally {
         setIsSubmitting(false);
       }
@@ -351,43 +400,54 @@ export default function DaftarSiswaFull() {
   const handleDownloadTemplate = () => {
     const templateRows = [
       {
-        NIS: "1000001",
-        "Nama Lengkap": "Ahmad Fulan",
+        No: "1",
+        "Nama Peserta Didik": "Ahmad Fulan",
+        "L/P": "L",
+        NIS: "262701001",
+        NIK: "3275011007190004",
+        "Tempat/Tanggal Lahir": "Bekasi, 10 Juli 2019",
+        Ayah: "Bapak Fulan",
+        Ibu: "Ibu Fulan",
+        Alamat: "Bekasi",
+        "Nomor Telepon": "081234567890",
         Kelas: "1",
         Level: "1",
-        "Tempat, Tanggal Lahir": "Bekasi, 1 Januari 2019",
-        "Wali Murid": "Bapak/Ibu Fulan",
-        "No Telp": "081234567890",
-        Alamat: "Bekasi",
       },
     ];
     const instructionRows = [
+      { Kolom: "Nama Peserta Didik", Petunjuk: "Wajib diisi." },
+      { Kolom: "L/P", Petunjuk: "Isi L untuk laki-laki atau P untuk perempuan." },
       { Kolom: "NIS", Petunjuk: "Opsional. Jika kosong, sistem membuat NIS otomatis." },
-      { Kolom: "Nama Lengkap", Petunjuk: "Wajib diisi." },
+      { Kolom: "NIK", Petunjuk: "Isi 16 digit tanpa tanda baca." },
+      { Kolom: "Tempat/Tanggal Lahir", Petunjuk: "Contoh: Bekasi, 10 Juli 2019." },
+      { Kolom: "Ayah", Petunjuk: "Nama ayah siswa." },
+      { Kolom: "Ibu", Petunjuk: "Nama ibu siswa." },
+      { Kolom: "Alamat", Petunjuk: "Alamat lengkap siswa." },
+      { Kolom: "Nomor Telepon", Petunjuk: "Gunakan format teks agar angka 0 di depan tidak hilang." },
       { Kolom: "Kelas", Petunjuk: "Isi angka 1 sampai 6." },
       {
         Kolom: "Level",
         Petunjuk:
           "Isi jenjang tahfidz 1 sampai 9. Jenjang 7–9 adalah Mustawa Muttawasit 1–3.",
       },
-      { Kolom: "Tempat, Tanggal Lahir", Petunjuk: "Contoh: Bekasi, 1 Januari 2019." },
-      { Kolom: "Wali Murid", Petunjuk: "Nama orang tua atau wali." },
-      { Kolom: "No Telp", Petunjuk: "Gunakan format teks agar angka 0 di depan tidak hilang." },
-      { Kolom: "Alamat", Petunjuk: "Alamat lengkap siswa." },
     ];
 
     const workbook = XLSX.utils.book_new();
     const dataSheet = XLSX.utils.json_to_sheet(templateRows);
     const guideSheet = XLSX.utils.json_to_sheet(instructionRows);
     dataSheet["!cols"] = [
-      { wch: 14 },
+      { wch: 6 },
       { wch: 28 },
-      { wch: 10 },
-      { wch: 10 },
+      { wch: 8 },
+      { wch: 14 },
+      { wch: 20 },
       { wch: 30 },
-      { wch: 26 },
-      { wch: 18 },
-      { wch: 36 },
+      { wch: 24 },
+      { wch: 24 },
+      { wch: 40 },
+      { wch: 24 },
+      { wch: 10 },
+      { wch: 10 },
     ];
     guideSheet["!cols"] = [{ wch: 26 }, { wch: 64 }];
     XLSX.utils.book_append_sheet(workbook, dataSheet, "DATA SISWA");
@@ -514,7 +574,7 @@ export default function DaftarSiswaFull() {
               setShowForm(!showForm);
               if (showForm) {
                 setEditingId(null);
-                setFormData({ nama_lengkap: "", nis: "", wali_murid: "", alamat: "", no_telp: "", tempat_tanggal_lahir: "", kelas: "1", level: "1" });
+                setFormData(createInitialStudentForm());
                 setPhotoFile(null);
                 setPhotoPreview("");
               }
@@ -532,7 +592,7 @@ export default function DaftarSiswaFull() {
       </div>
 
       {/* Form Tambah Siswa */}
-      <div className={`transition-all duration-500 ${showForm ? "max-h-[2400px] overflow-visible opacity-100 mb-8" : "max-h-0 overflow-hidden opacity-0"}`}>
+      <div className={`transition-all duration-500 ${showForm ? "max-h-[3200px] overflow-visible opacity-100 mb-8" : "max-h-0 overflow-hidden opacity-0"}`}>
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 border-t-4 border-[#1b4332]">
           <div className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
@@ -592,11 +652,46 @@ export default function DaftarSiswaFull() {
                 required
               />
 
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-2">
+                  Jenis Kelamin (L/P)
+                </label>
+                <select
+                  value={formData.jenis_kelamin}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      jenis_kelamin: e.target.value,
+                    })
+                  }
+                  className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1b4332] focus:border-transparent transition-all font-medium"
+                >
+                  <option value="">Pilih jenis kelamin</option>
+                  <option value="L">L — Laki-laki</option>
+                  <option value="P">P — Perempuan</option>
+                </select>
+              </div>
+
               <Input
                 label="Nomor Induk Siswa (NIS)"
                 placeholder={`Otomatis: ${getNextAvailableNis(students)}`}
                 value={formData.nis}
                 onChange={(e) => setFormData({ ...formData, nis: e.target.value })}
+              />
+
+              <Input
+                label="NIK"
+                placeholder="16 digit NIK siswa"
+                inputMode="numeric"
+                maxLength={16}
+                pattern="[0-9]{16}"
+                value={formData.nik}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    nik: e.target.value.replace(/\D/g, ""),
+                  })
+                }
               />
 
               <Input
@@ -640,8 +735,26 @@ export default function DaftarSiswaFull() {
               </div>
 
               <Input
+                label="Nama Ayah"
+                placeholder="Nama lengkap ayah"
+                value={formData.nama_ayah}
+                onChange={(e) =>
+                  setFormData({ ...formData, nama_ayah: e.target.value })
+                }
+              />
+
+              <Input
+                label="Nama Ibu"
+                placeholder="Nama lengkap ibu"
+                value={formData.nama_ibu}
+                onChange={(e) =>
+                  setFormData({ ...formData, nama_ibu: e.target.value })
+                }
+              />
+
+              <Input
                 label="Nama Wali Murid / Orang Tua"
-                placeholder="Contoh: Bapak Budi"
+                placeholder="Opsional jika nama ayah/ibu sudah diisi"
                 value={formData.wali_murid}
                 onChange={(e) => setFormData({ ...formData, wali_murid: e.target.value })}
               />
