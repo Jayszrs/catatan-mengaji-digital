@@ -213,28 +213,74 @@ export function downloadCompleteDailyReport(
 export interface MunaqosyahExportRow {
   tanggal?: string;
   hasil_ujian?: {
+    juz?: string;
     nilaiRataRata?: number;
-    kategoriMunaqosyah?: { indo?: string };
-    rowsMunaqosyah?: Array<{ label?: string; angka?: number }>;
+    kategoriMunaqosyah?: { indo?: string; arab?: string };
+    jumlahMunaqosyah?: {
+      angka?: number | string;
+      huruf?: string;
+      arab?: string;
+    };
+    rowsMunaqosyah?: Array<{
+      label?: string;
+      angka?: number;
+      huruf?: string;
+      arab_angka?: string;
+      arab_huruf?: string;
+    }>;
+    kepribadianMunaqosyah?: {
+      akhlaq?: { nilai?: string; arab?: string };
+      kedisiplinan?: { nilai?: string; arab?: string };
+      kerapihan?: { nilai?: string; arab?: string };
+    };
   };
   catatan_guru?: string | null;
 }
 
 export function downloadMunaqosyahReport(studentName: string, row?: MunaqosyahExportRow) {
   if (!row) throw new Error("Belum ada hasil Munaqosyah untuk diunduh.");
-  const scores = row.hasil_ujian?.rowsMunaqosyah || [];
-  const score = (label: string, index: number) =>
-    scores.find((item) => item.label?.toLowerCase() === label.toLowerCase())?.angka ??
-    scores[index]?.angka ??
-    "-";
+  const result = row.hasil_ujian;
+  const scores = result?.rowsMunaqosyah || [];
+  const score = (labels: string[], index: number) =>
+    scores.find((item) =>
+      labels.includes((item.label || "").toLowerCase()),
+    ) || scores[index];
+  const kelancaran = score(["kelancaran"], 0);
+  const makhorijul = score(["makhorijul huruf", "makhraj"], 1);
+  const tajwid = score(["hukum tajwid", "tajwid"], 2);
+  const sambungAyat = score(["sambung ayat", "hafalan"], 3);
+  const personality = result?.kepribadianMunaqosyah;
   const sheet = XLSX.utils.json_to_sheet([{
     Tanggal: row.tanggal || "-",
-    Kelancaran: score("Kelancaran", 0),
-    Makhraj: score("Makhraj", 1),
-    Tajwid: score("Tajwid", 2),
-    Hafalan: score("Hafalan", 3),
-    "Rata-rata": row.hasil_ujian?.nilaiRataRata ?? "-",
-    Predikat: row.hasil_ujian?.kategoriMunaqosyah?.indo || "-",
+    Juz: result?.juz || "-",
+    "Kategori Nilai": result?.kategoriMunaqosyah?.indo || "-",
+    "Kategori Nilai Arab": result?.kategoriMunaqosyah?.arab || "-",
+    "Kelancaran Angka": kelancaran?.angka ?? "-",
+    "Kelancaran Huruf": kelancaran?.huruf || "-",
+    "Kelancaran Angka Arab": kelancaran?.arab_angka || "-",
+    "Kelancaran Huruf Arab": kelancaran?.arab_huruf || "-",
+    "Makhorijul Huruf Angka": makhorijul?.angka ?? "-",
+    "Makhorijul Huruf": makhorijul?.huruf || "-",
+    "Makhorijul Huruf Angka Arab": makhorijul?.arab_angka || "-",
+    "Makhorijul Huruf Arab": makhorijul?.arab_huruf || "-",
+    "Hukum Tajwid Angka": tajwid?.angka ?? "-",
+    "Hukum Tajwid Huruf": tajwid?.huruf || "-",
+    "Hukum Tajwid Angka Arab": tajwid?.arab_angka || "-",
+    "Hukum Tajwid Huruf Arab": tajwid?.arab_huruf || "-",
+    "Sambung Ayat Angka": sambungAyat?.angka ?? "-",
+    "Sambung Ayat Huruf": sambungAyat?.huruf || "-",
+    "Sambung Ayat Angka Arab": sambungAyat?.arab_angka || "-",
+    "Sambung Ayat Huruf Arab": sambungAyat?.arab_huruf || "-",
+    "Jumlah Nilai": result?.jumlahMunaqosyah?.angka ?? "-",
+    "Jumlah Nilai Huruf": result?.jumlahMunaqosyah?.huruf || "-",
+    "Jumlah Nilai Arab": result?.jumlahMunaqosyah?.arab || "-",
+    "Rata-rata": result?.nilaiRataRata ?? "-",
+    Akhlaq: personality?.akhlaq?.nilai || "-",
+    "Akhlaq Arab": personality?.akhlaq?.arab || "-",
+    Kedisiplinan: personality?.kedisiplinan?.nilai || "-",
+    "Kedisiplinan Arab": personality?.kedisiplinan?.arab || "-",
+    Kerapihan: personality?.kerapihan?.nilai || "-",
+    "Kerapihan Arab": personality?.kerapihan?.arab || "-",
     "Catatan Guru": row.catatan_guru || "-",
   }]);
   const workbook = XLSX.utils.book_new();
