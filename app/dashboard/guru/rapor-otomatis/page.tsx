@@ -451,18 +451,21 @@ function OfficialReportTemplate({
           </section>
 
           <footer className="mt-8 flex justify-between text-sm">
-            <div className="w-1/3 pt-6 text-center">
-              <p className="mb-20 font-bold">Orang Tua/Wali</p>
+            <div className="w-1/3 text-center">
+              <p className="font-bold">Orang Tua/Wali</p>
+              <div className="h-20" aria-label="Ruang tanda tangan Orang Tua atau Wali" />
               <div className="mx-auto w-48 border-b-2 border-dotted border-black" />
             </div>
-            <div className="w-1/3 pt-6 text-center">
-              <p className="mb-20 font-bold">Kepala Sekolah</p>
+            <div className="w-1/3 text-center">
+              <p className="font-bold">Kepala Sekolah</p>
+              <div className="h-20" aria-label="Ruang tanda tangan Kepala Sekolah" />
               <p className="font-bold underline">WIDI NURMARA, S.Pd.I</p>
             </div>
             <div className="w-1/3 text-center">
               <p>Dikeluarkan di : Bekasi</p>
               <p>Tanggal : {formatDate(reportDate)}</p>
-              <p className="mb-16 mt-3 font-bold">Koordinator Tahfizh</p>
+              <p className="mt-3 font-bold">Koordinator Tahfizh</p>
+              <div className="h-14" aria-label="Ruang tanda tangan Koordinator Tahfizh" />
               <p className="font-bold underline">ULFA DWI HASTUTI, S.LI</p>
             </div>
           </footer>

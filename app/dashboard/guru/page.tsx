@@ -250,19 +250,6 @@ export default function DaftarSiswaDashboard() {
         <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm">
           <h3 className="text-xl font-bold text-gray-900 mb-6">Tindakan Cepat</h3>
           
-          <Link href="/dashboard/guru/catatan-terintegrasi" className="block bg-gradient-to-r from-[#1b4332] to-[#2dc653] rounded-2xl p-6 text-white shadow-lg relative overflow-hidden mb-4 group cursor-pointer hover:shadow-xl transition-all hover:-translate-y-1">
-            <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-bl-full -z-10 group-hover:scale-110 transition-transform duration-500"></div>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                <Sun size={24} />
-              </div>
-              <div>
-                <h4 className="font-bold text-lg mb-0.5">Catatan Terintegrasi</h4>
-                <p className="text-white/80 text-xs">Tadarus, tahfidz, level & munaqasyah</p>
-              </div>
-            </div>
-          </Link>
-          
           <Link href="/dashboard/guru/input-tahsin" className="block bg-white border border-gray-100 rounded-2xl p-5 hover:bg-blue-50 hover:border-blue-100 transition-all group cursor-pointer mb-4">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">

@@ -148,10 +148,6 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
                   <Users size={20} />
                   <span>Data Kelas</span>
                 </Link>
-                <Link href="/dashboard/guru/catatan-terintegrasi" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/catatan-terintegrasi") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
-                  <FileText size={20} />
-                  <span>Catatan Terintegrasi</span>
-                </Link>
                 <Link href="/dashboard/guru/laporan-harian" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/guru/laporan-harian") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <FileText size={20} />
                   <span>Presensi & Harian</span>
