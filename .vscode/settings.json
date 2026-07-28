@@ -1,4 +1,7 @@
 {
+  "files.associations": {
+    "supabase-*.sql": "plaintext"
+  },
   "mssql.intelliSense.enableErrorChecking": false,
   "mssql.intelliSense.enableIntelliSense": false
 }
