@@ -24,11 +24,11 @@ import {
   LevelExamExportRow,
   MunaqosyahExportRow,
 } from "@/lib/report-exports";
+import { MunaqosyahOfficialTable } from "@/components/MunaqosyahOfficialTable";
 import { supabase } from "@/lib/supabase";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import { loadDailyMemorizationRows } from "@/lib/report-queries";
 import { getTahfidzLevelLabel } from "@/lib/tahfidz-levels";
-import { getMunaqosyahCriterionLabel } from "@/lib/munaqosyah";
 
 interface StudentOption {
   id: string;
@@ -81,9 +81,23 @@ function formatScore(value?: number | null) {
   return value === undefined || value === null ? "-" : Number(value).toFixed(0);
 }
 
+function loadMunaqosyahPreview(studentId: string) {
+  try {
+    const stored = window.sessionStorage.getItem(
+      `munaqosyah-preview-${studentId}`,
+    );
+    return stored
+      ? (JSON.parse(stored) as MunaqosyahExportRow)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function AutomaticReportContent() {
   const params = useSearchParams();
   const requestedReport = params.get("report");
+  const useMunaqosyahPreview = params.get("preview") === "1";
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [studentId, setStudentId] = useState(params.get("studentId") || "");
   const [activeReport, setActiveReport] = useState<ReportType>(
@@ -124,6 +138,9 @@ function AutomaticReportContent() {
     const loadReports = async () => {
       setLoading(true);
       setError("");
+      const previewMunaq = useMunaqosyahPreview
+        ? loadMunaqosyahPreview(studentId)
+        : undefined;
       const [dailyResult, memorizationResult, levelResult, munaqResult] =
         await Promise.all([
           supabase
@@ -151,7 +168,7 @@ function AutomaticReportContent() {
       if (dailyResult.error) throw dailyResult.error;
       if (memorizationResult.error) throw memorizationResult.error;
       if (levelResult.error) throw levelResult.error;
-      if (munaqResult.error) throw munaqResult.error;
+      if (munaqResult.error && !previewMunaq) throw munaqResult.error;
       const loadedDailyReports = dailyResult.data || [];
       const loadedMemorization = memorizationResult.data || [];
       const reportDates = getDailyReportDates(
@@ -164,7 +181,7 @@ function AutomaticReportContent() {
         reportDates.includes(current) ? current : reportDates[0] || "",
       );
       setLevels(levelResult.data || []);
-      setMunaq(munaqResult.data || undefined);
+      setMunaq(previewMunaq || munaqResult.data || undefined);
     };
 
     loadReports()
@@ -172,7 +189,7 @@ function AutomaticReportContent() {
         setError(getAppErrorMessage(issue, "Gagal memuat rapor otomatis.")),
       )
       .finally(() => setLoading(false));
-  }, [studentId]);
+  }, [studentId, useMunaqosyahPreview]);
 
   const selected = students.find((student) => student.id === studentId);
   const name = selected?.nama_lengkap || "siswa";
@@ -337,7 +354,8 @@ function AutomaticReportContent() {
         <button
           type="button"
           onClick={() => window.print()}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1b4332] px-5 py-3 font-bold text-white shadow-sm"
+          disabled={!hasData}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1b4332] px-5 py-3 font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Printer size={18} /> Cetak / Simpan PDF
         </button>
@@ -481,9 +499,15 @@ function OfficialReportTemplate({
             <table className="w-[42%]">
               <tbody>
                 <tr>
-                  <td className="w-28 py-1">Jenjang Tahfizh</td>
+                  <td className="w-28 py-1">
+                    {reportType === "munaqosyah" ? "Juz" : "Jenjang Tahfizh"}
+                  </td>
                   <td className="w-4">:</td>
-                  <td>{getTahfidzLevelLabel(student?.level)}</td>
+                  <td>
+                    {reportType === "munaqosyah"
+                      ? munaq?.hasil_ujian?.juz || "-"
+                      : getTahfidzLevelLabel(student?.level)}
+                  </td>
                 </tr>
                 <tr>
                   <td className="py-1">Periode</td>
@@ -506,7 +530,9 @@ function OfficialReportTemplate({
             />
           )}
           {reportType === "level" && <LevelReportTable row={latestLevel} />}
-          {reportType === "munaqosyah" && <MunaqosyahReportTable row={munaq} />}
+          {reportType === "munaqosyah" && (
+            <MunaqosyahOfficialTable row={munaq} />
+          )}
 
           <section className="mb-10 mt-6 border border-black">
             <h4 className="border-b border-black bg-gray-100 py-2 text-center font-bold uppercase tracking-widest">
@@ -692,32 +718,6 @@ function LevelReportTable({ row }: { row?: LevelExamExportRow }) {
         average={row?.nilai_rata_rata}
         emptyMessage="Belum ada hasil ujian kenaikan level."
       />
-    </div>
-  );
-}
-
-function MunaqosyahReportTable({ row }: { row?: MunaqosyahExportRow }) {
-  const sourceRows = row?.hasil_ujian?.rowsMunaqosyah || [];
-  const scores = sourceRows.map((score, index) => [
-    getMunaqosyahCriterionLabel(score.label, index),
-    score.angka,
-  ] as [string, number | null | undefined]);
-
-  return (
-    <div>
-      <ScoreTable
-        rows={scores}
-        average={row?.hasil_ujian?.nilaiRataRata}
-        emptyMessage="Belum ada hasil ujian Munaqosyah."
-      />
-      <div className="mt-5 flex border border-black text-center font-bold">
-        <span className="w-1/2 border-r border-black bg-gray-100 p-3 uppercase">
-          Predikat
-        </span>
-        <span className="w-1/2 p-3 uppercase">
-          {row?.hasil_ujian?.kategoriMunaqosyah?.indo || "-"}
-        </span>
-      </div>
     </div>
   );
 }

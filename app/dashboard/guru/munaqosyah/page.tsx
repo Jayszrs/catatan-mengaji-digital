@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Award,
   CheckCircle2,
@@ -23,6 +24,7 @@ import {
   numberToIndonesianWords,
   toArabicIndicDigits,
 } from "@/lib/munaqosyah";
+import type { MunaqosyahExportRow } from "@/lib/report-exports";
 import { supabase } from "@/lib/supabase";
 
 interface StudentRow {
@@ -115,6 +117,7 @@ function findScore(
 }
 
 export default function MunaqosyahPage() {
+  const router = useRouter();
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [exams, setExams] = useState<ExamResult[]>([]);
   const [form, setForm] = useState<FormState>(initialForm);
@@ -296,13 +299,29 @@ export default function MunaqosyahPage() {
     const query = new URLSearchParams({
       studentId: form.student_id,
       report: "munaqosyah",
-      print: "1",
+      preview: "1",
     });
-    window.open(
-      `/dashboard/guru/rapor-otomatis?${query.toString()}`,
-      "_blank",
-      "noopener,noreferrer",
+    const previewData: MunaqosyahExportRow = {
+      tanggal: form.tanggal,
+      hasil_ujian: {
+        juz: form.juz,
+        nilaiRataRata: average,
+        kategoriMunaqosyah: predicate,
+        jumlahMunaqosyah: {
+          angka: total,
+          huruf: numberToIndonesianWords(total),
+          arab: toArabicIndicDigits(total),
+        },
+        rowsMunaqosyah: scoreRows,
+        kepribadianMunaqosyah: personality,
+      },
+      catatan_guru: form.catatan_guru,
+    };
+    window.sessionStorage.setItem(
+      `munaqosyah-preview-${form.student_id}`,
+      JSON.stringify(previewData),
     );
+    router.push(`/dashboard/guru/rapor-otomatis?${query.toString()}`);
   };
 
   return (
@@ -320,7 +339,6 @@ export default function MunaqosyahPage() {
         <button
           type="button"
           onClick={openOfficialReportPreview}
-          disabled={!form.student_id}
           className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 font-bold text-gray-700"
         >
           <Printer size={18} /> Preview / Cetak Rapor Resmi

@@ -298,6 +298,28 @@ export default function LevelExamPage() {
     }
   };
 
+  const openOfficialLevelReport = () => {
+    if (!form.student_id) {
+      setNotification({
+        type: "error",
+        message: "Pilih siswa terlebih dahulu sebelum membuka rapor.",
+      });
+      return;
+    }
+    if (history.length === 0) {
+      setNotification({
+        type: "error",
+        message: "Simpan hasil ujian terlebih dahulu sebelum membuka rapor.",
+      });
+      return;
+    }
+    const query = new URLSearchParams({
+      studentId: form.student_id,
+      report: "level",
+    });
+    router.push(`/dashboard/guru/rapor-otomatis?${query.toString()}`);
+  };
+
   const fieldClass =
     "w-full rounded-xl border-2 border-gray-200 bg-white px-5 py-3 font-medium text-gray-900 outline-none focus:ring-2 focus:ring-[#2dc653]";
 
@@ -324,11 +346,10 @@ export default function LevelExamPage() {
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
-            disabled={!history.length}
+            onClick={openOfficialLevelReport}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1b4332] px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
-            <Printer size={18} /> Cetak Rapor
+            <Printer size={18} /> Preview / Cetak Rapor
           </button>
         </div>
       </div>

@@ -216,6 +216,13 @@ export default function DailyReportsPage() {
       });
       return;
     }
+    if (history.length === 0) {
+      setNotification({
+        type: "error",
+        message: "Simpan laporan harian terlebih dahulu sebelum membuka rapor.",
+      });
+      return;
+    }
     const selectedDate =
       history.find((row) => row.tanggal === form.tanggal)?.tanggal ||
       history[0]?.tanggal ||
@@ -224,13 +231,8 @@ export default function DailyReportsPage() {
       studentId: form.student_id,
       report: "daily",
       date: selectedDate,
-      print: "1",
     });
-    window.open(
-      `/dashboard/guru/rapor-otomatis?${query.toString()}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
+    router.push(`/dashboard/guru/rapor-otomatis?${query.toString()}`);
   };
 
   const fieldClass =
@@ -259,10 +261,9 @@ export default function DailyReportsPage() {
           <button
             type="button"
             onClick={openOfficialDailyReport}
-            disabled={!history.length}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1b4332] px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
-            <Printer size={18} /> Cetak Rapor Resmi
+            <Printer size={18} /> Preview / Cetak Rapor Resmi
           </button>
         </div>
       </div>

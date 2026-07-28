@@ -4,7 +4,7 @@ import {
   LevelExamExportRow,
   MunaqosyahExportRow,
 } from "@/lib/report-exports";
-import { getMunaqosyahCriterionLabel } from "@/lib/munaqosyah";
+import { MunaqosyahOfficialTable } from "@/components/MunaqosyahOfficialTable";
 import { getTahfidzLevelLabel } from "@/lib/tahfidz-levels";
 
 export type OfficialReportType = "daily" | "level" | "munaqosyah";
@@ -144,9 +144,15 @@ export function OfficialReportTemplate({
             <table className="w-[42%]">
               <tbody>
                 <tr>
-                  <td className="w-28 py-1">Jenjang Tahfizh</td>
+                  <td className="w-28 py-1">
+                    {reportType === "munaqosyah" ? "Juz" : "Jenjang Tahfizh"}
+                  </td>
                   <td className="w-4">:</td>
-                  <td>{getTahfidzLevelLabel(student?.level)}</td>
+                  <td>
+                    {reportType === "munaqosyah"
+                      ? munaq?.hasil_ujian?.juz || "-"
+                      : getTahfidzLevelLabel(student?.level)}
+                  </td>
                 </tr>
                 <tr>
                   <td className="py-1">Periode</td>
@@ -170,7 +176,7 @@ export function OfficialReportTemplate({
           )}
           {reportType === "level" && <LevelReportTable row={latestLevel} />}
           {reportType === "munaqosyah" && (
-            <MunaqosyahReportTable row={munaq} />
+            <MunaqosyahOfficialTable row={munaq} />
           )}
 
           <section className="mb-10 mt-6 border border-black">
@@ -380,35 +386,6 @@ function LevelReportTable({ row }: { row?: LevelExamExportRow }) {
         average={row?.nilai_rata_rata}
         emptyMessage="Belum ada hasil ujian kenaikan level."
       />
-    </div>
-  );
-}
-
-function MunaqosyahReportTable({ row }: { row?: MunaqosyahExportRow }) {
-  const sourceRows = row?.hasil_ujian?.rowsMunaqosyah || [];
-  const scores = sourceRows.map(
-    (score, index) =>
-      [
-        getMunaqosyahCriterionLabel(score.label, index),
-        score.angka,
-      ] as [string, number | null | undefined],
-  );
-
-  return (
-    <div>
-      <ScoreTable
-        rows={scores}
-        average={row?.hasil_ujian?.nilaiRataRata}
-        emptyMessage="Belum ada hasil ujian Munaqosyah."
-      />
-      <div className="mt-5 flex border border-black text-center font-bold">
-        <span className="w-1/2 border-r border-black bg-gray-100 p-3 uppercase">
-          Predikat
-        </span>
-        <span className="w-1/2 p-3 uppercase">
-          {row?.hasil_ujian?.kategoriMunaqosyah?.indo || "-"}
-        </span>
-      </div>
     </div>
   );
 }
