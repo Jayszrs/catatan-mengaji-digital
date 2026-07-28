@@ -200,20 +200,22 @@ begin
   end if;
 end $$;
 
--- Perluas level siswa dan ujian dari 1–6 menjadi 1–9.
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_constraint
-    where conname = 'students_tahfidz_level_range'
-      and conrelid = 'public.students'::regclass
-  ) then
-    alter table public.students
-      add constraint students_tahfidz_level_range
-      check (level between 1 and 9);
-  end if;
-end $$;
+-- Database lama menyimpan students.level sebagai varchar. Normalisasikan
+-- menjadi smallint agar pemeriksaan rentang dan kenaikan level memakai tipe
+-- yang sama. USING tetap aman bila kolomnya sudah numeric.
+alter table public.students
+  drop constraint if exists students_level_check,
+  drop constraint if exists students_tahfidz_level_range,
+  alter column level drop default;
+
+alter table public.students
+  alter column level type smallint
+    using trim(level::text)::smallint,
+  alter column level set default 1;
+
+alter table public.students
+  add constraint students_tahfidz_level_range
+    check (level between 1 and 9);
 
 alter table public.level_promotion_exams
   drop constraint if exists level_promotion_exams_level_asal_check,
