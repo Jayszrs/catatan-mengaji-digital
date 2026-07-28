@@ -32,6 +32,11 @@ export default function LoginPage() {
         return;
       }
 
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!normalizedEmail.includes("@")) {
+        throw new Error("Gunakan alamat email lengkap, bukan nama atau username.");
+      }
+
       if (!isSupabaseConfigured) {
         throw new Error(
           "Koneksi database belum dipasang. Tambahkan NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY di .env.local.",
@@ -40,7 +45,7 @@ export default function LoginPage() {
 
       const { data, error: authError } = await supabase.auth.signInWithPassword(
         {
-          email,
+          email: normalizedEmail,
           password,
         },
       );
@@ -121,9 +126,9 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-5">
           <Input
-            label="Email atau Username"
-            type="text"
-            placeholder="nama@email.com atau admin"
+            label="Email"
+            type="email"
+            placeholder="nama@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -137,6 +142,15 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+
+          <div className="-mt-2 text-right">
+            <Link
+              href={`/auth/reset-password?email=${encodeURIComponent(email.trim())}`}
+              className="text-sm font-bold text-emerald-700 hover:underline"
+            >
+              Lupa password?
+            </Link>
+          </div>
 
           <Button type="submit" disabled={loading} className="w-full mt-8 py-3 flex items-center justify-center gap-2 text-lg">
             {loading ? (
