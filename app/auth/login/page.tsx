@@ -127,7 +127,8 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="space-y-5">
           <Input
             label="Email"
-            type="email"
+            type="text"
+            inputMode="email"
             placeholder="nama@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
