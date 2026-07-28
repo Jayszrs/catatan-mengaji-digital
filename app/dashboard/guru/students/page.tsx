@@ -524,16 +524,30 @@ export default function DaftarSiswaFull() {
       </div>
 
       {/* Form Tambah Siswa */}
-      <div className={`transition-all duration-500 overflow-hidden ${showForm ? "max-h-[800px] opacity-100 mb-8" : "max-h-0 opacity-0"}`}>
+      <div className={`transition-all duration-500 ${showForm ? "max-h-[2400px] overflow-visible opacity-100 mb-8" : "max-h-0 overflow-hidden opacity-0"}`}>
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 border-t-4 border-[#1b4332]">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 bg-[#1b4332]/10 text-[#1b4332] rounded-xl flex items-center justify-center">
-              <UserPlus size={24} />
+          <div className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-[#1b4332]/10 text-[#1b4332] rounded-xl flex items-center justify-center">
+                <UserPlus size={24} />
+              </div>
+              <h2 className="text-2xl font-black text-gray-900">{editingId ? "Edit Data Siswa" : "Input Data Siswa Baru"}</h2>
             </div>
-            <h2 className="text-2xl font-black text-gray-900">{editingId ? "Edit Data Siswa" : "Input Data Siswa Baru"}</h2>
+            <button
+              type="submit"
+              form="student-data-form"
+              disabled={isSubmitting}
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1b4332] px-8 font-bold text-white shadow-lg shadow-green-900/10 transition hover:bg-[#2d6a4f] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            >
+              {isSubmitting ? (
+                <><Loader2 size={18} className="animate-spin" /> Menyimpan...</>
+              ) : (
+                <><Save size={18} /> {editingId ? "Simpan Perubahan" : "Simpan Data Siswa"}</>
+              )}
+            </button>
           </div>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form id="student-data-form" onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-gray-800 mb-3">Foto Siswa</label>
