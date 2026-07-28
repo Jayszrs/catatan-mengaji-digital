@@ -13,7 +13,9 @@ import {
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
   DailyMemorizationExportRow,
+  DailyReportExportRow,
   downloadDailyMemorizationReports,
+  downloadDailyReports,
   downloadLevelExamReports,
   downloadMunaqosyahReport,
   LevelExamExportRow,
@@ -78,7 +80,8 @@ function AutomaticReportContent() {
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [studentId, setStudentId] = useState(params.get("studentId") || "");
   const [activeReport, setActiveReport] = useState<ReportType>("daily");
-  const [daily, setDaily] = useState<DailyMemorizationExportRow[]>([]);
+  const [dailyReports, setDailyReports] = useState<DailyReportExportRow[]>([]);
+  const [memorization, setMemorization] = useState<DailyMemorizationExportRow[]>([]);
   const [levels, setLevels] = useState<LevelExamExportRow[]>([]);
   const [munaq, setMunaq] = useState<MunaqosyahExportRow | undefined>();
   const [loading, setLoading] = useState(true);
@@ -108,32 +111,42 @@ function AutomaticReportContent() {
     const loadReports = async () => {
       setLoading(true);
       setError("");
-      const [dailyResult, levelResult, munaqResult] = await Promise.all([
-        supabase
-          .from("laporan_tahsin_tahfidz")
-          .select(
-            "tanggal,nama_surah,ayat,murojaah,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,keterangan",
-          )
-          .eq("student_id", studentId)
-          .order("tanggal", { ascending: false }),
-        supabase
-          .from("level_promotion_exams")
-          .select(
-            "tanggal,level_asal,level_tujuan,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,status,tahun_ajaran,catatan_guru",
-          )
-          .eq("student_id", studentId)
-          .order("tanggal", { ascending: false }),
-        supabase
-          .from("munaqosyah_exams")
-          .select("tanggal,hasil_ujian,catatan_guru")
-          .eq("student_id", studentId)
-          .maybeSingle(),
-      ]);
+      const [dailyResult, memorizationResult, levelResult, munaqResult] =
+        await Promise.all([
+          supabase
+            .from("daily_student_reports")
+            .select(
+              "tanggal,status_presensi,kegiatan,ringkasan_tadarus,ringkasan_hafalan,catatan_guru",
+            )
+            .eq("student_id", studentId)
+            .order("tanggal", { ascending: false }),
+          supabase
+            .from("laporan_tahsin_tahfidz")
+            .select(
+              "tanggal,nama_surah,ayat,murojaah,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,keterangan",
+            )
+            .eq("student_id", studentId)
+            .order("tanggal", { ascending: false }),
+          supabase
+            .from("level_promotion_exams")
+            .select(
+              "tanggal,level_asal,level_tujuan,nilai_kelancaran,nilai_makhraj,nilai_tajwid,nilai_hafalan,nilai_rata_rata,status,tahun_ajaran,catatan_guru",
+            )
+            .eq("student_id", studentId)
+            .order("tanggal", { ascending: false }),
+          supabase
+            .from("munaqosyah_exams")
+            .select("tanggal,hasil_ujian,catatan_guru")
+            .eq("student_id", studentId)
+            .maybeSingle(),
+        ]);
 
       if (dailyResult.error) throw dailyResult.error;
+      if (memorizationResult.error) throw memorizationResult.error;
       if (levelResult.error) throw levelResult.error;
       if (munaqResult.error) throw munaqResult.error;
-      setDaily(dailyResult.data || []);
+      setDailyReports(dailyResult.data || []);
+      setMemorization(memorizationResult.data || []);
       setLevels(levelResult.data || []);
       setMunaq(munaqResult.data || undefined);
     };
@@ -149,7 +162,7 @@ function AutomaticReportContent() {
   const name = selected?.nama_lengkap || "siswa";
   const hasData =
     activeReport === "daily"
-      ? daily.length > 0
+      ? dailyReports.length > 0 || memorization.length > 0
       : activeReport === "level"
         ? levels.length > 0
         : Boolean(munaq);
@@ -158,7 +171,11 @@ function AutomaticReportContent() {
     try {
       setError("");
       if (activeReport === "daily") {
-        downloadDailyMemorizationReports(name, daily);
+        if (dailyReports.length > 0) {
+          downloadDailyReports(name, dailyReports);
+        } else {
+          downloadDailyMemorizationReports(name, memorization);
+        }
       } else if (activeReport === "level") {
         downloadLevelExamReports(name, levels);
       } else {
@@ -197,6 +214,14 @@ function AutomaticReportContent() {
         {reportOptions.map((option) => {
           const Icon = option.icon;
           const active = activeReport === option.id;
+          const connectionStatus =
+            option.id === "daily"
+              ? `${dailyReports.length} laporan harian`
+              : option.id === "level"
+                ? `${levels.length} hasil ujian`
+                : munaq
+                  ? "1 hasil ujian"
+                  : "Belum ada hasil";
           return (
             <button
               key={option.id}
@@ -223,6 +248,13 @@ function AutomaticReportContent() {
                   }`}
                 >
                   {option.description}
+                </span>
+                <span
+                  className={`mt-1 block text-xs font-black ${
+                    active ? "text-white" : "text-emerald-700"
+                  }`}
+                >
+                  Tersambung · {connectionStatus}
                 </span>
               </span>
             </button>
@@ -262,7 +294,8 @@ function AutomaticReportContent() {
         <OfficialReportTemplate
           reportType={activeReport}
           student={selected}
-          daily={daily}
+          dailyReports={dailyReports}
+          memorization={memorization}
           levels={levels}
           munaq={munaq}
         />
@@ -274,17 +307,20 @@ function AutomaticReportContent() {
 function OfficialReportTemplate({
   reportType,
   student,
-  daily,
+  dailyReports,
+  memorization,
   levels,
   munaq,
 }: {
   reportType: ReportType;
   student?: StudentOption;
-  daily: DailyMemorizationExportRow[];
+  dailyReports: DailyReportExportRow[];
+  memorization: DailyMemorizationExportRow[];
   levels: LevelExamExportRow[];
   munaq?: MunaqosyahExportRow;
 }) {
-  const latestDaily = daily[0];
+  const latestDaily = dailyReports[0];
+  const latestMemorization = memorization[0];
   const latestLevel = levels[0];
   const title =
     reportType === "daily"
@@ -294,19 +330,19 @@ function OfficialReportTemplate({
         : "Lembar Munaqosyah";
   const period =
     reportType === "daily"
-      ? formatDate(latestDaily?.tanggal)
+      ? formatDate(latestDaily?.tanggal || latestMemorization?.tanggal)
       : reportType === "level"
         ? latestLevel?.tahun_ajaran || formatDate(latestLevel?.tanggal)
         : formatDate(munaq?.tanggal);
   const reportDate =
     reportType === "daily"
-      ? latestDaily?.tanggal
+      ? latestDaily?.tanggal || latestMemorization?.tanggal
       : reportType === "level"
         ? latestLevel?.tanggal
         : munaq?.tanggal;
   const teacherNote =
     reportType === "daily"
-      ? latestDaily?.keterangan
+      ? latestDaily?.catatan_guru || latestMemorization?.keterangan
       : reportType === "level"
         ? latestLevel?.catatan_guru
         : munaq?.catatan_guru;
@@ -396,7 +432,12 @@ function OfficialReportTemplate({
             </table>
           </section>
 
-          {reportType === "daily" && <DailyReportTable rows={daily} />}
+          {reportType === "daily" && (
+            <DailyReportTable
+              reports={dailyReports}
+              memorization={memorization}
+            />
+          )}
           {reportType === "level" && <LevelReportTable row={latestLevel} />}
           {reportType === "munaqosyah" && <MunaqosyahReportTable row={munaq} />}
 
@@ -431,60 +472,128 @@ function OfficialReportTemplate({
   );
 }
 
-function DailyReportTable({ rows }: { rows: DailyMemorizationExportRow[] }) {
-  const visibleRows = rows.slice(0, 5);
+function DailyReportTable({
+  reports,
+  memorization,
+}: {
+  reports: DailyReportExportRow[];
+  memorization: DailyMemorizationExportRow[];
+}) {
+  const visibleReports = reports.slice(0, 5);
+  const scoredMemorization = memorization
+    .filter((row) =>
+      [
+        row.nilai_kelancaran,
+        row.nilai_makhraj,
+        row.nilai_tajwid,
+        row.nilai_hafalan,
+      ].some((value) => value !== null && value !== undefined),
+    )
+    .slice(0, 5);
+
   return (
-    <table className="w-full border-collapse border border-black text-center text-xs">
-      <thead>
-        <tr className="bg-gray-100">
-          <th className="border border-black p-2" rowSpan={2}>No</th>
-          <th className="border border-black p-2" rowSpan={2}>Tanggal</th>
-          <th className="border border-black p-2" rowSpan={2}>Surah / Ayat</th>
-          <th className="border border-black p-2" colSpan={4}>Kriteria Penilaian</th>
-          <th className="border border-black p-2" rowSpan={2}>Rata-rata</th>
-          <th className="border border-black p-2" rowSpan={2}>Ket.</th>
-        </tr>
-        <tr className="bg-gray-50">
-          <th className="border border-black p-1">Kelancaran</th>
-          <th className="border border-black p-1">Makhraj</th>
-          <th className="border border-black p-1">Tajwid</th>
-          <th className="border border-black p-1">Hafalan</th>
-        </tr>
-      </thead>
-      <tbody>
-        {visibleRows.length ? (
-          visibleRows.map((row, index) => (
-            <tr key={`${row.tanggal}-${index}`} className="h-10">
-              <td className="border border-black">{index + 1}</td>
-              <td className="border border-black px-2">{formatDate(row.tanggal)}</td>
-              <td className="border border-black px-2 text-left">
-                {row.nama_surah || "-"} {row.ayat ? `· ${row.ayat}` : ""}
+    <div className="space-y-5">
+      <table className="w-full border-collapse border border-black text-center text-xs">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="border border-black p-2">No</th>
+            <th className="border border-black p-2">Tanggal</th>
+            <th className="border border-black p-2">Presensi</th>
+            <th className="border border-black p-2">Kegiatan</th>
+            <th className="border border-black p-2">Tadarus</th>
+            <th className="border border-black p-2">Hafalan</th>
+          </tr>
+        </thead>
+        <tbody>
+          {visibleReports.length ? (
+            visibleReports.map((row, index) => (
+              <tr key={`${row.tanggal}-${index}`} className="h-10">
+                <td className="border border-black">{index + 1}</td>
+                <td className="border border-black px-2">
+                  {formatDate(row.tanggal)}
+                </td>
+                <td className="border border-black px-2 font-bold">
+                  {row.status_presensi || "-"}
+                </td>
+                <td className="border border-black px-2 text-left">
+                  {row.kegiatan || "-"}
+                </td>
+                <td className="border border-black px-2 text-left">
+                  {row.ringkasan_tadarus || "-"}
+                </td>
+                <td className="border border-black px-2 text-left">
+                  {row.ringkasan_hafalan || "-"}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td
+                className="border border-black p-8 font-bold text-gray-500"
+                colSpan={6}
+              >
+                Belum ada Presensi &amp; Laporan Harian.
               </td>
-              <td className="border border-black">{formatScore(row.nilai_kelancaran)}</td>
-              <td className="border border-black">{formatScore(row.nilai_makhraj)}</td>
-              <td className="border border-black">{formatScore(row.nilai_tajwid)}</td>
-              <td className="border border-black">{formatScore(row.nilai_hafalan)}</td>
-              <td className="border border-black font-bold">{formatScore(row.nilai_rata_rata)}</td>
-              <td className="border border-black px-2">{row.keterangan || "-"}</td>
             </tr>
-          ))
-        ) : (
-          <tr>
-            <td className="border border-black p-8 font-bold text-gray-500" colSpan={9}>
-              Belum ada nilai hafalan harian.
+          )}
+        </tbody>
+        <tfoot>
+          <tr className="bg-gray-100 font-bold">
+            <td className="border border-black p-2" colSpan={6}>
+              Data otomatis dari form Presensi &amp; Laporan Harian
             </td>
           </tr>
-        )}
-      </tbody>
-      <tfoot>
-        <tr className="bg-gray-100 font-bold">
-          <td className="border border-black p-2" colSpan={3}>KKM 75</td>
-          <td className="border border-black p-2" colSpan={6}>
-            Nilai otomatis dari Input Tahsin & Tahfidz
-          </td>
-        </tr>
-      </tfoot>
-    </table>
+        </tfoot>
+      </table>
+
+      {scoredMemorization.length > 0 && (
+        <div>
+          <h4 className="border border-b-0 border-black bg-gray-100 py-2 text-center font-bold uppercase">
+            Penilaian Tahsin &amp; Tahfidz
+          </h4>
+          <table className="w-full border-collapse border border-black text-center text-xs">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="border border-black p-2">Tanggal</th>
+                <th className="border border-black p-2">Surah / Ayat</th>
+                <th className="border border-black p-2">Kelancaran</th>
+                <th className="border border-black p-2">Makhraj</th>
+                <th className="border border-black p-2">Tajwid</th>
+                <th className="border border-black p-2">Hafalan</th>
+                <th className="border border-black p-2">Rata-rata</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scoredMemorization.map((row, index) => (
+                <tr key={`${row.tanggal}-${index}`} className="h-10">
+                  <td className="border border-black px-2">
+                    {formatDate(row.tanggal)}
+                  </td>
+                  <td className="border border-black px-2 text-left">
+                    {row.nama_surah || "-"} {row.ayat ? `· ${row.ayat}` : ""}
+                  </td>
+                  <td className="border border-black">
+                    {formatScore(row.nilai_kelancaran)}
+                  </td>
+                  <td className="border border-black">
+                    {formatScore(row.nilai_makhraj)}
+                  </td>
+                  <td className="border border-black">
+                    {formatScore(row.nilai_tajwid)}
+                  </td>
+                  <td className="border border-black">
+                    {formatScore(row.nilai_hafalan)}
+                  </td>
+                  <td className="border border-black font-bold">
+                    {formatScore(row.nilai_rata_rata)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 
