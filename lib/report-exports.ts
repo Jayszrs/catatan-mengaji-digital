@@ -149,6 +149,63 @@ export function downloadDailyMemorizationReports(
   XLSX.writeFile(workbook, `hafalan-harian-${safeName(studentName || "siswa")}.xlsx`);
 }
 
+export function downloadCompleteDailyReport(
+  studentName: string,
+  reports: DailyReportExportRow[],
+  memorization: DailyMemorizationExportRow[],
+) {
+  if (reports.length === 0 && memorization.length === 0) {
+    throw new Error("Belum ada laporan harian untuk diunduh.");
+  }
+
+  const workbook = XLSX.utils.book_new();
+
+  if (reports.length > 0) {
+    const reportSheet = XLSX.utils.json_to_sheet(
+      reports.map((row, index) => ({
+        No: index + 1,
+        Tanggal: row.tanggal || "-",
+        Presensi: row.status_presensi || "-",
+        Kegiatan: row.kegiatan || "-",
+        Tadarus: row.ringkasan_tadarus || "-",
+        Hafalan: row.ringkasan_hafalan || "-",
+        "Catatan Guru": row.catatan_guru || "-",
+      })),
+    );
+    XLSX.utils.book_append_sheet(workbook, reportSheet, "Laporan Harian");
+  }
+
+  if (memorization.length > 0) {
+    const memorizationSheet = XLSX.utils.json_to_sheet(
+      memorization.map((row, index) => ({
+        No: index + 1,
+        Tanggal: row.tanggal || "-",
+        Surah: row.nama_surah || "-",
+        Ayat: row.ayat || "-",
+        Murojaah: row.murojaah || "-",
+        Kelancaran: row.nilai_kelancaran ?? row.nilai ?? "-",
+        Makhraj: row.nilai_makhraj ?? row.nilai ?? "-",
+        Tajwid: row.nilai_tajwid ?? row.nilai ?? "-",
+        Hafalan: row.nilai_hafalan ?? row.nilai ?? "-",
+        "Rata-rata": row.nilai_rata_rata ?? row.nilai ?? "-",
+        Keterangan: row.keterangan || "-",
+      })),
+    );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      memorizationSheet,
+      "Tahsin dan Tahfidz",
+    );
+  }
+
+  const reportDate =
+    reports[0]?.tanggal || memorization[0]?.tanggal || "harian";
+  XLSX.writeFile(
+    workbook,
+    `rapor-harian-${safeName(studentName || "siswa")}-${reportDate}.xlsx`,
+  );
+}
+
 export interface MunaqosyahExportRow {
   tanggal?: string;
   hasil_ujian?: {

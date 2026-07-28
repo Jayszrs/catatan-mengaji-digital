@@ -20,10 +20,13 @@ import { OfficialReportTemplate } from "@/components/OfficialReportTemplate";
 import { StudentAvatar } from "@/components/StudentAvatar";
 import { downloadTadarusHarian } from "@/lib/export-tadarus";
 import {
+  filterRowsByDate,
+  getDailyReportDates,
+} from "@/lib/daily-report-history";
+import {
   DailyMemorizationExportRow,
   DailyReportExportRow,
-  downloadDailyMemorizationReports,
-  downloadDailyReports,
+  downloadCompleteDailyReport,
   downloadLevelExamReports,
   downloadMunaqosyahReport,
   LevelExamExportRow,
@@ -95,6 +98,7 @@ export default function ParentDashboard() {
   const [tadarus, setTadarus] = useState<TadarusRow[]>([]);
   const [dailyReports, setDailyReports] = useState<DailyReportExportRow[]>([]);
   const [daily, setDaily] = useState<DailyMemorizationExportRow[]>([]);
+  const [dailyDate, setDailyDate] = useState("");
   const [levels, setLevels] = useState<LevelExamExportRow[]>([]);
   const [munaqosyah, setMunaqosyah] =
     useState<MunaqosyahExportRow | undefined>();
@@ -173,8 +177,14 @@ export default function ParentDashboard() {
     setStudent(loadedStudent);
     setProfile(profileFromStudent(loadedStudent));
     setTadarus(tadarusResult.data || []);
-    setDailyReports(dailyReportResult.data || []);
-    setDaily(dailyResult.data || []);
+    const loadedDailyReports = dailyReportResult.data || [];
+    const loadedDaily = dailyResult.data || [];
+    const reportDates = getDailyReportDates(loadedDailyReports, loadedDaily);
+    setDailyReports(loadedDailyReports);
+    setDaily(loadedDaily);
+    setDailyDate((current) =>
+      reportDates.includes(current) ? current : reportDates[0] || "",
+    );
     setLevels(levelResult.data || []);
     setMunaqosyah(munaqResult.data || undefined);
     setNeedsLink(false);
@@ -333,10 +343,25 @@ export default function ParentDashboard() {
     }
   };
 
-  const latestDailyAverage = useMemo(
-    () => Number(daily[0]?.nilai_rata_rata ?? daily[0]?.nilai ?? 0),
-    [daily],
+  const dailyDates = useMemo(
+    () => getDailyReportDates(dailyReports, daily),
+    [dailyReports, daily],
   );
+  const selectedDailyReports = useMemo(
+    () => filterRowsByDate(dailyReports, dailyDate),
+    [dailyReports, dailyDate],
+  );
+  const selectedDaily = useMemo(
+    () => filterRowsByDate(daily, dailyDate),
+    [daily, dailyDate],
+  );
+  const selectedDailyAverage = useMemo(() => {
+    const scores = selectedDaily
+      .map((row) => Number(row.nilai_rata_rata ?? row.nilai))
+      .filter(Number.isFinite);
+    if (scores.length === 0) return null;
+    return scores.reduce((total, score) => total + score, 0) / scores.length;
+  }, [selectedDaily]);
   const latestLevel = levels[0];
   const munaqAverage = Number(
     munaqosyah?.hasil_ujian?.nilaiRataRata ?? 0,
@@ -346,11 +371,11 @@ export default function ParentDashboard() {
     if (!student) return;
     try {
       if (active === "harian") {
-        if (dailyReports.length) {
-          downloadDailyReports(student.nama_lengkap, dailyReports);
-        } else {
-          downloadDailyMemorizationReports(student.nama_lengkap, daily);
-        }
+        downloadCompleteDailyReport(
+          student.nama_lengkap,
+          selectedDailyReports,
+          selectedDaily,
+        );
       }
       if (active === "level") {
         downloadLevelExamReports(student.nama_lengkap, levels);
@@ -627,8 +652,12 @@ export default function ParentDashboard() {
               onClick={() => setActive("harian")}
               icon={<BookOpenCheck />}
               title="Hafalan Harian"
-              value={daily.length ? latestDailyAverage.toFixed(2) : "-"}
-              detail={`${dailyReports.length} laporan · ${daily.length} entri nilai`}
+              value={
+                selectedDailyAverage === null
+                  ? "-"
+                  : selectedDailyAverage.toFixed(2)
+              }
+              detail={`${selectedDailyReports.length} laporan · ${selectedDaily.length} surat`}
             />
             <OutputCard
               active={active === "level"}
@@ -664,7 +693,29 @@ export default function ParentDashboard() {
                     : "Rapor Munaqosyah"}
               </h2>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {active === "harian" && dailyDates.length > 0 && (
+                <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2">
+                  <span className="text-sm font-black text-gray-600">
+                    Tanggal rapor
+                  </span>
+                  <select
+                    value={dailyDate}
+                    onChange={(event) => setDailyDate(event.target.value)}
+                    className="bg-transparent font-bold text-emerald-700 outline-none"
+                  >
+                    {dailyDates.map((date) => (
+                      <option key={date} value={date}>
+                        {new Intl.DateTimeFormat("id-ID", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        }).format(new Date(`${date}T00:00:00`))}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <button
                 type="button"
                 onClick={downloadActive}
@@ -691,8 +742,10 @@ export default function ParentDashboard() {
                   : "munaqosyah"
             }
             student={student}
-            dailyReports={dailyReports}
-            memorization={daily}
+            dailyReports={
+              active === "harian" ? selectedDailyReports : dailyReports
+            }
+            memorization={active === "harian" ? selectedDaily : daily}
             levels={levels}
             munaq={munaqosyah}
           />

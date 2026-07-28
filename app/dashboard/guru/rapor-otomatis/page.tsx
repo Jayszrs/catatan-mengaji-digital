@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Award,
@@ -12,10 +12,13 @@ import {
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
+  filterRowsByDate,
+  getDailyReportDates,
+} from "@/lib/daily-report-history";
+import {
   DailyMemorizationExportRow,
   DailyReportExportRow,
-  downloadDailyMemorizationReports,
-  downloadDailyReports,
+  downloadCompleteDailyReport,
   downloadLevelExamReports,
   downloadMunaqosyahReport,
   LevelExamExportRow,
@@ -82,6 +85,7 @@ function AutomaticReportContent() {
   const [activeReport, setActiveReport] = useState<ReportType>("daily");
   const [dailyReports, setDailyReports] = useState<DailyReportExportRow[]>([]);
   const [memorization, setMemorization] = useState<DailyMemorizationExportRow[]>([]);
+  const [dailyDate, setDailyDate] = useState("");
   const [levels, setLevels] = useState<LevelExamExportRow[]>([]);
   const [munaq, setMunaq] = useState<MunaqosyahExportRow | undefined>();
   const [loading, setLoading] = useState(true);
@@ -145,8 +149,17 @@ function AutomaticReportContent() {
       if (memorizationResult.error) throw memorizationResult.error;
       if (levelResult.error) throw levelResult.error;
       if (munaqResult.error) throw munaqResult.error;
-      setDailyReports(dailyResult.data || []);
-      setMemorization(memorizationResult.data || []);
+      const loadedDailyReports = dailyResult.data || [];
+      const loadedMemorization = memorizationResult.data || [];
+      const reportDates = getDailyReportDates(
+        loadedDailyReports,
+        loadedMemorization,
+      );
+      setDailyReports(loadedDailyReports);
+      setMemorization(loadedMemorization);
+      setDailyDate((current) =>
+        reportDates.includes(current) ? current : reportDates[0] || "",
+      );
       setLevels(levelResult.data || []);
       setMunaq(munaqResult.data || undefined);
     };
@@ -160,9 +173,21 @@ function AutomaticReportContent() {
 
   const selected = students.find((student) => student.id === studentId);
   const name = selected?.nama_lengkap || "siswa";
+  const dailyDates = useMemo(
+    () => getDailyReportDates(dailyReports, memorization),
+    [dailyReports, memorization],
+  );
+  const selectedDailyReports = useMemo(
+    () => filterRowsByDate(dailyReports, dailyDate),
+    [dailyReports, dailyDate],
+  );
+  const selectedMemorization = useMemo(
+    () => filterRowsByDate(memorization, dailyDate),
+    [memorization, dailyDate],
+  );
   const hasData =
     activeReport === "daily"
-      ? dailyReports.length > 0 || memorization.length > 0
+      ? selectedDailyReports.length > 0 || selectedMemorization.length > 0
       : activeReport === "level"
         ? levels.length > 0
         : Boolean(munaq);
@@ -171,11 +196,11 @@ function AutomaticReportContent() {
     try {
       setError("");
       if (activeReport === "daily") {
-        if (dailyReports.length > 0) {
-          downloadDailyReports(name, dailyReports);
-        } else {
-          downloadDailyMemorizationReports(name, memorization);
-        }
+        downloadCompleteDailyReport(
+          name,
+          selectedDailyReports,
+          selectedMemorization,
+        );
       } else if (activeReport === "level") {
         downloadLevelExamReports(name, levels);
       } else {
@@ -216,7 +241,7 @@ function AutomaticReportContent() {
           const active = activeReport === option.id;
           const connectionStatus =
             option.id === "daily"
-              ? `${dailyReports.length} laporan harian`
+              ? `${dailyDates.length} tanggal · ${memorization.length} surat`
               : option.id === "level"
                 ? `${levels.length} hasil ujian`
                 : munaq
@@ -263,6 +288,24 @@ function AutomaticReportContent() {
       </div>
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:justify-end print:hidden">
+        {activeReport === "daily" && dailyDates.length > 0 && (
+          <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2 shadow-sm">
+            <span className="text-sm font-black text-gray-600">
+              Tanggal rapor
+            </span>
+            <select
+              value={dailyDate}
+              onChange={(event) => setDailyDate(event.target.value)}
+              className="bg-transparent font-bold text-[#1b4332] outline-none"
+            >
+              {dailyDates.map((date) => (
+                <option key={date} value={date}>
+                  {formatDate(date)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button
           type="button"
           onClick={handleDownload}
@@ -294,8 +337,12 @@ function AutomaticReportContent() {
         <OfficialReportTemplate
           reportType={activeReport}
           student={selected}
-          dailyReports={dailyReports}
-          memorization={memorization}
+          dailyReports={
+            activeReport === "daily" ? selectedDailyReports : dailyReports
+          }
+          memorization={
+            activeReport === "daily" ? selectedMemorization : memorization
+          }
           levels={levels}
           munaq={munaq}
         />
@@ -482,19 +529,6 @@ function DailyReportTable({
   reports: DailyReportExportRow[];
   memorization: DailyMemorizationExportRow[];
 }) {
-  const visibleReports = reports.slice(0, 5);
-  const scoredMemorization = memorization
-    .filter((row) =>
-      [
-        row.nilai_kelancaran,
-        row.nilai_makhraj,
-        row.nilai_tajwid,
-        row.nilai_hafalan,
-        row.nilai,
-      ].some((value) => value !== null && value !== undefined),
-    )
-    .slice(0, 5);
-
   return (
     <div className="space-y-5">
       <table className="w-full border-collapse border border-black text-center text-xs">
@@ -509,8 +543,8 @@ function DailyReportTable({
           </tr>
         </thead>
         <tbody>
-          {visibleReports.length ? (
-            visibleReports.map((row, index) => (
+          {reports.length ? (
+            reports.map((row, index) => (
               <tr key={`${row.tanggal}-${index}`} className="h-10">
                 <td className="border border-black">{index + 1}</td>
                 <td className="border border-black px-2">
@@ -550,7 +584,7 @@ function DailyReportTable({
         </tfoot>
       </table>
 
-      {scoredMemorization.length > 0 && (
+      {memorization.length > 0 && (
         <div>
           <h4 className="border border-b-0 border-black bg-gray-100 py-2 text-center font-bold uppercase">
             Penilaian Tahsin &amp; Tahfidz
@@ -568,7 +602,7 @@ function DailyReportTable({
               </tr>
             </thead>
             <tbody>
-              {scoredMemorization.map((row, index) => (
+              {memorization.map((row, index) => (
                 <tr key={`${row.tanggal}-${index}`} className="h-10">
                   <td className="border border-black px-2">
                     {formatDate(row.tanggal)}

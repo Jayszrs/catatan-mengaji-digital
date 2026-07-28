@@ -221,19 +221,6 @@ function DailyReportTable({
   reports: DailyReportExportRow[];
   memorization: DailyMemorizationExportRow[];
 }) {
-  const visibleReports = reports.slice(0, 5);
-  const scoredMemorization = memorization
-    .filter((row) =>
-      [
-        row.nilai_kelancaran,
-        row.nilai_makhraj,
-        row.nilai_tajwid,
-        row.nilai_hafalan,
-        row.nilai,
-      ].some((value) => value !== null && value !== undefined),
-    )
-    .slice(0, 5);
-
   return (
     <div className="space-y-5">
       <table className="w-full border-collapse border border-black text-center text-xs">
@@ -248,8 +235,8 @@ function DailyReportTable({
           </tr>
         </thead>
         <tbody>
-          {visibleReports.length ? (
-            visibleReports.map((row, index) => (
+          {reports.length ? (
+            reports.map((row, index) => (
               <tr key={`${row.tanggal}-${index}`} className="h-10">
                 <td className="border border-black">{index + 1}</td>
                 <td className="border border-black px-2">
@@ -289,7 +276,7 @@ function DailyReportTable({
         </tfoot>
       </table>
 
-      {scoredMemorization.length > 0 && (
+      {memorization.length > 0 && (
         <div>
           <h4 className="border border-b-0 border-black bg-gray-100 py-2 text-center font-bold uppercase">
             Penilaian Tahsin &amp; Tahfidz
@@ -307,7 +294,7 @@ function DailyReportTable({
               </tr>
             </thead>
             <tbody>
-              {scoredMemorization.map((row, index) => (
+              {memorization.map((row, index) => (
                 <tr key={`${row.tanggal}-${index}`} className="h-10">
                   <td className="border border-black px-2">
                     {formatDate(row.tanggal)}
