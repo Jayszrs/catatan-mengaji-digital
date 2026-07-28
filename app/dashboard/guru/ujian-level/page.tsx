@@ -107,14 +107,18 @@ export default function LevelExamPage() {
           .order("nama_lengkap", { ascending: true });
         if (error) throw error;
 
-        setStudents(data || []);
-        if (data?.[0]) {
-          const currentLevel = Number(data[0].level || 1);
+        const studentRows = data || [];
+        setStudents(studentRows);
+        const initialStudent =
+          studentRows.find((student) => Number(student.level || 1) < 6) ||
+          studentRows[0];
+        if (initialStudent) {
+          const currentLevel = Number(initialStudent.level || 1);
           setForm((current) => ({
             ...current,
-            student_id: data[0].id,
+            student_id: initialStudent.id,
             level_asal: String(currentLevel),
-            level_tujuan: String(Math.min(6, currentLevel + 1)),
+            level_tujuan: currentLevel < 6 ? String(currentLevel + 1) : "",
           }));
         }
       } catch (error) {
@@ -167,7 +171,7 @@ export default function LevelExamPage() {
       ...current,
       student_id: studentId,
       level_asal: String(currentLevel),
-      level_tujuan: String(Math.min(6, currentLevel + 1)),
+      level_tujuan: currentLevel < 6 ? String(currentLevel + 1) : "",
     }));
   };
 
@@ -177,7 +181,15 @@ export default function LevelExamPage() {
     if (Number(form.level_asal) >= 6) {
       setNotification({
         type: "error",
-        message: "Siswa sudah berada di level tertinggi.",
+        message:
+          "Siswa sudah berada di Level 6 (level tertinggi), sehingga tidak memiliki level tujuan. Pilih siswa Level 1–5 untuk ujian kenaikan level.",
+      });
+      return;
+    }
+    if (!form.level_tujuan) {
+      setNotification({
+        type: "error",
+        message: "Pilih level tujuan sebelum menyimpan hasil ujian.",
       });
       return;
     }
@@ -212,7 +224,7 @@ export default function LevelExamPage() {
         setForm((current) => ({
           ...current,
           level_asal: String(promotedLevel),
-          level_tujuan: String(Math.min(6, promotedLevel + 1)),
+          level_tujuan: promotedLevel < 6 ? String(promotedLevel + 1) : "",
         }));
       }
       setNotification({
@@ -383,12 +395,23 @@ export default function LevelExamPage() {
                   className={fieldClass}
                   disabled={Number(form.level_asal) >= 6}
                 >
+                  <option value="">
+                    {Number(form.level_asal) >= 6
+                      ? "Level maksimum"
+                      : "-- Pilih Level Tujuan --"}
+                  </option>
                   {[2, 3, 4, 5, 6]
                     .filter((level) => level > Number(form.level_asal))
                     .map((level) => (
                       <option key={level} value={level}>Level {level}</option>
                     ))}
                 </select>
+                {Number(form.level_asal) >= 6 && (
+                  <p className="mt-2 text-sm font-bold text-amber-700">
+                    Siswa ini sudah di Level 6. Pilih siswa Level 1–5 untuk
+                    menyimpan ujian kenaikan level.
+                  </p>
+                )}
               </div>
 
               {[
@@ -426,7 +449,7 @@ export default function LevelExamPage() {
 
             <button
               type="submit"
-              disabled={submitting || Number(form.level_asal) >= 6}
+              disabled={submitting}
               className="mt-6 inline-flex min-w-56 items-center justify-center gap-2 rounded-xl bg-purple-600 px-6 py-3 font-black text-white disabled:opacity-60"
             >
               {submitting ? <Loader2 className="animate-spin" size={19} /> : <Save size={19} />}
