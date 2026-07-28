@@ -208,6 +208,31 @@ export default function DailyReportsPage() {
     }
   };
 
+  const openOfficialDailyReport = () => {
+    if (!form.student_id) {
+      setNotification({
+        type: "error",
+        message: "Pilih siswa terlebih dahulu sebelum mencetak rapor.",
+      });
+      return;
+    }
+    const selectedDate =
+      history.find((row) => row.tanggal === form.tanggal)?.tanggal ||
+      history[0]?.tanggal ||
+      form.tanggal;
+    const query = new URLSearchParams({
+      studentId: form.student_id,
+      report: "daily",
+      date: selectedDate,
+      print: "1",
+    });
+    window.open(
+      `/dashboard/guru/rapor-otomatis?${query.toString()}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
+
   const fieldClass =
     "w-full rounded-xl border-2 border-gray-200 bg-white px-5 py-3 font-medium text-gray-900 outline-none focus:ring-2 focus:ring-[#2dc653]";
 
@@ -233,11 +258,11 @@ export default function DailyReportsPage() {
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={openOfficialDailyReport}
             disabled={!history.length}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1b4332] px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
-            <Printer size={18} /> Cetak Laporan
+            <Printer size={18} /> Cetak Rapor Resmi
           </button>
         </div>
       </div>

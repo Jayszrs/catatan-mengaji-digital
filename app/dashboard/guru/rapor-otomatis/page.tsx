@@ -93,7 +93,7 @@ function AutomaticReportContent() {
   );
   const [dailyReports, setDailyReports] = useState<DailyReportExportRow[]>([]);
   const [memorization, setMemorization] = useState<DailyMemorizationExportRow[]>([]);
-  const [dailyDate, setDailyDate] = useState("");
+  const [dailyDate, setDailyDate] = useState(params.get("date") || "");
   const [levels, setLevels] = useState<LevelExamExportRow[]>([]);
   const [munaq, setMunaq] = useState<MunaqosyahExportRow | undefined>();
   const [loading, setLoading] = useState(true);
