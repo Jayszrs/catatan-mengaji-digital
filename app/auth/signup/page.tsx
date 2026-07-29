@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createUserRole, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { AuthInput } from "@/components/AuthInput";
 import { AuthSplitLayout } from "@/components/AuthSplitLayout";
 import type { UserRole } from "@/types";
@@ -19,7 +17,7 @@ import {
 } from "lucide-react";
 
 export default function SignupPage() {
-  const router = useRouter();
+  const [username, setUsername] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,10 +26,12 @@ export default function SignupPage() {
   const [nisAnak, setNisAnak] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleSignup = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    setSuccess("");
     setLoading(true);
 
     try {
@@ -43,50 +43,34 @@ export default function SignupPage() {
         throw new Error("Password minimal 6 karakter");
       }
 
-      if (!isSupabaseConfigured) {
-        throw new Error(
-          "Database belum terhubung. Konfigurasi Supabase harus dipasang terlebih dahulu.",
-        );
-      }
-
       if (role === "orang_tua" && !nisAnak.trim()) {
         throw new Error("NIS anak wajib diisi untuk akun orang tua");
       }
 
-      const normalizedEmail = email.trim().toLowerCase();
-      const { data, error: authError } = await supabase.auth.signUp({
-        email: normalizedEmail,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/verify`,
-          data: {
-            name,
-            role,
-            nis_anak: role === "orang_tua" ? nisAnak.trim() : null,
-          },
-        },
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          name,
+          email,
+          password,
+          role,
+          nis: role === "orang_tua" ? nisAnak : "",
+        }),
       });
-
-      if (authError) throw authError;
-
-      if (data.user?.identities?.length === 0) {
-        throw new Error("Email sudah terdaftar. Silakan gunakan email lain atau login.");
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Pendaftaran gagal.");
       }
 
-      if (data.user) {
-        if (data.session) {
-          await createUserRole(data.user.id, normalizedEmail, role);
-        }
-
-        setName("");
-        setEmail("");
-        setPassword("");
-        setConfirmPassword("");
-
-        router.push(
-          `/auth/verify?sent=1&email=${encodeURIComponent(normalizedEmail)}`,
-        );
-      }
+      setSuccess(result.message || "Pendaftaran berhasil.");
+      setUsername("");
+      setName("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setNisAnak("");
     } catch (caughtError: unknown) {
       setError(
         caughtError instanceof Error ? caughtError.message : "Gagal mendaftar",
@@ -117,7 +101,32 @@ export default function SignupPage() {
         </div>
       )}
 
+      {success && (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-6 text-emerald-800">
+          {success}
+          <Link
+            href="/auth/login"
+            className="mt-2 block text-emerald-700 underline"
+          >
+            Lanjut ke halaman login
+          </Link>
+        </div>
+      )}
+
       <form onSubmit={handleSignup} className="space-y-3.5">
+        <AuthInput
+          label="Username"
+          icon={UserRound}
+          type="text"
+          autoComplete="username"
+          pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,29}"
+          title="Gunakan 3–30 karakter: huruf, angka, titik, garis bawah, atau strip."
+          placeholder="Contoh: ahmad.fulan"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          required
+        />
+
         <AuthInput
           label="Nama Lengkap"
           icon={UserRound}
@@ -130,14 +139,13 @@ export default function SignupPage() {
         />
 
         <AuthInput
-          label="Email"
+          label="Email Kontak (Opsional)"
           icon={Mail}
           type="email"
           autoComplete="email"
           placeholder="nama@email.com"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          required
         />
 
         <fieldset>
@@ -183,16 +191,28 @@ export default function SignupPage() {
         </fieldset>
 
         {role === "orang_tua" && (
-          <AuthInput
-            label="NIS Anak"
-            icon={IdCard}
-            type="text"
-            inputMode="numeric"
-            placeholder="Masukkan NIS anak yang terdaftar"
-            value={nisAnak}
-            onChange={(event) => setNisAnak(event.target.value)}
-            required
-          />
+          <>
+            <AuthInput
+              label="NIS Anak"
+              icon={IdCard}
+              type="text"
+              inputMode="numeric"
+              placeholder="Masukkan NIS anak yang terdaftar"
+              value={nisAnak}
+              onChange={(event) => setNisAnak(event.target.value)}
+              required
+            />
+            <p className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-semibold leading-5 text-blue-700">
+              Nama dan data anak baru ditampilkan setelah NIS berhasil
+              diverifikasi dan akun selesai dibuat.
+            </p>
+          </>
+        )}
+
+        {role === "guru" && (
+          <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-700">
+            Akun Guru akan berstatus menunggu sampai disetujui Administrator.
+          </p>
         )}
 
         <div className="grid gap-3 sm:grid-cols-2">

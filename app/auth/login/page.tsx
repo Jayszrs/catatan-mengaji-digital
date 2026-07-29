@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  createUserRole,
   isSupabaseConfigured,
   supabase,
 } from "@/lib/supabase";
@@ -62,6 +61,24 @@ export default function LoginPage() {
       if (authError) throw authError;
 
       if (data.user) {
+        const approvalStatus =
+          data.user.app_metadata?.approval_status ||
+          data.user.user_metadata?.approval_status;
+        if (approvalStatus === "pending") {
+          await supabase.auth.signOut();
+          setError(
+            "Pendaftaran Guru masih menunggu persetujuan Administrator.",
+          );
+          return;
+        }
+        if (approvalStatus === "rejected") {
+          await supabase.auth.signOut();
+          setError(
+            "Pendaftaran Guru ditolak. Hubungi Administrator sekolah untuk informasi lebih lanjut.",
+          );
+          return;
+        }
+
         if (data.user.app_metadata?.role === "admin") {
           router.push("/dashboard/admin");
           return;
@@ -75,16 +92,7 @@ export default function LoginPage() {
 
         if (roleError) throw roleError;
 
-        let resolvedRole = roleData?.role;
-        const metadataRole = data.user.user_metadata?.role;
-        if (
-          !resolvedRole &&
-          (metadataRole === "guru" || metadataRole === "orang_tua") &&
-          data.user.email
-        ) {
-          await createUserRole(data.user.id, data.user.email, metadataRole);
-          resolvedRole = metadataRole;
-        }
+        const resolvedRole = roleData?.role;
 
         if (resolvedRole === "guru") {
           router.push("/dashboard/guru");

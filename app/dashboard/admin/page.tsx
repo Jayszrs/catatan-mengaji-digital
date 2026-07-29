@@ -24,9 +24,31 @@ interface AdminUser {
   username: string;
   email: string;
   name: string;
-  role: AdminRole | "Belum Ada Role";
+  role:
+    | AdminRole
+    | "Belum Ada Role"
+    | "Menunggu Persetujuan"
+    | "Ditolak";
+  approval_status: "pending" | "approved" | "rejected";
+  requested_role: AdminRole | null;
+  linked_student: {
+    id: string;
+    name: string;
+    nis: string | null;
+    class_name: string | null;
+  } | null;
   created_at: string;
   is_current_admin: boolean;
+}
+
+interface SecurityEvent {
+  id: number;
+  event_type: string;
+  status: "success" | "failed" | "blocked";
+  actor_name: string;
+  target_name: string;
+  reason: string;
+  created_at: string;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -48,6 +70,7 @@ async function getAdminHeaders(includeJson = false) {
 export default function AdminDashboard() {
   const router = useRouter();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -71,6 +94,10 @@ export default function AdminDashboard() {
   const [passwordUpdatingUserId, setPasswordUpdatingUserId] = useState("");
   const [repairingUserId, setRepairingUserId] = useState("");
   const [deletingUserId, setDeletingUserId] = useState("");
+  const [reviewingUserId, setReviewingUserId] = useState("");
+  const [selectedParent, setSelectedParent] = useState<AdminUser | null>(null);
+  const [parentNis, setParentNis] = useState("");
+  const [managingParentLink, setManagingParentLink] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -87,6 +114,7 @@ export default function AdminDashboard() {
       }
 
       setUsers(data.users || []);
+      setSecurityEvents(data.security_events || []);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Gagal mengambil data pengguna"));
     } finally {
@@ -281,6 +309,97 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleTeacherReview = async (
+    user: AdminUser,
+    decision: "approve" | "reject",
+  ) => {
+    const confirmed = window.confirm(
+      decision === "approve"
+        ? `Setujui ${user.name} sebagai Guru?`
+        : `Tolak pendaftaran Guru ${user.name}?`,
+    );
+    if (!confirmed) return;
+
+    setReviewingUserId(user.id);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: await getAdminHeaders(true),
+        body: JSON.stringify({
+          action: "review_teacher",
+          userId: user.id,
+          decision,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Persetujuan Guru gagal diproses.");
+      }
+      setSuccess(result.message);
+      await fetchUsers();
+    } catch (caughtError: unknown) {
+      setError(
+        getErrorMessage(caughtError, "Persetujuan Guru gagal diproses."),
+      );
+    } finally {
+      setReviewingUserId("");
+    }
+  };
+
+  const handleParentLink = async (
+    operation: "connect" | "disconnect",
+  ) => {
+    if (!selectedParent) return;
+    if (
+      operation === "disconnect" &&
+      !window.confirm(
+        `Putuskan hubungan ${selectedParent.name} dengan siswa yang sekarang?`,
+      )
+    ) {
+      return;
+    }
+
+    setManagingParentLink(true);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: await getAdminHeaders(true),
+        body: JSON.stringify({
+          action: "manage_parent_link",
+          operation,
+          userId: selectedParent.id,
+          nis: parentNis,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          result.error || "Hubungan Orang Tua gagal diperbarui.",
+        );
+      }
+      setSuccess(result.message);
+      setSelectedParent(null);
+      setParentNis("");
+      await fetchUsers();
+    } catch (caughtError: unknown) {
+      setError(
+        getErrorMessage(caughtError, "Hubungan Orang Tua gagal diperbarui."),
+      );
+    } finally {
+      setManagingParentLink(false);
+    }
+  };
+
+  const pendingTeachers = users.filter(
+    (user) =>
+      user.approval_status === "pending" &&
+      user.requested_role === "guru",
+  );
+
   return (
     <DashboardLayout userRole="admin">
       <div className="mb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-6">
@@ -322,6 +441,125 @@ export default function AdminDashboard() {
           <AlertCircle size={20} className="text-green-500" />
           {success}
         </div>
+      )}
+
+      <section className="mb-8 overflow-hidden rounded-3xl border border-amber-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-amber-100 bg-amber-50 px-6 py-5">
+          <div>
+            <h2 className="text-xl font-black text-gray-900">
+              Persetujuan Akun Guru
+            </h2>
+            <p className="mt-1 text-sm font-medium text-gray-600">
+              Guru yang mendaftar sendiri belum memperoleh akses sebelum
+              disetujui.
+            </p>
+          </div>
+          <span className="rounded-full bg-amber-200 px-3 py-1 text-sm font-black text-amber-900">
+            {pendingTeachers.length} menunggu
+          </span>
+        </div>
+        {pendingTeachers.length === 0 ? (
+          <p className="px-6 py-6 text-sm font-semibold text-gray-500">
+            Tidak ada pendaftaran Guru yang menunggu.
+          </p>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {pendingTeachers.map((user) => (
+              <div
+                key={user.id}
+                className="flex flex-col gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between"
+              >
+                <div>
+                  <p className="font-black text-gray-900">{user.name}</p>
+                  <p className="text-sm font-medium text-gray-500">
+                    {user.username ? `@${user.username}` : user.email}
+                    {user.email !== "-" ? ` · ${user.email}` : ""}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={reviewingUserId === user.id}
+                    onClick={() =>
+                      void handleTeacherReview(user, "reject")
+                    }
+                    className="rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Tolak
+                  </button>
+                  <button
+                    type="button"
+                    disabled={reviewingUserId === user.id}
+                    onClick={() =>
+                      void handleTeacherReview(user, "approve")
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#1b4332] px-4 py-2 text-sm font-bold text-white hover:bg-[#133c27] disabled:opacity-50"
+                  >
+                    {reviewingUserId === user.id && (
+                      <Loader2 className="animate-spin" size={16} />
+                    )}
+                    Setujui Guru
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {selectedParent && (
+        <section className="mb-8 rounded-3xl border border-blue-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-gray-900">
+                Kelola Anak: {selectedParent.name}
+              </h2>
+              <p className="mt-1 text-sm font-medium text-gray-500">
+                {selectedParent.linked_student
+                  ? `Saat ini terhubung dengan ${selectedParent.linked_student.name} · NIS ${selectedParent.linked_student.nis || "-"}`
+                  : "Akun belum terhubung dengan siswa."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedParent(null);
+                setParentNis("");
+              }}
+              className="text-gray-400 hover:text-gray-700"
+            >
+              <X size={22} />
+            </button>
+          </div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="max-w-md flex-1">
+              <Input
+                label="NIS Siswa"
+                placeholder="Masukkan NIS untuk menghubungkan"
+                value={parentNis}
+                onChange={(event) => setParentNis(event.target.value)}
+              />
+            </div>
+            <Button
+              type="button"
+              disabled={managingParentLink || !parentNis.trim()}
+              onClick={() => void handleParentLink("connect")}
+              className="h-[50px] bg-blue-600 px-5 font-bold text-white"
+            >
+              Hubungkan NIS
+            </Button>
+            {selectedParent.linked_student && (
+              <Button
+                type="button"
+                disabled={managingParentLink}
+                onClick={() => void handleParentLink("disconnect")}
+                className="h-[50px] bg-red-50 px-5 font-bold text-red-600 hover:bg-red-100"
+              >
+                Putuskan Hubungan
+              </Button>
+            )}
+          </div>
+        </section>
       )}
 
       {/* Form Tambah Akun */}
@@ -498,6 +736,7 @@ export default function AdminDashboard() {
                   <th className="px-6 py-5 font-bold text-gray-600 uppercase text-xs tracking-wider whitespace-nowrap">Username</th>
                   <th className="px-6 py-5 font-bold text-gray-600 uppercase text-xs tracking-wider whitespace-nowrap">Email</th>
                   <th className="px-6 py-5 font-bold text-gray-600 uppercase text-xs tracking-wider whitespace-nowrap">Role</th>
+                  <th className="px-6 py-5 font-bold text-gray-600 uppercase text-xs tracking-wider whitespace-nowrap">Anak Terhubung</th>
                   <th className="px-6 py-5 font-bold text-gray-600 uppercase text-xs tracking-wider text-right whitespace-nowrap">Aksi</th>
                 </tr>
               </thead>
@@ -513,10 +752,16 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2">
                         <select
                           value={
-                            u.role === "Belum Ada Role" ? "" : u.role
+                            u.role === "Belum Ada Role" ||
+                            u.role === "Menunggu Persetujuan" ||
+                            u.role === "Ditolak"
+                              ? ""
+                              : u.role
                           }
                           disabled={
-                            u.is_current_admin || repairingUserId === u.id
+                            u.is_current_admin ||
+                            repairingUserId === u.id ||
+                            u.approval_status === "pending"
                           }
                           onChange={(event) =>
                             void handleAssignRole(
@@ -551,8 +796,44 @@ export default function AdminDashboard() {
                         )}
                       </div>
                     </td>
+                    <td className="px-6 py-5 whitespace-nowrap">
+                      {u.linked_student ? (
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">
+                            {u.linked_student.name}
+                          </p>
+                          <p className="text-xs font-medium text-gray-500">
+                            NIS {u.linked_student.nis || "-"} · Kelas{" "}
+                            {u.linked_student.class_name || "-"}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-sm font-medium text-gray-400">
+                          -
+                        </span>
+                      )}
+                    </td>
                     <td className="px-6 py-5 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-2">
+                        {(u.role === "orang_tua" ||
+                          u.requested_role === "orang_tua") && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedParent(u);
+                              setParentNis("");
+                              setShowAddForm(false);
+                              setShowPasswordForm(false);
+                              window.scrollTo({
+                                top: 0,
+                                behavior: "smooth",
+                              });
+                            }}
+                            className="rounded-lg bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
+                          >
+                            Kelola Anak
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setSelectedUser(u);
@@ -595,7 +876,7 @@ export default function AdminDashboard() {
                 ))}
                 {users.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={5} className="px-8 py-12 text-center text-gray-500 font-medium">
+                    <td colSpan={6} className="px-8 py-12 text-center text-gray-500 font-medium">
                       Tidak ada pengguna ditemukan.
                     </td>
                   </tr>
@@ -605,6 +886,72 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+
+      {securityEvents.length > 0 && (
+        <section className="mt-8 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+          <div className="border-b border-gray-100 bg-gray-50 px-6 py-5">
+            <h2 className="text-xl font-black text-gray-900">
+              Aktivitas Keamanan Akun
+            </h2>
+            <p className="mt-1 text-sm font-medium text-gray-500">
+              Riwayat persetujuan Guru, klaim NIS, dan perubahan hubungan
+              Orang Tua.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-gray-100 bg-white text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-6 py-4">Waktu</th>
+                  <th className="px-6 py-4">Aktivitas</th>
+                  <th className="px-6 py-4">Pelaku</th>
+                  <th className="px-6 py-4">Target</th>
+                  <th className="px-6 py-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {securityEvents.map((event) => (
+                  <tr key={event.id}>
+                    <td className="whitespace-nowrap px-6 py-4 font-medium text-gray-500">
+                      {new Intl.DateTimeFormat("id-ID", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }).format(new Date(event.created_at))}
+                    </td>
+                    <td className="px-6 py-4 font-bold text-gray-800">
+                      {event.event_type.replaceAll("_", " ")}
+                      {event.reason ? (
+                        <span className="ml-2 text-xs font-medium text-gray-400">
+                          ({event.reason.replaceAll("_", " ")})
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {event.actor_name}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {event.target_name}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-black uppercase ${
+                          event.status === "success"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : event.status === "blocked"
+                              ? "bg-red-50 text-red-700"
+                              : "bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {event.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </DashboardLayout>
   );
 }

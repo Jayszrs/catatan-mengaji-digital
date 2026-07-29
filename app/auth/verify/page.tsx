@@ -59,7 +59,11 @@ function VerificationContent() {
       }
 
       const role = user.user_metadata?.role;
-      if (role === "guru" || role === "orang_tua") {
+      const approvalStatus = user.user_metadata?.approval_status;
+      if (
+        (role === "guru" && approvalStatus === "approved") ||
+        role === "orang_tua"
+      ) {
         await createUserRole(
           user.id,
           user.email || params.get("email") || "",
@@ -68,14 +72,32 @@ function VerificationContent() {
       }
 
       if (role === "orang_tua" && user.user_metadata?.nis_anak) {
-        await supabase.rpc("claim_parent_student_by_nis", {
-          p_nis: String(user.user_metadata.nis_anak),
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const response = await fetch("/api/parent/claim-child", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token || ""}`,
+          },
+          body: JSON.stringify({
+            nis: String(user.user_metadata.nis_anak),
+          }),
         });
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          throw new Error(result.error || "NIS anak tidak dapat dihubungkan.");
+        }
       }
 
       setEmail(user.email || params.get("email") || "");
       setStatus("success");
-      setMessage("Email berhasil diverifikasi. Akun Anda sekarang sudah aktif.");
+      setMessage(
+        role === "guru" && approvalStatus === "pending"
+          ? "Identitas berhasil diverifikasi. Akun Guru menunggu persetujuan Administrator."
+          : "Email berhasil diverifikasi. Akun Anda sekarang sudah aktif.",
+      );
     } catch (error) {
       setStatus("error");
       setMessage(

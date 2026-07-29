@@ -92,6 +92,28 @@ async function responseError(response: Response) {
   );
 }
 
+async function claimChildByNis(nis: string) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error("Sesi sudah berakhir. Silakan login kembali.");
+  }
+  const response = await fetch("/api/parent/claim-child", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ nis }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result.error || "NIS anak tidak dapat dihubungkan.");
+  }
+  return String(result.studentId || "");
+}
+
 export default function ParentDashboard() {
   const router = useRouter();
   const [student, setStudent] = useState<StudentRow | null>(null);
@@ -223,11 +245,12 @@ export default function ParentDashboard() {
 
     const metadataNis = user.user_metadata?.nis_anak;
     if (!link && metadataNis) {
-      const { data: claimedId, error } = await supabase.rpc(
-        "claim_parent_student_by_nis",
-        { p_nis: String(metadataNis) },
-      );
-      if (!error && claimedId) link = { student_id: claimedId };
+      try {
+        const claimedId = await claimChildByNis(String(metadataNis));
+        if (claimedId) link = { student_id: claimedId };
+      } catch {
+        // The dedicated link form below displays a safe, actionable error.
+      }
     }
 
     if (!link) {
@@ -264,11 +287,7 @@ export default function ParentDashboard() {
     setLinking(true);
     setMessage(null);
     try {
-      const { data: studentId, error } = await supabase.rpc(
-        "claim_parent_student_by_nis",
-        { p_nis: nis.trim() },
-      );
-      if (error) throw error;
+      const studentId = await claimChildByNis(nis.trim());
       await loadStudentData(studentId);
       setMessage({
         type: "success",

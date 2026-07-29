@@ -10,6 +10,10 @@ import {
   normalizeUsername,
   usernameToManagedEmail,
 } from "@/lib/account-identifier";
+import {
+  hashSecurityValue,
+  recordSecurityEvent,
+} from "@/lib/server/account-security";
 
 const allowedRoles = new Set(["admin", "guru", "orang_tua"]);
 
@@ -59,6 +63,39 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: rolesError.message }, { status: 500 });
   }
 
+  const { data: parentLinks, error: parentLinksError } = await supabaseAdmin
+    .from("parent_student_links")
+    .select("parent_id,student_id,status,updated_at");
+  if (parentLinksError) {
+    return NextResponse.json(
+      { error: parentLinksError.message },
+      { status: 500 },
+    );
+  }
+  const linkedStudentIds = [
+    ...new Set(
+      (parentLinks || [])
+        .filter((link) => link.status === "active")
+        .map((link) => link.student_id),
+    ),
+  ];
+  const { data: linkedStudents, error: linkedStudentsError } =
+    linkedStudentIds.length > 0
+      ? await supabaseAdmin
+          .from("students")
+          .select("id,nama_lengkap,nis,kelas")
+          .in("id", linkedStudentIds)
+      : { data: [], error: null };
+  if (linkedStudentsError) {
+    return NextResponse.json(
+      { error: linkedStudentsError.message },
+      { status: 500 },
+    );
+  }
+  const studentsById = new Map(
+    (linkedStudents || []).map((student) => [student.id, student]),
+  );
+
   const usersWithRoles = authData.users
     .filter((user) => !user.deleted_at)
     .map((user) => {
@@ -74,6 +111,21 @@ export async function GET(request: NextRequest) {
       const contactEmail = String(
         user.user_metadata?.contact_email || "",
       ).trim();
+      const approvalStatus =
+        user.app_metadata?.approval_status ||
+        user.user_metadata?.approval_status ||
+        "approved";
+      const requestedRole =
+        user.app_metadata?.requested_role ||
+        user.user_metadata?.requested_role ||
+        user.user_metadata?.role ||
+        null;
+      const activeParentLink = (parentLinks || []).find(
+        (link) => link.parent_id === user.id && link.status === "active",
+      );
+      const linkedStudent = activeParentLink
+        ? studentsById.get(activeParentLink.student_id)
+        : null;
       return {
         id: user.id,
         username,
@@ -82,16 +134,76 @@ export async function GET(request: NextRequest) {
           : user.email || "-",
         name: user.user_metadata?.name || "-",
         role:
-          appRole === "admin"
+          approvalStatus === "pending"
+            ? "Menunggu Persetujuan"
+            : approvalStatus === "rejected"
+              ? "Ditolak"
+              : appRole === "admin"
             ? "admin"
             : databaseRole || "Belum Ada Role",
+        approval_status: approvalStatus,
+        requested_role: requestedRole,
+        linked_student: linkedStudent
+          ? {
+              id: linkedStudent.id,
+              name: linkedStudent.nama_lengkap,
+              nis: linkedStudent.nis,
+              class_name: linkedStudent.kelas,
+            }
+          : null,
         created_at: user.created_at,
         is_current_admin: guard.authorization?.user?.id === user.id,
       };
     });
 
+  const { data: securityEvents, error: securityEventsError } =
+    await supabaseAdmin
+      .from("account_security_events")
+      .select(
+        "id,actor_user_id,target_user_id,event_type,status,details,created_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(30);
+  const auditTableUnavailable = Boolean(
+    securityEventsError &&
+      /account_security_events|schema cache|does not exist/i.test(
+        securityEventsError.message,
+      ),
+  );
+  if (securityEventsError && !auditTableUnavailable) {
+    return NextResponse.json(
+      { error: securityEventsError.message },
+      { status: 500 },
+    );
+  }
+  const userNames = new Map(
+    usersWithRoles.map((user) => [user.id, user.name]),
+  );
+  const safeSecurityEvents = (securityEvents || []).map((event) => ({
+    id: event.id,
+    event_type: event.event_type,
+    status: event.status,
+    actor_name: event.actor_user_id
+      ? userNames.get(event.actor_user_id) || "Akun terhapus"
+      : "Sistem/Administrator utama",
+    target_name: event.target_user_id
+      ? userNames.get(event.target_user_id) || "Akun terhapus"
+      : "-",
+    reason:
+      event.details &&
+      typeof event.details === "object" &&
+      "reason" in event.details
+        ? String(event.details.reason || "")
+        : "",
+    created_at: event.created_at,
+  }));
+
   return NextResponse.json(
-    { users: usersWithRoles },
+    {
+      users: usersWithRoles,
+      security_events: safeSecurityEvents,
+      audit_database_active: !auditTableUnavailable,
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -174,9 +286,16 @@ export async function POST(request: NextRequest) {
           name: normalizedName,
           username: normalizedUsername,
           contact_email: contactEmail || null,
+          requested_role: role,
+          approval_status: "approved",
           role,
         },
-        app_metadata: { role, managed_username: true },
+        app_metadata: {
+          role,
+          requested_role: role,
+          approval_status: "approved",
+          managed_username: true,
+        },
       });
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
@@ -249,8 +368,18 @@ export async function POST(request: NextRequest) {
       const previousAppMetadata = userData.user.app_metadata || {};
       const { error: metadataError } =
         await supabaseAdmin.auth.admin.updateUserById(userId, {
-          user_metadata: { ...previousUserMetadata, role },
-          app_metadata: { ...previousAppMetadata, role },
+          user_metadata: {
+            ...previousUserMetadata,
+            role,
+            requested_role: role,
+            approval_status: "approved",
+          },
+          app_metadata: {
+            ...previousAppMetadata,
+            role,
+            requested_role: role,
+            approval_status: "approved",
+          },
         });
       if (metadataError) {
         return NextResponse.json(
@@ -331,11 +460,281 @@ export async function POST(request: NextRequest) {
           );
         }
       }
+      if (role !== "orang_tua") {
+        const { error: unlinkError } = await supabaseAdmin
+          .from("parent_student_links")
+          .update({
+            status: "inactive",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("parent_id", userId)
+          .eq("status", "active");
+        if (unlinkError) {
+          return NextResponse.json(
+            {
+              error: `Role berubah, tetapi hubungan siswa gagal dinonaktifkan: ${unlinkError.message}`,
+            },
+            { status: 500 },
+          );
+        }
+      }
 
       return NextResponse.json({
         success: true,
         role,
         message: `Role ${verifiedUser.user.user_metadata?.name || "akun"} berhasil diubah.`,
+      });
+    }
+
+    if (action === "review_teacher") {
+      const decision = body.decision;
+      if (
+        !userId ||
+        (decision !== "approve" && decision !== "reject")
+      ) {
+        return NextResponse.json(
+          { error: "Permintaan persetujuan Guru tidak valid." },
+          { status: 400 },
+        );
+      }
+
+      const { data: targetData, error: targetError } =
+        await supabaseAdmin.auth.admin.getUserById(userId);
+      if (targetError || !targetData.user) {
+        return NextResponse.json(
+          { error: targetError?.message || "Akun Guru tidak ditemukan." },
+          { status: 404 },
+        );
+      }
+      const requestedRole =
+        targetData.user.app_metadata?.requested_role ||
+        targetData.user.user_metadata?.requested_role;
+      if (requestedRole !== "guru") {
+        return NextResponse.json(
+          { error: "Akun ini tidak memiliki permintaan role Guru." },
+          { status: 409 },
+        );
+      }
+
+      const reviewedAt = new Date().toISOString();
+      const approved = decision === "approve";
+      const nextRole = approved ? "guru" : null;
+      const previousUserMetadata = targetData.user.user_metadata || {};
+      const previousAppMetadata = targetData.user.app_metadata || {};
+      const { error: metadataError } =
+        await supabaseAdmin.auth.admin.updateUserById(userId, {
+          user_metadata: {
+            ...previousUserMetadata,
+            role: nextRole,
+            requested_role: "guru",
+            approval_status: approved ? "approved" : "rejected",
+            reviewed_at: reviewedAt,
+          },
+          app_metadata: {
+            ...previousAppMetadata,
+            role: nextRole,
+            requested_role: "guru",
+            approval_status: approved ? "approved" : "rejected",
+            reviewed_at: reviewedAt,
+          },
+        });
+      if (metadataError) {
+        return NextResponse.json(
+          { error: metadataError.message },
+          { status: 400 },
+        );
+      }
+
+      const roleMutation = approved
+        ? await supabaseAdmin.from("user_roles").upsert(
+            {
+              user_id: userId,
+              email: targetData.user.email || "",
+              role: "guru",
+              updated_at: reviewedAt,
+            },
+            { onConflict: "user_id" },
+          )
+        : await supabaseAdmin
+            .from("user_roles")
+            .delete()
+            .eq("user_id", userId);
+      if (roleMutation.error) {
+        await supabaseAdmin.auth.admin.updateUserById(userId, {
+          user_metadata: previousUserMetadata,
+          app_metadata: previousAppMetadata,
+        });
+        return NextResponse.json(
+          { error: roleMutation.error.message },
+          { status: 500 },
+        );
+      }
+
+      await recordSecurityEvent(supabaseAdmin, {
+        actorUserId: guard.authorization?.user?.id || null,
+        targetUserId: userId,
+        eventType: "teacher_registration_review",
+        status: "success",
+        request,
+        details: {
+          decision,
+          reviewer_method: guard.authorization?.method,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        status: approved ? "approved" : "rejected",
+        message: approved
+          ? "Akun Guru disetujui dan sekarang dapat login."
+          : "Pendaftaran Guru ditolak.",
+      });
+    }
+
+    if (action === "manage_parent_link") {
+      const operation = body.operation;
+      const nis = String(body.nis || "").trim();
+      if (
+        !userId ||
+        (operation !== "connect" && operation !== "disconnect")
+      ) {
+        return NextResponse.json(
+          { error: "Permintaan hubungan Orang Tua tidak valid." },
+          { status: 400 },
+        );
+      }
+
+      const { data: targetRole, error: targetRoleError } =
+        await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .maybeSingle();
+      if (targetRoleError) {
+        return NextResponse.json(
+          { error: targetRoleError.message },
+          { status: 500 },
+        );
+      }
+      if (targetRole?.role !== "orang_tua") {
+        return NextResponse.json(
+          { error: "Akun yang dipilih bukan akun Orang Tua." },
+          { status: 409 },
+        );
+      }
+
+      if (operation === "disconnect") {
+        const { error: disconnectError } = await supabaseAdmin
+          .from("parent_student_links")
+          .update({
+            status: "inactive",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("parent_id", userId)
+          .eq("status", "active");
+        if (disconnectError) {
+          return NextResponse.json(
+            { error: disconnectError.message },
+            { status: 500 },
+          );
+        }
+        await recordSecurityEvent(supabaseAdmin, {
+          actorUserId: guard.authorization?.user?.id || null,
+          targetUserId: userId,
+          eventType: "admin_parent_link_disconnect",
+          status: "success",
+          request,
+        });
+        return NextResponse.json({
+          success: true,
+          message: "Hubungan Orang Tua dan siswa berhasil diputus.",
+        });
+      }
+
+      if (!nis || nis.length > 50) {
+        return NextResponse.json(
+          { error: "NIS siswa wajib diisi." },
+          { status: 400 },
+        );
+      }
+      const { data: student, error: studentError } = await supabaseAdmin
+        .from("students")
+        .select("id")
+        .eq("nis", nis)
+        .maybeSingle();
+      if (studentError) {
+        return NextResponse.json(
+          { error: studentError.message },
+          { status: 500 },
+        );
+      }
+      if (!student) {
+        await recordSecurityEvent(supabaseAdmin, {
+          actorUserId: guard.authorization?.user?.id || null,
+          targetUserId: userId,
+          eventType: "admin_parent_link_connect",
+          status: "failed",
+          request,
+          details: { nis_hash: hashSecurityValue(nis) },
+        });
+        return NextResponse.json(
+          { error: "NIS siswa tidak ditemukan." },
+          { status: 404 },
+        );
+      }
+
+      const { data: occupiedLink, error: occupiedError } =
+        await supabaseAdmin
+          .from("parent_student_links")
+          .select("parent_id")
+          .eq("student_id", student.id)
+          .eq("status", "active")
+          .neq("parent_id", userId)
+          .maybeSingle();
+      if (occupiedError) {
+        return NextResponse.json(
+          { error: occupiedError.message },
+          { status: 500 },
+        );
+      }
+      if (occupiedLink) {
+        return NextResponse.json(
+          {
+            error:
+              "Siswa sudah terhubung dengan akun Orang Tua lain. Putuskan hubungan lama terlebih dahulu.",
+          },
+          { status: 409 },
+        );
+      }
+
+      const { error: connectError } = await supabaseAdmin
+        .from("parent_student_links")
+        .upsert(
+          {
+            parent_id: userId,
+            student_id: student.id,
+            status: "active",
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "parent_id" },
+        );
+      if (connectError) {
+        return NextResponse.json(
+          { error: connectError.message },
+          { status: 500 },
+        );
+      }
+      await recordSecurityEvent(supabaseAdmin, {
+        actorUserId: guard.authorization?.user?.id || null,
+        targetUserId: userId,
+        eventType: "admin_parent_link_connect",
+        status: "success",
+        request,
+        details: { student_id: student.id },
+      });
+      return NextResponse.json({
+        success: true,
+        message: "Akun Orang Tua berhasil dihubungkan dengan siswa.",
       });
     }
 
