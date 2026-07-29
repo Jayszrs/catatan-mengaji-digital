@@ -246,7 +246,7 @@ export default function Home() {
                         <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200">
                           Progres Tahfidz
                         </p>
-                        <h2 className="mt-2 text-xl font-black">Jaelani Surya Saputra</h2>
+                        <h2 className="mt-2 text-xl font-black">Calon Penghuni Surga</h2>
                         <p className="mt-1 text-xs font-medium text-white/60">
                           Kelas 5 · Level 4
                         </p>
