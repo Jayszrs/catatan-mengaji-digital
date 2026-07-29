@@ -347,11 +347,6 @@ export default function ParentDashboard() {
     }
   };
 
-  const dailyDates = useMemo(
-    () => getDailyReportDates(dailyReports, daily),
-    [dailyReports, daily],
-  );
-
   useEffect(() => {
     if (!student?.id || !dailyDate) return;
 
@@ -751,12 +746,6 @@ export default function ParentDashboard() {
               {active === "harian" && (
                 <ReportDatePicker
                   value={dailyDate}
-                  availableDates={
-                    selectedDailyReports.length > 0 ||
-                    selectedDaily.length > 0
-                      ? [dailyDate, ...dailyDates]
-                      : dailyDates
-                  }
                   onChange={selectDailyDate}
                   loading={dailySelectionLoading}
                 />

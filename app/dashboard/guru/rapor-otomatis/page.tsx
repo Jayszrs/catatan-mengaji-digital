@@ -371,12 +371,6 @@ function AutomaticReportContent() {
         {activeReport === "daily" && (
           <ReportDatePicker
             value={dailyDate}
-            availableDates={
-              selectedDailyReports.length > 0 ||
-              selectedMemorization.length > 0
-                ? [dailyDate, ...dailyDates]
-                : dailyDates
-            }
             onChange={selectDailyDate}
             loading={dailySelectionLoading}
           />
