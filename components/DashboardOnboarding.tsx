@@ -228,7 +228,7 @@ const parentSteps: TourStep[] = [
     points: [
       "Pantau perkembangan secara berkala",
       "Hubungi Guru jika ada data yang perlu dikonfirmasi",
-      "Gunakan menu Keluar setelah selesai di perangkat umum",
+      "Biodata akun dapat diubah melalui Sistem → Biodata Orang Tua",
     ],
   },
 ];

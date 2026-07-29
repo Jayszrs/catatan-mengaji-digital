@@ -47,7 +47,8 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserName(
-          user.user_metadata?.name ||
+          user.user_metadata?.parent_profile?.full_name ||
+            user.user_metadata?.name ||
             (userRole === "orang_tua" ? "Orang Tua" : "Guru"),
         );
         setUserEmail(user.email || "");
@@ -63,6 +64,8 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
       }
     };
     fetchUser();
+    window.addEventListener("cmd-profile-updated", fetchUser);
+    return () => window.removeEventListener("cmd-profile-updated", fetchUser);
   }, [userRole]);
 
   useEffect(() => {
@@ -242,6 +245,12 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
                   <span>Profil Guru</span>
                 </Link>
               )}
+              {userRole === "orang_tua" && (
+                <Link href="/dashboard/orang-tua/profile" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/orang-tua/profile") ? "bg-[#1b4332] text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <Settings size={20} />
+                  <span>Biodata Orang Tua</span>
+                </Link>
+              )}
               <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-red-500 hover:bg-red-50 transition-all">
                 <LogOut size={20} />
                 <span>Keluar</span>
@@ -274,7 +283,16 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
             )}
             <div className="hidden md:block h-8 w-px bg-gray-200 mx-2"></div>
             
-            <Link href={userRole === "guru" ? "/dashboard/guru/profile" : "#"} className="flex items-center gap-3 cursor-pointer group">
+            <Link
+              href={
+                userRole === "guru"
+                  ? "/dashboard/guru/profile"
+                  : userRole === "orang_tua"
+                    ? "/dashboard/orang-tua/profile"
+                    : "#"
+              }
+              className="flex items-center gap-3 cursor-pointer group"
+            >
               <div className="w-11 h-11 bg-gradient-to-tr from-[#1b4332] to-[#2dc653] rounded-full flex items-center justify-center text-white font-black text-lg shadow-md group-hover:scale-105 transition-transform">
                 {userPhoto ? (
                   <img src={userPhoto} alt={userName} className="h-full w-full rounded-full object-cover" />

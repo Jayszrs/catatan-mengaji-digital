@@ -17,12 +17,10 @@ import {
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { OfficialReportTemplate } from "@/components/OfficialReportTemplate";
+import { ReportDatePicker } from "@/components/ReportDatePicker";
 import { StudentAvatar } from "@/components/StudentAvatar";
 import { downloadTadarusHarian } from "@/lib/export-tadarus";
-import {
-  filterRowsByDate,
-  getDailyReportDates,
-} from "@/lib/daily-report-history";
+import { getDailyReportDates } from "@/lib/daily-report-history";
 import {
   DailyMemorizationExportRow,
   DailyReportExportRow,
@@ -100,7 +98,14 @@ export default function ParentDashboard() {
   const [tadarus, setTadarus] = useState<TadarusRow[]>([]);
   const [dailyReports, setDailyReports] = useState<DailyReportExportRow[]>([]);
   const [daily, setDaily] = useState<DailyMemorizationExportRow[]>([]);
+  const [selectedDailyReports, setSelectedDailyReports] = useState<
+    DailyReportExportRow[]
+  >([]);
+  const [selectedDaily, setSelectedDaily] = useState<
+    DailyMemorizationExportRow[]
+  >([]);
   const [dailyDate, setDailyDate] = useState("");
+  const [dailySelectionLoading, setDailySelectionLoading] = useState(false);
   const [levels, setLevels] = useState<LevelExamExportRow[]>([]);
   const [munaqosyah, setMunaqosyah] =
     useState<MunaqosyahExportRow | undefined>();
@@ -178,8 +183,11 @@ export default function ParentDashboard() {
     const reportDates = getDailyReportDates(loadedDailyReports, loadedDaily);
     setDailyReports(loadedDailyReports);
     setDaily(loadedDaily);
+    setSelectedDailyReports([]);
+    setSelectedDaily([]);
+    setDailySelectionLoading(Boolean(reportDates[0]));
     setDailyDate((current) =>
-      reportDates.includes(current) ? current : reportDates[0] || "",
+      current || reportDates[0] || "",
     );
     setLevels(levelResult.data || []);
     setMunaqosyah(munaqResult.data || undefined);
@@ -343,14 +351,55 @@ export default function ParentDashboard() {
     () => getDailyReportDates(dailyReports, daily),
     [dailyReports, daily],
   );
-  const selectedDailyReports = useMemo(
-    () => filterRowsByDate(dailyReports, dailyDate),
-    [dailyReports, dailyDate],
-  );
-  const selectedDaily = useMemo(
-    () => filterRowsByDate(daily, dailyDate),
-    [daily, dailyDate],
-  );
+
+  useEffect(() => {
+    if (!student?.id || !dailyDate) return;
+
+    let cancelled = false;
+
+    Promise.all([
+      supabase
+        .from("daily_student_reports")
+        .select(
+          "tanggal,status_presensi,kegiatan,ringkasan_tadarus,ringkasan_hafalan,catatan_guru",
+        )
+        .eq("student_id", student.id)
+        .eq("tanggal", dailyDate)
+        .order("tanggal", { ascending: false }),
+      loadDailyMemorizationRows(student.id, dailyDate),
+    ])
+      .then(([dailyReportResult, dailyResult]) => {
+        if (dailyReportResult.error) throw dailyReportResult.error;
+        if (dailyResult.error) throw dailyResult.error;
+        if (cancelled) return;
+        setSelectedDailyReports(dailyReportResult.data || []);
+        setSelectedDaily(dailyResult.data || []);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setMessage({
+            type: "error",
+            text: getAppErrorMessage(
+              error,
+              "Gagal memuat laporan pada tanggal pilihan.",
+            ),
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDailySelectionLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dailyDate, student?.id]);
+
+  const selectDailyDate = (value: string) => {
+    setDailySelectionLoading(Boolean(value));
+    setDailyDate(value);
+  };
+
   const selectedDailyAverage = useMemo(() => {
     const scores = selectedDaily
       .map((row) => Number(row.nilai_rata_rata ?? row.nilai))
@@ -362,6 +411,12 @@ export default function ParentDashboard() {
   const munaqAverage = Number(
     munaqosyah?.hasil_ujian?.nilaiRataRata ?? 0,
   );
+  const activeHasData =
+    active === "harian"
+      ? selectedDailyReports.length > 0 || selectedDaily.length > 0
+      : active === "level"
+        ? levels.length > 0
+        : Boolean(munaqosyah);
 
   const downloadActive = () => {
     if (!student) return;
@@ -693,39 +748,32 @@ export default function ParentDashboard() {
               </h2>
             </div>
             <div className="flex flex-wrap gap-2">
-              {active === "harian" && dailyDates.length > 0 && (
-                <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2">
-                  <span className="text-sm font-black text-gray-600">
-                    Tanggal rapor
-                  </span>
-                  <select
-                    value={dailyDate}
-                    onChange={(event) => setDailyDate(event.target.value)}
-                    className="bg-transparent font-bold text-emerald-700 outline-none"
-                  >
-                    {dailyDates.map((date) => (
-                      <option key={date} value={date}>
-                        {new Intl.DateTimeFormat("id-ID", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        }).format(new Date(`${date}T00:00:00`))}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              {active === "harian" && (
+                <ReportDatePicker
+                  value={dailyDate}
+                  availableDates={
+                    selectedDailyReports.length > 0 ||
+                    selectedDaily.length > 0
+                      ? [dailyDate, ...dailyDates]
+                      : dailyDates
+                  }
+                  onChange={selectDailyDate}
+                  loading={dailySelectionLoading}
+                />
               )}
               <button
                 type="button"
                 onClick={downloadActive}
-                className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white"
+                disabled={!activeHasData || dailySelectionLoading}
+                className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Download size={18} /> Download Excel
               </button>
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 font-bold text-gray-700"
+                disabled={!activeHasData || dailySelectionLoading}
+                className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 font-bold text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Printer size={18} /> Cetak / Simpan PDF
               </button>

@@ -11,10 +11,8 @@ import {
   Printer,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import {
-  filterRowsByDate,
-  getDailyReportDates,
-} from "@/lib/daily-report-history";
+import { ReportDatePicker } from "@/components/ReportDatePicker";
+import { getDailyReportDates } from "@/lib/daily-report-history";
 import {
   DailyMemorizationExportRow,
   DailyReportExportRow,
@@ -100,6 +98,7 @@ function loadMunaqosyahPreview(studentId: string) {
 function AutomaticReportContent() {
   const params = useSearchParams();
   const requestedReport = params.get("report");
+  const requestedDate = params.get("date") || "";
   const useMunaqosyahPreview = params.get("preview") === "1";
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [studentId, setStudentId] = useState(params.get("studentId") || "");
@@ -110,7 +109,14 @@ function AutomaticReportContent() {
   );
   const [dailyReports, setDailyReports] = useState<DailyReportExportRow[]>([]);
   const [memorization, setMemorization] = useState<DailyMemorizationExportRow[]>([]);
-  const [dailyDate, setDailyDate] = useState(params.get("date") || "");
+  const [selectedDailyReports, setSelectedDailyReports] = useState<
+    DailyReportExportRow[]
+  >([]);
+  const [selectedMemorization, setSelectedMemorization] = useState<
+    DailyMemorizationExportRow[]
+  >([]);
+  const [dailyDate, setDailyDate] = useState(requestedDate);
+  const [dailySelectionLoading, setDailySelectionLoading] = useState(false);
   const [levels, setLevels] = useState<LevelExamExportRow[]>([]);
   const [munaq, setMunaq] = useState<MunaqosyahExportRow | undefined>();
   const [loading, setLoading] = useState(true);
@@ -174,8 +180,11 @@ function AutomaticReportContent() {
       );
       setDailyReports(loadedDailyReports);
       setMemorization(loadedMemorization);
+      setSelectedDailyReports([]);
+      setSelectedMemorization([]);
+      setDailySelectionLoading(Boolean(requestedDate || reportDates[0]));
       setDailyDate((current) =>
-        reportDates.includes(current) ? current : reportDates[0] || "",
+        current || reportDates[0] || "",
       );
       setLevels(levelResult.data || []);
       setMunaq(previewMunaq || munaqResult.data || undefined);
@@ -186,7 +195,7 @@ function AutomaticReportContent() {
         setError(getAppErrorMessage(issue, "Gagal memuat rapor otomatis.")),
       )
       .finally(() => setLoading(false));
-  }, [studentId, useMunaqosyahPreview]);
+  }, [requestedDate, studentId, useMunaqosyahPreview]);
 
   const selected = students.find((student) => student.id === studentId);
   const name = selected?.nama_lengkap || "siswa";
@@ -194,14 +203,51 @@ function AutomaticReportContent() {
     () => getDailyReportDates(dailyReports, memorization),
     [dailyReports, memorization],
   );
-  const selectedDailyReports = useMemo(
-    () => filterRowsByDate(dailyReports, dailyDate),
-    [dailyReports, dailyDate],
-  );
-  const selectedMemorization = useMemo(
-    () => filterRowsByDate(memorization, dailyDate),
-    [memorization, dailyDate],
-  );
+
+  useEffect(() => {
+    if (!studentId || !dailyDate) return;
+
+    let cancelled = false;
+
+    Promise.all([
+      supabase
+        .from("daily_student_reports")
+        .select(
+          "tanggal,status_presensi,kegiatan,ringkasan_tadarus,ringkasan_hafalan,catatan_guru",
+        )
+        .eq("student_id", studentId)
+        .eq("tanggal", dailyDate)
+        .order("tanggal", { ascending: false }),
+      loadDailyMemorizationRows(studentId, dailyDate),
+    ])
+      .then(([dailyResult, memorizationResult]) => {
+        if (dailyResult.error) throw dailyResult.error;
+        if (memorizationResult.error) throw memorizationResult.error;
+        if (cancelled) return;
+        setSelectedDailyReports(dailyResult.data || []);
+        setSelectedMemorization(memorizationResult.data || []);
+      })
+      .catch((issue) => {
+        if (!cancelled) {
+          setError(
+            getAppErrorMessage(issue, "Gagal memuat laporan pada tanggal pilihan."),
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDailySelectionLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dailyDate, studentId]);
+
+  const selectDailyDate = (value: string) => {
+    setDailySelectionLoading(Boolean(value));
+    setDailyDate(value);
+  };
+
   const hasData =
     activeReport === "daily"
       ? selectedDailyReports.length > 0 || selectedMemorization.length > 0
@@ -322,28 +368,23 @@ function AutomaticReportContent() {
       </div>
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:justify-end print:hidden">
-        {activeReport === "daily" && dailyDates.length > 0 && (
-          <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2 shadow-sm">
-            <span className="text-sm font-black text-gray-600">
-              Tanggal rapor
-            </span>
-            <select
-              value={dailyDate}
-              onChange={(event) => setDailyDate(event.target.value)}
-              className="bg-transparent font-bold text-[#1b4332] outline-none"
-            >
-              {dailyDates.map((date) => (
-                <option key={date} value={date}>
-                  {formatDate(date)}
-                </option>
-              ))}
-            </select>
-          </label>
+        {activeReport === "daily" && (
+          <ReportDatePicker
+            value={dailyDate}
+            availableDates={
+              selectedDailyReports.length > 0 ||
+              selectedMemorization.length > 0
+                ? [dailyDate, ...dailyDates]
+                : dailyDates
+            }
+            onChange={selectDailyDate}
+            loading={dailySelectionLoading}
+          />
         )}
         <button
           type="button"
           onClick={handleDownload}
-          disabled={!hasData}
+          disabled={!hasData || dailySelectionLoading}
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 font-bold text-[#1b4332] shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Download size={18} /> Download Excel
@@ -351,7 +392,7 @@ function AutomaticReportContent() {
         <button
           type="button"
           onClick={() => window.print()}
-          disabled={!hasData}
+          disabled={!hasData || dailySelectionLoading}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1b4332] px-5 py-3 font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Printer size={18} /> Cetak / Simpan PDF
@@ -364,7 +405,7 @@ function AutomaticReportContent() {
         </div>
       )}
 
-      {loading ? (
+      {loading || (activeReport === "daily" && dailySelectionLoading) ? (
         <div className="flex min-h-64 items-center justify-center">
           <Loader2 className="animate-spin text-emerald-600" size={38} />
         </div>
