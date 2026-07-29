@@ -21,6 +21,7 @@ type AdminRole = "admin" | "guru" | "orang_tua";
 
 interface AdminUser {
   id: string;
+  username: string;
   email: string;
   name: string;
   role: AdminRole | "Belum Ada Role";
@@ -56,8 +57,11 @@ export default function AdminDashboard() {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   // Form states
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [createPasswordConfirmation, setCreatePasswordConfirmation] =
+    useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState<AdminRole>("guru");
 
@@ -115,12 +119,19 @@ export default function AdminDashboard() {
     setError("");
     setSuccess("");
 
+    if (password !== createPasswordConfirmation) {
+      setError("Konfirmasi password akun baru tidak sama.");
+      setCreatingAccount(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: await getAdminHeaders(true),
         body: JSON.stringify({
           action: "create",
+          username,
           email,
           password,
           name,
@@ -131,12 +142,14 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      setSuccess("Akun berhasil dibuat!");
+      setSuccess(data.message || "Akun berhasil dibuat!");
       setShowAddForm(false);
       
       // Reset form
+      setUsername("");
       setEmail("");
       setPassword("");
+      setCreatePasswordConfirmation("");
       setName("");
       setRole("guru");
       
@@ -180,7 +193,11 @@ export default function AdminDashboard() {
 
       setSuccess(
         data.message ||
-          `Password ${targetUser.email} berhasil diubah dan diverifikasi.`,
+          `Password ${
+            targetUser.username
+              ? `@${targetUser.username}`
+              : targetUser.email
+          } berhasil diubah dan diverifikasi.`,
       );
       setShowPasswordForm(false);
       setNewPassword("");
@@ -194,10 +211,22 @@ export default function AdminDashboard() {
   };
 
   const handleAssignRole = async (
-    userId: string,
-    selectedRole: "admin" | "guru" | "orang_tua",
+    user: AdminUser,
+    selectedRole: AdminRole,
   ) => {
-    setRepairingUserId(userId);
+    if (user.role === selectedRole) return;
+    const roleLabel =
+      selectedRole === "orang_tua"
+        ? "Orang Tua"
+        : selectedRole === "admin"
+          ? "Admin"
+          : "Guru";
+    const confirmed = window.confirm(
+      `Ubah role ${user.name} menjadi ${roleLabel}?`,
+    );
+    if (!confirmed) return;
+
+    setRepairingUserId(user.id);
     setError("");
     setSuccess("");
     try {
@@ -206,21 +235,13 @@ export default function AdminDashboard() {
         headers: await getAdminHeaders(true),
         body: JSON.stringify({
           action: "assign_role",
-          userId,
+          userId: user.id,
           role: selectedRole,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal memberikan role");
-      setSuccess(
-        `Role ${
-          selectedRole === "orang_tua"
-            ? "Orang Tua"
-            : selectedRole === "admin"
-              ? "Admin"
-              : "Guru"
-        } berhasil diberikan.`,
-      );
+      setSuccess(data.message || `Role berhasil diubah menjadi ${roleLabel}.`);
       await fetchUsers();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Gagal memberikan role");
@@ -230,8 +251,11 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteUser = async (user: AdminUser) => {
+    const accountIdentifier = user.username
+      ? `@${user.username}`
+      : user.email;
     const confirmed = window.confirm(
-      `Hapus akun ${user.name} (${user.email})?\n\nAkun langsung tidak dapat login lagi. Data siswa, kelas, laporan, dan riwayat penilaian yang terkait tetap disimpan.`,
+      `Hapus akun ${user.name} (${accountIdentifier})?\n\nAkun langsung tidak dapat login lagi. Data siswa, kelas, laporan, dan riwayat penilaian yang terkait tetap disimpan.`,
     );
     if (!confirmed) return;
 
@@ -265,7 +289,7 @@ export default function AdminDashboard() {
             Manajemen Akun
           </h1>
           <p className="text-sm text-gray-500 font-medium">
-            Kelola akses Admin, Guru, dan Orang Tua.
+            Kelola akun, password, serta role Admin, Guru, dan Orang Tua.
           </p>
         </div>
         <div className="flex gap-4">
@@ -309,6 +333,16 @@ export default function AdminDashboard() {
           <form onSubmit={handleCreateUser} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input
+                label="Username"
+                placeholder="Contoh: ahmad.fulan"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,29}"
+                title="Gunakan 3–30 karakter: huruf, angka, titik, garis bawah, atau strip."
+                required
+              />
+              <Input
                 label="Nama Lengkap"
                 placeholder="Ahmad Fulan"
                 value={name}
@@ -316,13 +350,26 @@ export default function AdminDashboard() {
                 required
               />
               <Input
-                label="Email"
+                label="Email Kontak (Opsional)"
                 type="email"
-                placeholder="nama@email.com"
+                placeholder="Boleh dikosongkan"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
               />
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-3">
+                  Role / Peran
+                </label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as AdminRole)}
+                  className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2dc653] focus:border-transparent transition-all font-medium bg-white"
+                >
+                  <option value="guru">Guru / Wali Kelas</option>
+                  <option value="orang_tua">Orang Tua / Wali Murid</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </div>
               <Input
                 label="Password"
                 type="password"
@@ -332,18 +379,22 @@ export default function AdminDashboard() {
                 required
                 minLength={6}
               />
-              <div>
-                <label className="block text-sm font-bold text-gray-800 mb-2">Role / Peran</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as AdminRole)}
-                  className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1b4332] transition-all font-medium bg-white"
-                >
-                  <option value="guru">Guru / Wali Kelas</option>
-                  <option value="orang_tua">Orang Tua / Wali Murid</option>
-                  <option value="admin">Administrator</option>
-                </select>
-              </div>
+              <Input
+                label="Konfirmasi Password"
+                type="password"
+                placeholder="Ketik ulang password"
+                value={createPasswordConfirmation}
+                onChange={(e) =>
+                  setCreatePasswordConfirmation(e.target.value)
+                }
+                required
+                minLength={6}
+              />
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+              Akun dibuat langsung aktif dan login memakai username. Email
+              hanya data kontak, tidak wajib, dan tidak ada proses verifikasi
+              email.
             </div>
             <Button type="submit" disabled={creatingAccount} className="w-full py-4 bg-[#1b4332] text-white rounded-xl font-bold text-lg">
               {creatingAccount ? <Loader2 className="animate-spin mx-auto" /> : "Simpan Akun"}
@@ -374,7 +425,13 @@ export default function AdminDashboard() {
           </div>
           <form onSubmit={handleChangePassword} className="space-y-6">
             <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-              Akun tujuan: <span className="font-bold">{selectedUser.email}</span>.
+              Akun tujuan:{" "}
+              <span className="font-bold">
+                {selectedUser.username
+                  ? `@${selectedUser.username}`
+                  : selectedUser.email}
+              </span>
+              .
               Sistem akan memeriksa ulang perubahan di Supabase sebelum
               menampilkan status berhasil.
             </div>
@@ -438,6 +495,7 @@ export default function AdminDashboard() {
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="px-6 py-5 font-bold text-gray-600 uppercase text-xs tracking-wider whitespace-nowrap">Nama</th>
+                  <th className="px-6 py-5 font-bold text-gray-600 uppercase text-xs tracking-wider whitespace-nowrap">Username</th>
                   <th className="px-6 py-5 font-bold text-gray-600 uppercase text-xs tracking-wider whitespace-nowrap">Email</th>
                   <th className="px-6 py-5 font-bold text-gray-600 uppercase text-xs tracking-wider whitespace-nowrap">Role</th>
                   <th className="px-6 py-5 font-bold text-gray-600 uppercase text-xs tracking-wider text-right whitespace-nowrap">Aksi</th>
@@ -447,51 +505,53 @@ export default function AdminDashboard() {
                 {users.map((u) => (
                   <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-5 font-bold text-gray-900 whitespace-nowrap">{u.name}</td>
+                    <td className="px-6 py-5 text-gray-700 font-bold whitespace-nowrap">
+                      {u.username ? `@${u.username}` : "-"}
+                    </td>
                     <td className="px-6 py-5 text-gray-600 font-medium whitespace-nowrap">{u.email}</td>
                     <td className="px-6 py-5 whitespace-nowrap">
-                      <span className={`px-3 py-1 text-xs font-bold rounded-lg uppercase tracking-wider ${
-                        u.role === 'guru'
-                          ? 'bg-green-50 text-green-700'
-                          : u.role === 'orang_tua'
-                            ? 'bg-blue-50 text-blue-700'
-                            : u.role === 'admin'
-                              ? 'bg-purple-50 text-purple-700'
-                            : 'bg-amber-50 text-amber-700'
-                      }`}>
-                        {u.role.replace("_", " ")}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={
+                            u.role === "Belum Ada Role" ? "" : u.role
+                          }
+                          disabled={
+                            u.is_current_admin || repairingUserId === u.id
+                          }
+                          onChange={(event) =>
+                            void handleAssignRole(
+                              u,
+                              event.target.value as AdminRole,
+                            )
+                          }
+                          title={
+                            u.is_current_admin
+                              ? "Role akun Admin yang sedang dipakai tidak dapat diubah"
+                              : "Ubah role akun"
+                          }
+                          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold uppercase text-gray-700 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
+                        >
+                          <option value="" disabled>
+                            Pilih role
+                          </option>
+                          <option value="admin">Admin</option>
+                          <option value="guru">Guru</option>
+                          <option value="orang_tua">Orang Tua</option>
+                        </select>
+                        {repairingUserId === u.id && (
+                          <Loader2
+                            className="animate-spin text-[#1b4332]"
+                            size={16}
+                          />
+                        )}
+                        {u.is_current_admin && (
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-purple-50 px-2 py-2 text-xs font-bold text-purple-700">
+                            <ShieldCheck size={14} /> Dipakai
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-right whitespace-nowrap">
-                      {u.role === "Belum Ada Role" && (
-                        <div className="mb-2 flex justify-end gap-2">
-                          <button
-                            type="button"
-                            disabled={repairingUserId === u.id}
-                            onClick={() => handleAssignRole(u.id, "orang_tua")}
-                            className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
-                          >
-                            {repairingUserId === u.id
-                              ? "Memproses..."
-                              : "Jadikan Orang Tua"}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={repairingUserId === u.id}
-                            onClick={() => handleAssignRole(u.id, "guru")}
-                            className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
-                          >
-                            Jadikan Guru
-                          </button>
-                          <button
-                            type="button"
-                            disabled={repairingUserId === u.id}
-                            onClick={() => handleAssignRole(u.id, "admin")}
-                            className="rounded-lg bg-purple-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
-                          >
-                            Jadikan Admin
-                          </button>
-                        </div>
-                      )}
                       <div className="inline-flex items-center gap-2">
                         <button
                           onClick={() => {
@@ -509,11 +569,6 @@ export default function AdminDashboard() {
                         >
                           <Key size={16} /> Ubah Sandi
                         </button>
-                        {u.role === "admin" && (
-                          <span className="inline-flex items-center gap-1 rounded-lg bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700">
-                            <ShieldCheck size={15} /> Admin
-                          </span>
-                        )}
                         <button
                           type="button"
                           disabled={
@@ -540,7 +595,7 @@ export default function AdminDashboard() {
                 ))}
                 {users.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={4} className="px-8 py-12 text-center text-gray-500 font-medium">
+                    <td colSpan={5} className="px-8 py-12 text-center text-gray-500 font-medium">
                       Tidak ada pengguna ditemukan.
                     </td>
                   </tr>

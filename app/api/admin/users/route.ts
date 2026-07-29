@@ -4,6 +4,12 @@ import {
   createAdminClient,
   isAdminServiceConfigured,
 } from "@/lib/admin-auth";
+import {
+  isManagedAccountEmail,
+  isValidUsername,
+  normalizeUsername,
+  usernameToManagedEmail,
+} from "@/lib/account-identifier";
 
 const allowedRoles = new Set(["admin", "guru", "orang_tua"]);
 
@@ -60,9 +66,20 @@ export async function GET(request: NextRequest) {
         (row) => row.user_id === user.id,
       )?.role;
       const appRole = user.app_metadata?.role;
+      const username =
+        user.user_metadata?.username ||
+        (isManagedAccountEmail(user.email)
+          ? user.email?.split("@")[0]
+          : "");
+      const contactEmail = String(
+        user.user_metadata?.contact_email || "",
+      ).trim();
       return {
         id: user.id,
-        email: user.email,
+        username,
+        email: isManagedAccountEmail(user.email)
+          ? contactEmail || "-"
+          : user.email || "-",
         name: user.user_metadata?.name || "-",
         role:
           appRole === "admin"
@@ -87,29 +104,79 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, email, password, name, role, userId } = body;
+    const { action, email, password, name, role, userId, username } = body;
 
     if (action === "create") {
-      const normalizedEmail = String(email || "").trim().toLowerCase();
+      const normalizedUsername = normalizeUsername(username);
+      const contactEmail = String(email || "").trim().toLowerCase();
       const normalizedName = String(name || "").trim();
       if (
-        !normalizedEmail ||
+        !isValidUsername(normalizedUsername) ||
         !password ||
         !normalizedName ||
         !allowedRoles.has(role)
       ) {
         return NextResponse.json(
-          { error: "Nama, email, password, dan role yang valid wajib diisi." },
+          {
+            error:
+              "Username 3–30 karakter, nama lengkap, password, dan role yang valid wajib diisi.",
+          },
+          { status: 400 },
+        );
+      }
+      if (
+        contactEmail &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)
+      ) {
+        return NextResponse.json(
+          { error: "Format email opsional tidak valid." },
+          { status: 400 },
+        );
+      }
+      if (String(password).length < 6) {
+        return NextResponse.json(
+          { error: "Password minimal 6 karakter." },
           { status: 400 },
         );
       }
 
+      const loginEmail = usernameToManagedEmail(normalizedUsername);
+      const { data: existingUsers, error: existingUsersError } =
+        await supabaseAdmin.auth.admin.listUsers({
+          page: 1,
+          perPage: 1000,
+        });
+      if (existingUsersError) {
+        return NextResponse.json(
+          { error: existingUsersError.message },
+          { status: 500 },
+        );
+      }
+      const usernameExists = existingUsers.users.some(
+        (user) =>
+          !user.deleted_at &&
+          (normalizeUsername(user.user_metadata?.username) ===
+            normalizedUsername ||
+            user.email?.toLowerCase() === loginEmail),
+      );
+      if (usernameExists) {
+        return NextResponse.json(
+          { error: "Username sudah digunakan oleh akun lain." },
+          { status: 409 },
+        );
+      }
+
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
-        email: normalizedEmail,
+        email: loginEmail,
         password,
         email_confirm: true,
-        user_metadata: { name: normalizedName, role },
-        app_metadata: { role },
+        user_metadata: {
+          name: normalizedName,
+          username: normalizedUsername,
+          contact_email: contactEmail || null,
+          role,
+        },
+        app_metadata: { role, managed_username: true },
       });
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
@@ -121,7 +188,7 @@ export async function POST(request: NextRequest) {
           .upsert(
             {
               user_id: data.user.id,
-              email: normalizedEmail,
+              email: loginEmail,
               role,
               updated_at: new Date().toISOString(),
             },
@@ -139,13 +206,32 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      return NextResponse.json({ success: true, user: data.user });
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: data.user?.id,
+          username: normalizedUsername,
+          name: normalizedName,
+          email: contactEmail || null,
+          role,
+        },
+        message: `Akun @${normalizedUsername} berhasil dibuat tanpa verifikasi email.`,
+      });
     }
 
     if (action === "assign_role") {
       if (!userId || !allowedRoles.has(role)) {
         return NextResponse.json(
           { error: "User dan role yang valid wajib dipilih." },
+          { status: 400 },
+        );
+      }
+      if (guard.authorization?.user?.id === userId) {
+        return NextResponse.json(
+          {
+            error:
+              "Admin tidak dapat mengubah role akun yang sedang dipakai.",
+          },
           { status: 400 },
         );
       }
@@ -159,11 +245,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const metadata = userData.user.user_metadata || {};
+      const previousUserMetadata = userData.user.user_metadata || {};
+      const previousAppMetadata = userData.user.app_metadata || {};
       const { error: metadataError } =
         await supabaseAdmin.auth.admin.updateUserById(userId, {
-          user_metadata: { ...metadata, role },
-          app_metadata: { ...userData.user.app_metadata, role },
+          user_metadata: { ...previousUserMetadata, role },
+          app_metadata: { ...previousAppMetadata, role },
         });
       if (metadataError) {
         return NextResponse.json(
@@ -178,6 +265,10 @@ export async function POST(request: NextRequest) {
           .delete()
           .eq("user_id", userId);
         if (cleanupError) {
+          await supabaseAdmin.auth.admin.updateUserById(userId, {
+            user_metadata: previousUserMetadata,
+            app_metadata: previousAppMetadata,
+          });
           return NextResponse.json(
             { error: cleanupError.message },
             { status: 400 },
@@ -196,6 +287,10 @@ export async function POST(request: NextRequest) {
             { onConflict: "user_id" },
           );
         if (roleError) {
+          await supabaseAdmin.auth.admin.updateUserById(userId, {
+            user_metadata: previousUserMetadata,
+            app_metadata: previousAppMetadata,
+          });
           return NextResponse.json(
             { error: roleError.message },
             { status: 400 },
@@ -203,7 +298,45 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      return NextResponse.json({ success: true, role });
+      const { data: verifiedUser, error: verificationError } =
+        await supabaseAdmin.auth.admin.getUserById(userId);
+      if (
+        verificationError ||
+        verifiedUser.user?.app_metadata?.role !== role
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              verificationError?.message ||
+              "Perubahan role belum berhasil diverifikasi.",
+          },
+          { status: 502 },
+        );
+      }
+      if (role !== "admin") {
+        const { data: verifiedRole, error: verifiedRoleError } =
+          await supabaseAdmin
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", userId)
+            .maybeSingle();
+        if (verifiedRoleError || verifiedRole?.role !== role) {
+          return NextResponse.json(
+            {
+              error:
+                verifiedRoleError?.message ||
+                "Role database belum sesuai dengan role akun.",
+            },
+            { status: 502 },
+          );
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        role,
+        message: `Role ${verifiedUser.user.user_metadata?.name || "akun"} berhasil diubah.`,
+      });
     }
 
     if (action === "update_password") {
@@ -279,9 +412,12 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        email: verificationData.user.email,
         password_changed_at: passwordChangedAt,
-        message: `Password ${verificationData.user.email || "akun"} berhasil diubah dan diverifikasi.`,
+        message: `Password ${
+          verificationData.user.user_metadata?.username
+            ? `@${verificationData.user.user_metadata.username}`
+            : verificationData.user.email || "akun"
+        } berhasil diubah dan diverifikasi.`,
       });
     }
 
@@ -323,27 +459,6 @@ export async function POST(request: NextRequest) {
         targetData.user.app_metadata?.role === "admin"
           ? "admin"
           : targetRoleRow?.role;
-
-      if (targetRole === "admin") {
-        const { data: allUsers, error: listError } =
-          await supabaseAdmin.auth.admin.listUsers();
-        if (listError) {
-          return NextResponse.json(
-            { error: listError.message },
-            { status: 400 },
-          );
-        }
-        const adminCount = allUsers.users.filter(
-          (user) =>
-            !user.deleted_at && user.app_metadata?.role === "admin",
-        ).length;
-        if (adminCount <= 1) {
-          return NextResponse.json(
-            { error: "Admin terakhir tidak dapat dihapus." },
-            { status: 409 },
-          );
-        }
-      }
 
       // Soft delete keeps historical rows intact. A hard delete would trigger
       // ON DELETE CASCADE on classes, reports, and exam records owned by a Guru.

@@ -8,6 +8,7 @@ import {
   isSupabaseConfigured,
   supabase,
 } from "@/lib/supabase";
+import { usernameToManagedEmail } from "@/lib/account-identifier";
 import { AuthInput } from "@/components/AuthInput";
 import { AuthSplitLayout } from "@/components/AuthSplitLayout";
 import { AlertCircle, Loader2, LockKeyhole, LogIn, Mail } from "lucide-react";
@@ -27,26 +28,25 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (!email.includes("@")) {
+      const normalizedIdentifier = email.trim().toLowerCase();
+      if (!normalizedIdentifier.includes("@")) {
         const response = await fetch("/api/admin/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: email.trim(), password }),
+          body: JSON.stringify({
+            username: normalizedIdentifier,
+            password,
+          }),
         });
-        const result = await response.json();
-        if (!response.ok) {
-          throw new Error(
-            result.error || "Username atau password Administrator tidak cocok.",
-          );
+        if (response.ok) {
+          router.push("/dashboard/admin");
+          return;
         }
-        router.push("/dashboard/admin");
-        return;
       }
 
-      const normalizedEmail = email.trim().toLowerCase();
-      if (!normalizedEmail.includes("@")) {
-        throw new Error("Gunakan alamat email lengkap, bukan nama atau username.");
-      }
+      const normalizedEmail = normalizedIdentifier.includes("@")
+        ? normalizedIdentifier
+        : usernameToManagedEmail(normalizedIdentifier);
 
       if (!isSupabaseConfigured) {
         throw new Error(
@@ -101,7 +101,7 @@ export default function LoginPage() {
         caughtError instanceof Error ? caughtError.message : "Gagal login";
       if (message.toLowerCase().includes("invalid login credentials")) {
         setError(
-          "Email atau password tidak cocok. Pastikan akun dibuat pada database Supabase yang sedang dipakai.",
+          "Username/email atau password tidak cocok. Periksa kembali data akun Anda.",
         );
       } else if (message.toLowerCase().includes("email not confirmed")) {
         setNeedsVerification(true);
@@ -145,12 +145,12 @@ export default function LoginPage() {
 
       <form onSubmit={handleLogin} className="space-y-4">
         <AuthInput
-          label="Email atau username admin"
+          label="Email atau Username"
           icon={Mail}
           type="text"
-          inputMode="email"
+          inputMode="text"
           autoComplete="username"
-          placeholder="nama@email.com"
+          placeholder="nama@email.com atau username"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
@@ -168,12 +168,18 @@ export default function LoginPage() {
         />
 
         <div className="-mt-1 text-right">
-          <Link
-            href={`/auth/reset-password?email=${encodeURIComponent(email.trim())}`}
-            className="text-xs font-bold text-[#246b48] transition hover:text-[#174a32] hover:underline"
-          >
-            Lupa password?
-          </Link>
+          {email.trim().includes("@") ? (
+            <Link
+              href={`/auth/reset-password?email=${encodeURIComponent(email.trim())}`}
+              className="text-xs font-bold text-[#246b48] transition hover:text-[#174a32] hover:underline"
+            >
+              Lupa password?
+            </Link>
+          ) : (
+            <span className="text-xs font-semibold text-gray-500">
+              Lupa password akun username? Hubungi Administrator.
+            </span>
+          )}
         </div>
 
         <button
