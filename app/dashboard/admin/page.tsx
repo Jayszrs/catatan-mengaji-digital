@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/Button";
@@ -17,26 +17,78 @@ import {
   X,
 } from "lucide-react";
 
+type AdminRole = "admin" | "guru" | "orang_tua";
+
+interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  role: AdminRole | "Belum Ada Role";
+  created_at: string;
+  is_current_admin: boolean;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+async function getAdminHeaders(includeJson = false) {
+  const headers: Record<string, string> = {};
+  if (includeJson) headers["Content-Type"] = "application/json";
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (session?.user.app_metadata?.role === "admin") {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  }
+  return headers;
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   // Form states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState("guru");
+  const [role, setRole] = useState<AdminRole>("guru");
 
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [passwordUpdatingUserId, setPasswordUpdatingUserId] = useState("");
   const [repairingUserId, setRepairingUserId] = useState("");
   const [deletingUserId, setDeletingUserId] = useState("");
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/users", {
+        headers: await getAdminHeaders(),
+        cache: "no-store",
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal mengambil data pengguna");
+      }
+
+      setUsers(data.users || []);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Gagal mengambil data pengguna"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const verifyAdmin = async () => {
@@ -55,46 +107,11 @@ export default function AdminDashboard() {
       await fetchUsers();
     };
     void verifyAdmin();
-    // Authentication is checked once when opening the admin dashboard.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const getAdminHeaders = async (includeJson = false) => {
-    const headers: Record<string, string> = {};
-    if (includeJson) headers["Content-Type"] = "application/json";
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.user.app_metadata?.role === "admin") {
-      headers.Authorization = `Bearer ${session.access_token}`;
-    }
-    return headers;
-  };
-
-  const fetchUsers = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/admin/users", {
-        headers: await getAdminHeaders(),
-      });
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || "Gagal mengambil data pengguna");
-      }
-      
-      setUsers(data.users || []);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchUsers, router]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setCreatingAccount(true);
     setError("");
     setSuccess("");
 
@@ -123,27 +140,37 @@ export default function AdminDashboard() {
       setName("");
       setRole("guru");
       
-      fetchUsers();
-    } catch (err: any) {
-      setError(err.message);
+      await fetchUsers();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Gagal membuat akun"));
     } finally {
-      setLoading(false);
+      setCreatingAccount(false);
     }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
     setSuccess("");
 
+    if (!selectedUser) {
+      setError("Pilih akun yang akan diubah passwordnya.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Konfirmasi password tidak sama dengan password baru.");
+      return;
+    }
+
+    const targetUser = selectedUser;
+    setPasswordUpdatingUserId(targetUser.id);
     try {
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: await getAdminHeaders(true),
         body: JSON.stringify({
           action: "update_password",
-          userId: selectedUser.id,
+          userId: targetUser.id,
           password: newPassword
         })
       });
@@ -151,14 +178,18 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      setSuccess("Password berhasil diubah!");
+      setSuccess(
+        data.message ||
+          `Password ${targetUser.email} berhasil diubah dan diverifikasi.`,
+      );
       setShowPasswordForm(false);
       setNewPassword("");
+      setConfirmPassword("");
       setSelectedUser(null);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Gagal mengubah password"));
     } finally {
-      setLoading(false);
+      setPasswordUpdatingUserId("");
     }
   };
 
@@ -198,9 +229,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteUser = async (user: any) => {
+  const handleDeleteUser = async (user: AdminUser) => {
     const confirmed = window.confirm(
-      `Hapus akun ${user.name} (${user.email})?\n\nAkun tidak dapat login lagi. Akun Guru yang masih memiliki data siswa akan ditolak oleh sistem agar data siswa tidak ikut terhapus.`,
+      `Hapus akun ${user.name} (${user.email})?\n\nAkun langsung tidak dapat login lagi. Data siswa, kelas, laporan, dan riwayat penilaian yang terkait tetap disimpan.`,
     );
     if (!confirmed) return;
 
@@ -215,10 +246,12 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menghapus akun");
-      setSuccess(`Akun ${user.name} berhasil dihapus.`);
+      setSuccess(
+        data.message || `Akun ${user.name} berhasil dihapus dari akses login.`,
+      );
       await fetchUsers();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Gagal menghapus akun");
+      setError(getErrorMessage(err, "Gagal menghapus akun"));
     } finally {
       setDeletingUserId("");
     }
@@ -303,7 +336,7 @@ export default function AdminDashboard() {
                 <label className="block text-sm font-bold text-gray-800 mb-2">Role / Peran</label>
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value)}
+                  onChange={(e) => setRole(e.target.value as AdminRole)}
                   className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1b4332] transition-all font-medium bg-white"
                 >
                   <option value="guru">Guru / Wali Kelas</option>
@@ -312,8 +345,8 @@ export default function AdminDashboard() {
                 </select>
               </div>
             </div>
-            <Button type="submit" disabled={loading} className="w-full py-4 bg-[#1b4332] text-white rounded-xl font-bold text-lg">
-              {loading ? <Loader2 className="animate-spin mx-auto" /> : "Simpan Akun"}
+            <Button type="submit" disabled={creatingAccount} className="w-full py-4 bg-[#1b4332] text-white rounded-xl font-bold text-lg">
+              {creatingAccount ? <Loader2 className="animate-spin mx-auto" /> : "Simpan Akun"}
             </Button>
           </form>
         </div>
@@ -326,12 +359,26 @@ export default function AdminDashboard() {
             <h2 className="text-2xl font-black text-gray-900 flex items-center gap-3">
               <Key className="text-blue-600" /> Ubah Sandi: {selectedUser.name}
             </h2>
-            <button onClick={() => setShowPasswordForm(false)} className="text-gray-400 hover:text-gray-700">
+            <button
+              type="button"
+              onClick={() => {
+                setShowPasswordForm(false);
+                setSelectedUser(null);
+                setNewPassword("");
+                setConfirmPassword("");
+              }}
+              className="text-gray-400 hover:text-gray-700"
+            >
               <X size={24} />
             </button>
           </div>
           <form onSubmit={handleChangePassword} className="space-y-6">
-            <div className="max-w-md">
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+              Akun tujuan: <span className="font-bold">{selectedUser.email}</span>.
+              Sistem akan memeriksa ulang perubahan di Supabase sebelum
+              menampilkan status berhasil.
+            </div>
+            <div className="grid max-w-3xl grid-cols-1 gap-5 md:grid-cols-2">
               <Input
                 label="Password Baru"
                 type="password"
@@ -341,9 +388,34 @@ export default function AdminDashboard() {
                 required
                 minLength={6}
               />
+              <Input
+                label="Konfirmasi Password Baru"
+                type="password"
+                placeholder="Ketik ulang password baru"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+              />
             </div>
-            <Button type="submit" disabled={loading} className="py-3 px-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold">
-              {loading ? <Loader2 className="animate-spin mx-auto" /> : "Update Password"}
+            <p className="text-xs font-medium text-gray-500">
+              Password baru berlaku saat login berikutnya. Sesi yang sedang
+              terbuka pada perangkat pengguna dapat tetap aktif sampai keluar
+              atau sesi berakhir.
+            </p>
+            <Button
+              type="submit"
+              disabled={passwordUpdatingUserId === selectedUser.id}
+              className="py-3 px-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold"
+            >
+              {passwordUpdatingUserId === selectedUser.id ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="animate-spin" size={18} />
+                  Memverifikasi...
+                </span>
+              ) : (
+                "Update Password"
+              )}
             </Button>
           </form>
         </div>
@@ -427,8 +499,12 @@ export default function AdminDashboard() {
                             setShowPasswordForm(true);
                             setShowAddForm(false);
                             setNewPassword("");
+                            setConfirmPassword("");
+                            setError("");
+                            setSuccess("");
                             window.scrollTo({ top: 0, behavior: "smooth" });
                           }}
+                          disabled={Boolean(passwordUpdatingUserId)}
                           className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-200"
                         >
                           <Key size={16} /> Ubah Sandi

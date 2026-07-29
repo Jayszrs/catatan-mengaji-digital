@@ -53,20 +53,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: rolesError.message }, { status: 500 });
   }
 
-  const usersWithRoles = authData.users.map((user) => {
-    const databaseRole = rolesData?.find((row) => row.user_id === user.id)?.role;
-    const appRole = user.app_metadata?.role;
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.user_metadata?.name || "-",
-      role: appRole === "admin" ? "admin" : databaseRole || "Belum Ada Role",
-      created_at: user.created_at,
-      is_current_admin: guard.authorization?.user?.id === user.id,
-    };
-  });
+  const usersWithRoles = authData.users
+    .filter((user) => !user.deleted_at)
+    .map((user) => {
+      const databaseRole = rolesData?.find(
+        (row) => row.user_id === user.id,
+      )?.role;
+      const appRole = user.app_metadata?.role;
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.user_metadata?.name || "-",
+        role:
+          appRole === "admin"
+            ? "admin"
+            : databaseRole || "Belum Ada Role",
+        created_at: user.created_at,
+        is_current_admin: guard.authorization?.user?.id === user.id,
+      };
+    });
 
-  return NextResponse.json({ users: usersWithRoles });
+  return NextResponse.json(
+    { users: usersWithRoles },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -197,19 +207,82 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "update_password") {
-      if (!userId || !password || String(password).length < 6) {
+      const normalizedPassword =
+        typeof password === "string" ? password : "";
+      if (!userId || normalizedPassword.length < 6) {
         return NextResponse.json(
           { error: "Password baru minimal 6 karakter." },
           { status: 400 },
         );
       }
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-        password,
-      });
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+
+      const { data: targetData, error: targetError } =
+        await supabaseAdmin.auth.admin.getUserById(userId);
+      if (targetError || !targetData.user) {
+        return NextResponse.json(
+          { error: targetError?.message || "Akun tidak ditemukan." },
+          { status: 404 },
+        );
       }
-      return NextResponse.json({ success: true });
+      if (targetData.user.deleted_at) {
+        return NextResponse.json(
+          { error: "Password akun yang sudah dihapus tidak dapat diubah." },
+          { status: 409 },
+        );
+      }
+
+      const passwordChangedAt = new Date().toISOString();
+      const { data: updateData, error: updateError } =
+        await supabaseAdmin.auth.admin.updateUserById(userId, {
+          password: normalizedPassword,
+          user_metadata: {
+            ...(targetData.user.user_metadata || {}),
+            password_changed_at: passwordChangedAt,
+          },
+        });
+      if (updateError) {
+        return NextResponse.json(
+          { error: updateError.message },
+          { status: 400 },
+        );
+      }
+      if (
+        updateData.user?.id !== userId ||
+        updateData.user.user_metadata?.password_changed_at !==
+          passwordChangedAt
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Supabase belum mengonfirmasi perubahan password. Silakan coba kembali.",
+          },
+          { status: 502 },
+        );
+      }
+
+      const { data: verificationData, error: verificationError } =
+        await supabaseAdmin.auth.admin.getUserById(userId);
+      if (
+        verificationError ||
+        verificationData.user?.user_metadata?.password_changed_at !==
+          passwordChangedAt
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              verificationError?.message ||
+              "Perubahan password belum berhasil diverifikasi.",
+          },
+          { status: 502 },
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        email: verificationData.user.email,
+        password_changed_at: passwordChangedAt,
+        message: `Password ${verificationData.user.email || "akun"} berhasil diubah dan diverifikasi.`,
+      });
     }
 
     if (action === "delete") {
@@ -251,27 +324,6 @@ export async function POST(request: NextRequest) {
           ? "admin"
           : targetRoleRow?.role;
 
-      if (targetRole === "guru") {
-        const { count, error: studentCountError } = await supabaseAdmin
-          .from("students")
-          .select("id", { count: "exact", head: true })
-          .eq("teacher_id", userId);
-        if (studentCountError) {
-          return NextResponse.json(
-            { error: studentCountError.message },
-            { status: 400 },
-          );
-        }
-        if ((count || 0) > 0) {
-          return NextResponse.json(
-            {
-              error: `Akun Guru masih memiliki ${count} data siswa. Akun tidak dihapus agar data siswa tidak ikut hilang.`,
-            },
-            { status: 409 },
-          );
-        }
-      }
-
       if (targetRole === "admin") {
         const { data: allUsers, error: listError } =
           await supabaseAdmin.auth.admin.listUsers();
@@ -282,7 +334,8 @@ export async function POST(request: NextRequest) {
           );
         }
         const adminCount = allUsers.users.filter(
-          (user) => user.app_metadata?.role === "admin",
+          (user) =>
+            !user.deleted_at && user.app_metadata?.role === "admin",
         ).length;
         if (adminCount <= 1) {
           return NextResponse.json(
@@ -292,15 +345,74 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const { error: deleteError } =
-        await supabaseAdmin.auth.admin.deleteUser(userId);
+      // Soft delete keeps historical rows intact. A hard delete would trigger
+      // ON DELETE CASCADE on classes, reports, and exam records owned by a Guru.
+      const { data: deletedData, error: deleteError } =
+        await supabaseAdmin.auth.admin.deleteUser(userId, true);
       if (deleteError) {
         return NextResponse.json(
           { error: deleteError.message },
           { status: 400 },
         );
       }
-      return NextResponse.json({ success: true });
+      if (deletedData.user?.id && deletedData.user.id !== userId) {
+        return NextResponse.json(
+          {
+            error:
+              "Supabase mengembalikan konfirmasi untuk akun yang berbeda.",
+          },
+          { status: 502 },
+        );
+      }
+
+      const { data: deletionVerification, error: verificationError } =
+        await supabaseAdmin.auth.admin.getUserById(userId);
+      if (
+        verificationError ||
+        !deletionVerification.user?.deleted_at
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              verificationError?.message ||
+              "Supabase belum mengonfirmasi penghapusan akun. Silakan coba kembali.",
+          },
+          { status: 502 },
+        );
+      }
+
+      // Remove application access immediately as an extra safeguard. These
+      // rows are not needed to preserve academic history.
+      const cleanupResults = await Promise.all([
+        supabaseAdmin.from("user_roles").delete().eq("user_id", userId),
+        targetRole === "orang_tua"
+          ? supabaseAdmin
+              .from("parent_student_links")
+              .delete()
+              .eq("parent_id", userId)
+          : Promise.resolve({ error: null }),
+        targetRole === "guru"
+          ? supabaseAdmin
+              .from("teacher_profiles")
+              .delete()
+              .eq("user_id", userId)
+          : Promise.resolve({ error: null }),
+      ]);
+      const cleanupWarnings = cleanupResults
+        .map((result) => result.error?.message)
+        .filter((message): message is string => Boolean(message));
+
+      return NextResponse.json({
+        success: true,
+        deleted_user_id: userId,
+        deletion_mode: "soft",
+        historical_data_preserved: true,
+        warnings: cleanupWarnings,
+        message:
+          cleanupWarnings.length > 0
+            ? "Akun sudah dinonaktifkan dan tidak dapat login. Sebagian data profil pendukung belum dapat dibersihkan."
+            : "Akun berhasil dihapus dari akses login. Data akademik terkait tetap tersimpan.",
+      });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
