@@ -37,3 +37,21 @@ body {
 .animate-zoom-in {
   animation: modal-zoom-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+@media screen {
+  .landing-deferred-section {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 720px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

@@ -96,7 +96,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#f7faf7] text-[#10251c]">
-      <nav className="sticky top-0 z-50 w-full max-w-[100vw] overflow-hidden border-b border-[#163e2d]/10 bg-white/90 backdrop-blur-xl">
+      <nav className="sticky top-0 z-50 w-full max-w-[100vw] overflow-hidden border-b border-[#163e2d]/10 bg-white/95 shadow-sm">
         <div className="mx-auto flex h-[76px] w-full min-w-0 max-w-7xl items-center justify-between gap-3 px-5 sm:px-6 lg:px-8">
           <Link href="/" className="flex min-w-0 shrink items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-gray-200">
@@ -151,13 +151,22 @@ export default function Home() {
       </nav>
 
       <section className="relative isolate overflow-hidden">
-        <div className="absolute inset-0 -z-20 bg-[linear-gradient(120deg,#f7faf7_0%,#ffffff_50%,#edf8f1_100%)]" />
-        <div className="absolute -right-40 -top-32 -z-10 h-[520px] w-[520px] rounded-full bg-[#65c98a]/15 blur-3xl" />
-        <div className="absolute -bottom-48 -left-48 -z-10 h-[500px] w-[500px] rounded-full bg-[#d9b45b]/10 blur-3xl" />
+        <Image
+          src="/onboarding-students-quran.webp"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          quality={65}
+          className="-z-30 object-cover object-center"
+        />
+        <div className="absolute inset-0 -z-20 bg-[linear-gradient(90deg,rgba(247,250,247,0.97)_0%,rgba(255,255,255,0.9)_48%,rgba(237,248,241,0.82)_100%)]" />
+        <div className="absolute -right-40 -top-32 -z-10 h-[520px] w-[520px] rounded-full bg-[#65c98a]/10" />
+        <div className="absolute -bottom-48 -left-48 -z-10 h-[500px] w-[500px] rounded-full bg-[#d9b45b]/8" />
 
         <div className="mx-auto grid min-h-[calc(100vh-76px)] w-full min-w-0 max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-14 px-5 py-16 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-20">
           <div className="min-w-0">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#b9dcc8] bg-white/80 px-3.5 py-2 text-xs font-bold text-[#267449] shadow-sm backdrop-blur">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#b9dcc8] bg-white/90 px-3.5 py-2 text-xs font-bold text-[#267449] shadow-sm">
               <Sparkles size={14} />
               Sistem Tahfidz Terintegrasi
             </div>
@@ -208,7 +217,7 @@ export default function Home() {
           </div>
 
           <div className="relative mx-auto w-full min-w-0 max-w-[590px] lg:mx-0 lg:ml-auto">
-            <div className="absolute -left-8 top-20 hidden h-20 w-20 rounded-3xl border border-white/80 bg-white/70 shadow-xl backdrop-blur lg:block" />
+            <div className="absolute -left-8 top-20 hidden h-20 w-20 rounded-3xl border border-white/80 bg-white/85 shadow-xl lg:block" />
             <div className="absolute -right-6 bottom-16 hidden h-28 w-28 rounded-full bg-[#d4ae55]/20 blur-sm lg:block" />
 
             <div className="relative overflow-hidden rounded-[32px] border border-[#315948] bg-[#123729] p-3 shadow-[0_35px_90px_rgba(19,56,42,0.28)] sm:p-4">
@@ -320,7 +329,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="fitur" className="bg-white px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
+      <section id="fitur" className="landing-deferred-section bg-white px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-8 lg:grid-cols-[0.7fr_1fr] lg:items-end">
             <div>
@@ -358,7 +367,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="border-y border-[#dfe8e2] bg-[#f1f6f2] px-5 py-20 sm:px-6 lg:px-8">
+      <section className="landing-deferred-section border-y border-[#dfe8e2] bg-[#f1f6f2] px-5 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="text-center">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[#2d8d58]">
@@ -386,7 +395,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-white px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
+      <section className="landing-deferred-section bg-white px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div className="mx-auto grid max-w-7xl overflow-hidden rounded-[36px] bg-[#123729] lg:grid-cols-2">
           <div className="relative border-b border-white/10 p-7 text-white sm:p-10 lg:border-b-0 lg:border-r lg:p-12">
             <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-[#4dbd76]/10 blur-2xl" />
@@ -435,7 +444,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-white px-5 pb-20 sm:px-6 lg:px-8 lg:pb-28">
+      <section className="landing-deferred-section bg-white px-5 pb-20 sm:px-6 lg:px-8 lg:pb-28">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-7 rounded-[32px] border border-[#cfe0d5] bg-[linear-gradient(120deg,#f1f8f3,#ffffff)] p-8 text-center sm:p-10 lg:flex-row lg:text-left">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2d8d58]">

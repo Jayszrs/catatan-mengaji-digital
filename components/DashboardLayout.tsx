@@ -72,7 +72,7 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
       return;
     }
 
-    const storageKey = `cmd-dashboard-tour-v1:${userRole}`;
+    const storageKey = `cmd-dashboard-tour-v2:${userRole}`;
     if (sessionStorage.getItem(storageKey)) return;
 
     const timer = window.setTimeout(() => setTourOpen(true), 150);
@@ -81,7 +81,7 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
 
   const finishTour = () => {
     if (userRole === "guru" || userRole === "orang_tua") {
-      sessionStorage.setItem(`cmd-dashboard-tour-v1:${userRole}`, "completed");
+      sessionStorage.setItem(`cmd-dashboard-tour-v2:${userRole}`, "completed");
     }
     setTourOpen(false);
   };
@@ -93,7 +93,7 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
 
   const handleLogout = async () => {
     if (userRole === "guru" || userRole === "orang_tua") {
-      sessionStorage.removeItem(`cmd-dashboard-tour-v1:${userRole}`);
+      sessionStorage.removeItem(`cmd-dashboard-tour-v2:${userRole}`);
     }
     if (userRole === "admin") {
       await fetch("/api/admin/session", { method: "DELETE" });

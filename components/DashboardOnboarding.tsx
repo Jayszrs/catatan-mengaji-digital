@@ -38,57 +38,110 @@ interface DashboardOnboardingProps {
 const teacherSteps: TourStep[] = [
   {
     eyebrow: "Selamat Datang",
-    title: "Siap mendampingi hafalan dengan lebih terarah?",
+    title: "Mulai alur kerja Guru dengan lebih terarah",
     description:
-      "Tur singkat ini akan memperkenalkan alur utama Catatan Mengaji Digital untuk Guru.",
+      "Panduan ini menjelaskan urutan kerja dari menyiapkan data sampai mencetak rapor resmi. Ikuti langkahnya agar setiap nilai masuk ke laporan yang benar.",
     icon: PartyPopper,
     points: [
-      "Semua pekerjaan utama tersedia dari menu samping",
-      "Data tersimpan dan terhubung ke rapor otomatis",
+      "Kerjakan sesuai urutan menu yang dijelaskan",
+      "Gunakan tombol Simpan sebelum berpindah halaman",
+      "Panduan dapat dibuka kembali dari menu Sistem",
     ],
   },
   {
-    eyebrow: "Langkah Awal",
-    title: "Siapkan data siswa dan kelas",
+    eyebrow: "Langkah 1 · Data Dasar",
+    title: "Siapkan siswa, kelas, dan level awal",
     description:
-      "Mulai dari Daftar Siswa untuk menambah atau mengimpor siswa, lalu atur rombongan belajar melalui Data Kelas.",
+      "Buka Daftar Siswa untuk menambah siswa secara manual atau mengimpor Excel. Setelah itu buka Data Kelas untuk memastikan setiap siswa masuk ke kelas yang tepat.",
     icon: Users,
     points: [
-      "Tambah siswa satu per satu atau melalui Excel",
-      "Pastikan NIS, kelas, dan level Tahfidz sudah benar",
+      "Periksa nama, NIS/NISN, jenis kelamin, dan data orang tua",
+      "Tentukan kelas serta level Tahfidz awal siswa",
+      "Koreksi data siswa sebelum mulai mengisi penilaian",
     ],
   },
   {
-    eyebrow: "Kegiatan Harian",
-    title: "Catat kehadiran dan perkembangan setiap hari",
+    eyebrow: "Langkah 2 · Data Surat",
+    title: "Atur target surat per level dan tahun ajaran",
     description:
-      "Menu Presensi & Harian digunakan untuk menyimpan kehadiran, kegiatan, tadarus, hafalan, serta catatan Guru.",
+      "Buka Data Surat, pilih tahun ajaran, lalu periksa daftar surat Level 1 sampai Mustawa Muttawasit 3. Guru dapat menambah atau menyesuaikan surat ketika kurikulum berubah.",
+    icon: BookOpen,
+    points: [
+      "Pastikan tahun ajaran yang dipilih sudah benar",
+      "Tambah surat pada level yang sesuai dan periksa urutannya",
+      "Daftar ini menjadi pilihan surat di form penilaian",
+    ],
+  },
+  {
+    eyebrow: "Langkah 3 · Kegiatan Harian",
+    title: "Isi Presensi & Harian untuk setiap pertemuan",
+    description:
+      "Pilih siswa dan tanggal, isi status hadir, kegiatan, tadarus, hafalan, serta catatan Guru. Jika satu hari memuat beberapa surat atau nilai, masukkan semuanya sebelum menyimpan.",
     icon: FileText,
     points: [
-      "Satu tanggal dapat memuat beberapa nilai atau surat",
-      "Riwayat tanggal sebelumnya tetap tersimpan",
+      "Gunakan tanggal kegiatan yang sebenarnya",
+      "Satu hari dapat berisi lebih dari satu surat atau capaian",
+      "Periksa riwayat tanggal sebelumnya pada tabel laporan",
     ],
   },
   {
-    eyebrow: "Evaluasi Siswa",
-    title: "Kelola kenaikan level dan Munaqosyah",
+    eyebrow: "Langkah 4 · Kenaikan Level",
+    title: "Laksanakan Ujian Kenaikan Level",
     description:
-      "Gunakan Ujian Kenaikan Level untuk evaluasi per jenjang dan Form Munaqosyah untuk penilaian akhir yang lebih lengkap.",
+      "Pilih siswa, level asal dan tujuan, lalu pilih surat ujian berdasarkan Data Surat. Isi seluruh komponen penilaian dan simpan setelah hasil serta rekomendasi sudah benar.",
     icon: Award,
     points: [
-      "Pilihan surat mengikuti Data Surat per level",
-      "Nilai dan predikat dihitung secara konsisten",
+      "Pilihan surat mengikuti level dan tahun ajaran aktif",
+      "Isi kelancaran, makhroj, tajwid, dan komponen lain",
+      "Periksa status lulus atau rekomendasi naik level",
     ],
   },
   {
-    eyebrow: "Hasil Akhir",
-    title: "Cetak tiga rapor resmi secara otomatis",
+    eyebrow: "Langkah 5 · Munaqosyah",
+    title: "Lengkapi penilaian Munaqosyah",
     description:
-      "Data yang telah diisi akan masuk ke Rapor Hafalan Harian, Rapor Kenaikan Level, dan Rapor Munaqosyah.",
+      "Buka Form Munaqosyah, pilih siswa dan periode, lalu isi nilai bacaan, kepribadian, serta catatan Guru. Nilai angka, huruf, Arab, jumlah, dan predikat dirangkum otomatis.",
+    icon: GraduationCap,
+    points: [
+      "Pastikan tanggal, periode, dan juz sudah sesuai",
+      "Isi semua kategori nilai serta aspek kepribadian",
+      "Gunakan preview rapor resmi untuk memeriksa hasil",
+    ],
+  },
+  {
+    eyebrow: "Langkah 6 · Pemeriksaan",
+    title: "Tinjau kembali data sebelum membuat rapor",
+    description:
+      "Buka riwayat pada masing-masing form dan cocokkan siswa, tanggal, surat, nilai, serta catatan. Gunakan Edit bila ada data yang perlu diperbaiki.",
+    icon: CheckCircle2,
+    points: [
+      "Jangan membuat data ganda untuk siswa dan tanggal yang sama",
+      "Pastikan ejaan nama dan identitas siswa sudah benar",
+      "Simpan ulang perubahan sebelum membuka rapor",
+    ],
+  },
+  {
+    eyebrow: "Langkah 7 · Rapor",
+    title: "Preview dan cetak tiga rapor resmi",
+    description:
+      "Buka 3 Rapor Otomatis, pilih siswa, lalu pilih Rapor Hafalan Harian, Rapor Kenaikan Level, atau Rapor Munaqosyah. Template resmi sekolah akan terisi dari form terkait.",
     icon: Printer,
     points: [
-      "Pilih siswa dan jenis rapor yang dibutuhkan",
-      "Preview dahulu sebelum mencetak atau menyimpan PDF",
+      "Periksa periode dan seluruh baris nilai pada preview",
+      "Gunakan Cetak / Simpan PDF untuk hasil resmi",
+      "Gunakan Download Excel jika membutuhkan arsip data",
+    ],
+  },
+  {
+    eyebrow: "Selesai",
+    title: "Dashboard Guru siap digunakan",
+    description:
+      "Alur utamanya adalah data dasar → data surat → laporan harian → ujian level atau Munaqosyah → pemeriksaan → rapor resmi.",
+    icon: Sparkles,
+    points: [
+      "Isi data secara rutin agar progres selalu terbaru",
+      "Buka Panduan Penggunaan jika membutuhkan petunjuk ulang",
+      "Konfirmasi data siswa sebelum membagikan rapor",
     ],
   },
 ];
@@ -96,46 +149,74 @@ const teacherSteps: TourStep[] = [
 const parentSteps: TourStep[] = [
   {
     eyebrow: "Selamat Datang",
-    title: "Mari ikuti perkembangan belajar anak dengan lebih dekat",
+    title: "Pantau perkembangan anak dengan lebih mudah",
     description:
-      "Tur singkat ini akan menunjukkan informasi utama yang dapat dipantau melalui akun Orang Tua.",
+      "Panduan Orang Tua hanya menampilkan informasi yang perlu dipantau. Seluruh catatan dan penilaian berasal dari data yang diisi Guru.",
     icon: PartyPopper,
     points: [
-      "Data berasal dari catatan dan penilaian Guru",
-      "Informasi dapat dilihat kapan saja dari dashboard",
+      "Akun Orang Tua tidak dapat mengubah nilai",
+      "Data dapat dilihat kapan saja dari dashboard",
+      "Panduan dapat dibuka kembali dari menu Sistem",
     ],
   },
   {
-    eyebrow: "Progres Anak",
-    title: "Pilih anak dan lihat ringkasan perkembangannya",
+    eyebrow: "Langkah 1 · Pilih Anak",
+    title: "Pastikan profil anak yang dipantau sudah benar",
     description:
-      "Buka Daftar Siswa & Progres untuk melihat laporan harian, kehadiran, hafalan, evaluasi level, dan hasil Munaqosyah.",
+      "Buka Daftar Siswa & Progres, lalu pilih profil anak. Jika memiliki lebih dari satu anak, gunakan pilihan profil untuk berpindah tanpa perlu keluar dari akun.",
     icon: LayoutDashboard,
     points: [
-      "Gunakan pilihan profil jika memiliki lebih dari satu anak",
-      "Periksa riwayat berdasarkan tanggal laporan",
+      "Cocokkan nama, kelas, NIS, dan level Tahfidz",
+      "Pilih profil lain jika akun terhubung ke beberapa anak",
+      "Hubungi Guru bila profil anak belum muncul",
     ],
   },
   {
-    eyebrow: "Panduan Nilai",
+    eyebrow: "Langkah 2 · Progres",
+    title: "Baca laporan harian dan riwayat hafalan",
+    description:
+      "Pada halaman progres, lihat kehadiran, kegiatan, tadarus, hafalan, surat yang dipelajari, dan catatan Guru berdasarkan tanggal.",
+    icon: FileText,
+    points: [
+      "Gunakan tanggal untuk mengikuti perkembangan dari waktu ke waktu",
+      "Perhatikan catatan Guru sebagai arahan belajar di rumah",
+      "Nilai terbaru akan muncul setelah disimpan oleh Guru",
+    ],
+  },
+  {
+    eyebrow: "Langkah 3 · Panduan Nilai",
     title: "Pahami arti nilai dan predikat",
     description:
       "Menu Komposisi Nilai menjelaskan rentang angka, huruf, predikat, serta target hafalan pada setiap jenjang.",
     icon: GraduationCap,
     points: [
-      "Nilai disajikan dengan standar yang sama",
-      "Target membantu memantau kesiapan naik level",
+      "Cocokkan nilai dengan kategori dan arti predikatnya",
+      "Gunakan target sebagai panduan, bukan perbandingan antar-anak",
+      "Tanyakan kepada Guru bila ada hasil yang belum dipahami",
     ],
   },
   {
-    eyebrow: "Target Hafalan",
+    eyebrow: "Langkah 4 · Target Hafalan",
     title: "Lihat susunan surat sesuai level",
     description:
       "Menu Data Surat menampilkan daftar surat yang sedang berlaku untuk setiap level dan tahun ajaran.",
     icon: BookOpen,
     points: [
+      "Pilih tahun ajaran yang sedang berlangsung",
+      "Cari level anak lalu lihat target suratnya",
       "Orang Tua memiliki akses lihat saja",
-      "Perubahan kurikulum dikelola oleh Guru",
+    ],
+  },
+  {
+    eyebrow: "Langkah 5 · Tindak Lanjut",
+    title: "Dampingi latihan anak di rumah",
+    description:
+      "Gunakan catatan Guru, target surat, dan riwayat nilai untuk menentukan bagian yang perlu diulang. Konfirmasi langsung kepada Guru jika ada data yang terasa berbeda.",
+    icon: Users,
+    points: [
+      "Prioritaskan surat dan ayat yang dicatat Guru",
+      "Pantau perkembangan secara rutin tanpa mengubah data",
+      "Hubungi Guru untuk koreksi atau penjelasan nilai",
     ],
   },
   {
@@ -147,6 +228,7 @@ const parentSteps: TourStep[] = [
     points: [
       "Pantau perkembangan secara berkala",
       "Hubungi Guru jika ada data yang perlu dikonfirmasi",
+      "Gunakan menu Keluar setelah selesai di perangkat umum",
     ],
   },
 ];
@@ -171,9 +253,18 @@ export function DashboardOnboarding({
       aria-modal="true"
       aria-labelledby="onboarding-title"
     >
-      <section className="w-full max-w-2xl overflow-hidden rounded-[30px] border border-white/20 bg-white shadow-[0_35px_100px_rgba(3,25,16,0.4)]">
-        <div className="relative overflow-hidden bg-[#143f2f] px-5 py-5 text-white sm:px-7">
-          <div className="absolute -right-12 -top-20 h-52 w-52 rounded-full bg-[#54bd79]/20 blur-2xl" />
+      <section className="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[30px] border border-white/20 bg-white shadow-[0_35px_100px_rgba(3,25,16,0.4)]">
+        <div className="relative shrink-0 overflow-hidden bg-[#143f2f] px-5 py-5 text-white sm:px-7">
+          <Image
+            src="/onboarding-students-quran.webp"
+            alt=""
+            fill
+            sizes="(max-width: 672px) 100vw, 672px"
+            quality={55}
+            className="object-cover object-center opacity-20"
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(20,63,47,0.98),rgba(20,63,47,0.72))]" />
+          <div className="absolute -right-12 -top-20 h-52 w-52 rounded-full bg-[#54bd79]/20" />
           <div className="relative flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white">
@@ -203,7 +294,7 @@ export function DashboardOnboarding({
           </div>
         </div>
 
-        <div className="px-5 py-6 sm:px-8 sm:py-7">
+        <div className="overflow-y-auto px-5 py-6 sm:px-8 sm:py-7">
           <div className="flex items-center justify-between gap-4">
             <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">
               {step.eyebrow}
@@ -263,7 +354,7 @@ export function DashboardOnboarding({
           </div>
         </div>
 
-        <footer className="flex items-center justify-between gap-3 border-t border-gray-100 bg-gray-50/70 px-5 py-4 sm:px-8">
+        <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-gray-100 bg-gray-50/70 px-5 py-4 sm:px-8">
           <button
             type="button"
             onClick={onFinish}
