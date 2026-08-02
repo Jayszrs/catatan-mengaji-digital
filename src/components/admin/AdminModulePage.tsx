@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Activity,
   AlertTriangle,
-  Archive,
-  ArrowRight,
   BookOpen,
   CalendarRange,
   CheckCircle2,
@@ -19,6 +17,7 @@ import {
   History,
   Link2,
   Loader2,
+  RefreshCw,
   Save,
   School,
   Search,
@@ -36,7 +35,7 @@ import {
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { AdminClassAcademicPanel } from "@/components/admin/AdminClassAcademicPanel";
 import { supabase } from "@/lib/supabase";
-import { TAHFIDZ_LEVELS } from "@/lib/tahfidz-levels";
+import { getTahfidzLevelLabel, TAHFIDZ_LEVELS } from "@/lib/tahfidz-levels";
 
 export type AdminSection =
   | "monitoring"
@@ -96,6 +95,7 @@ interface StudentRow {
   teacher_name: string;
   parent_linked: boolean;
   duplicate_nis: boolean;
+  status: "active" | "inactive" | "moved";
   archived: boolean;
   updated_at: string | null;
 }
@@ -211,7 +211,7 @@ const sectionMeta: Record<
     eyebrow: "Data Sekolah",
     title: "Manajemen Siswa & Kelas",
     description:
-      "Pindahkan siswa, naik kelas massal, arsipkan siswa, dan temukan data bermasalah.",
+      "Pantau anggota kelas, tentukan wali kelas mengaji, dan kelola status siswa.",
   },
   "kelengkapan-laporan": {
     eyebrow: "Kontrol Pelaporan",
@@ -233,11 +233,6 @@ const sectionMeta: Record<
   },
 };
 
-const classOptions = Array.from({ length: 6 }, (_, index) => [
-  `${index + 1}A`,
-  `${index + 1}B`,
-]).flat();
-
 const eventLabels: Record<string, string> = {
   admin_account_created: "Akun dibuat",
   admin_role_changed: "Role diubah",
@@ -251,6 +246,9 @@ const eventLabels: Record<string, string> = {
   student_assignment_updated: "Penempatan siswa diubah",
   students_mass_promoted: "Kenaikan kelas massal",
   student_archived: "Siswa diarsipkan",
+  student_status_changed: "Status siswa diubah",
+  class_quran_teacher_changed: "Wali kelas mengaji diubah",
+  teacher_daily_report_saved: "Laporan harian Guru disimpan",
   academic_year_opened: "Tahun ajaran dibuka",
   academic_year_closed: "Tahun ajaran ditutup",
   curriculum_copied: "Kurikulum disalin",
@@ -385,22 +383,28 @@ function LoadingState() {
 
 function StudentManagementRow({
   student,
-  teachers,
+  homeroomTeacher,
   busy,
-  onSave,
-  onArchive,
+  onSaveStatus,
 }: {
   student: StudentRow;
-  teachers: TeacherRow[];
+  homeroomTeacher: string;
   busy: boolean;
-  onSave: (payload: Record<string, unknown>) => Promise<void>;
-  onArchive: (reason: "LULUS" | "PINDAH") => Promise<void>;
+  onSaveStatus: (status: StudentRow["status"]) => Promise<void>;
 }) {
-  const [teacherId, setTeacherId] = useState(student.teacher_id || "");
-  const [className, setClassName] = useState(
-    classOptions.includes(student.class_name) ? student.class_name : "1A",
-  );
-  const [level, setLevel] = useState(String(student.level || 1));
+  const [status, setStatus] = useState<StudentRow["status"]>(student.status);
+
+  const saveStatus = async () => {
+    if (
+      status !== "active" &&
+      !window.confirm(
+        `Ubah status ${student.name} menjadi ${status === "moved" ? "Pindah" : "Nonaktif"}? Riwayat nilai tetap disimpan.`,
+      )
+    ) {
+      return;
+    }
+    await onSaveStatus(status);
+  };
 
   return (
     <tr className="border-b border-gray-100 align-top hover:bg-gray-50/70">
@@ -417,80 +421,41 @@ function StudentManagementRow({
         </div>
       </td>
       <td className="px-3 py-4">
-        <select
-          value={teacherId}
-          onChange={(event) => setTeacherId(event.target.value)}
-          className="w-52 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold outline-none focus:border-emerald-500"
-        >
-          <option value="">Pilih Guru</option>
-          {teachers.map((teacher) => (
-            <option key={teacher.id} value={teacher.id}>
-              {teacher.name}
-            </option>
-          ))}
-        </select>
+        <p className="font-black text-gray-800">{student.class_name || "-"}</p>
+      </td>
+      <td className="px-3 py-4">
+        <p className="font-bold text-gray-800">{homeroomTeacher || "Belum ditentukan"}</p>
+        <p className="mt-1 text-xs text-gray-400">Wali kelas mengaji</p>
+      </td>
+      <td className="px-3 py-4">
+        <p className="font-bold text-gray-700">
+          {getTahfidzLevelLabel(student.level)}
+        </p>
+        <p className="mt-1 text-xs text-gray-400">Diubah melalui ujian level Guru</p>
       </td>
       <td className="px-3 py-4">
         <select
-          value={className}
-          onChange={(event) => setClassName(event.target.value)}
-          className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold outline-none focus:border-emerald-500"
+          value={status}
+          onChange={(event) =>
+            setStatus(event.target.value as StudentRow["status"])
+          }
+          className="w-40 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold outline-none focus:border-emerald-500"
         >
-          {classOptions.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-3 py-4">
-        <select
-          value={level}
-          onChange={(event) => setLevel(event.target.value)}
-          className="w-48 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold outline-none focus:border-emerald-500"
-        >
-          {TAHFIDZ_LEVELS.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
+          <option value="active">Aktif</option>
+          <option value="inactive">Nonaktif</option>
+          <option value="moved">Pindah</option>
         </select>
       </td>
       <td className="px-4 py-4">
-        <div className="flex min-w-52 gap-2">
-          <button
-            type="button"
-            disabled={busy || !teacherId}
-            onClick={() =>
-              void onSave({
-                action: "move_student",
-                student_id: student.id,
-                teacher_id: teacherId,
-                class_name: className,
-                level: Number(level),
-              })
-            }
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-black text-white hover:bg-emerald-700 disabled:opacity-50"
-          >
-            <Save size={14} /> Simpan
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void onArchive("LULUS")}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-2.5 text-xs font-black text-gray-600 hover:bg-gray-200 disabled:opacity-50"
-          >
-            <Archive size={14} /> Lulus
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void onArchive("PINDAH")}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2.5 text-xs font-black text-amber-700 hover:bg-amber-100 disabled:opacity-50"
-          >
-            <Archive size={14} /> Pindah
-          </button>
-        </div>
+        <button
+          type="button"
+          disabled={busy || status === student.status}
+          onClick={() => void saveStatus()}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white hover:bg-emerald-700 disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+          Simpan Status
+        </button>
       </td>
     </tr>
   );
@@ -508,12 +473,10 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
   const [expandedTeacher, setExpandedTeacher] = useState("");
   const [selectedParent, setSelectedParent] = useState<ParentRow | null>(null);
   const [parentNis, setParentNis] = useState("");
-  const [studentFilter, setStudentFilter] = useState<
-    "active" | "problem" | "archived"
-  >("active");
-  const [sourceClass, setSourceClass] = useState("1A");
-  const [targetClass, setTargetClass] = useState("2A");
-  const [incrementLevel, setIncrementLevel] = useState(false);
+  const [selectedAdminClass, setSelectedAdminClass] = useState("1A");
+  const [studentStatusFilter, setStudentStatusFilter] = useState<
+    "all" | StudentRow["status"]
+  >("all");
   const [auditStatus, setAuditStatus] = useState("all");
   const [auditDate, setAuditDate] = useState("");
   const [copySourceYear, setCopySourceYear] = useState("");
@@ -559,6 +522,12 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
     const timer = window.setTimeout(() => void fetchOverview(), 0);
     return () => window.clearTimeout(timer);
   }, [fetchOverview]);
+
+  useEffect(() => {
+    if (section !== "audit") return;
+    const interval = window.setInterval(() => void fetchOverview(), 30_000);
+    return () => window.clearInterval(interval);
+  }, [fetchOverview, section]);
 
   const runAction = async (
     payload: Record<string, unknown>,
@@ -620,24 +589,28 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
     if (!data) return [];
     const query = search.trim().toLowerCase();
     return data.students.filter((student) => {
-      const matchesMode =
-        studentFilter === "archived"
-          ? student.archived
-          : studentFilter === "problem"
-            ? !student.archived &&
-              (student.duplicate_nis ||
-                !student.parent_linked ||
-                !student.teacher_id)
-            : !student.archived;
+      const matchesClass = student.class_name === selectedAdminClass;
+      const matchesStatus =
+        studentStatusFilter === "all" ||
+        student.status === studentStatusFilter;
       const matchesSearch =
         !query ||
         [student.name, student.nis, student.class_name, student.teacher_name]
           .join(" ")
           .toLowerCase()
           .includes(query);
-      return matchesMode && matchesSearch;
+      return matchesClass && matchesStatus && matchesSearch;
     });
-  }, [data, search, studentFilter]);
+  }, [data, search, selectedAdminClass, studentStatusFilter]);
+
+  const selectedAdminClassMaster = useMemo(() => {
+    if (!data) return null;
+    return data.classes
+      .filter((row) => row.name === selectedAdminClass)
+      .sort((left, right) =>
+        right.academic_year.localeCompare(left.academic_year),
+      )[0] || null;
+  }, [data, selectedAdminClass]);
 
   const filteredAudit = useMemo(() => {
     if (!data) return [];
@@ -684,10 +657,19 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
           </p>
         </div>
         {data && (
-          <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold text-gray-500 shadow-sm">
-            <Clock3 size={16} className="text-emerald-600" />
-            Diperbarui {formatRelative(data.generated_at)}
-          </div>
+          <button
+            type="button"
+            onClick={() => void fetchOverview()}
+            disabled={loading}
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold text-gray-500 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 disabled:opacity-60"
+          >
+            {loading ? (
+              <RefreshCw size={16} className="animate-spin text-emerald-600" />
+            ) : (
+              <Clock3 size={16} className="text-emerald-600" />
+            )}
+            Perbarui · {formatRelative(data.generated_at)}
+          </button>
         )}
       </div>
 
@@ -822,18 +804,65 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
         </>
       ) : section === "siswa-kelas" ? (
         <>
-          <section className="mb-6 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-end"><div className="flex-1"><h2 className="text-xl font-black text-gray-900">Kenaikan Kelas Massal</h2><p className="mt-1 text-sm text-gray-500">Pindahkan seluruh siswa dalam satu rombel dan naikkan level Tahfidz bila diperlukan.</p></div><label className="text-xs font-black uppercase tracking-wide text-gray-500">Kelas Asal<select value={sourceClass} onChange={(event) => setSourceClass(event.target.value)} className="mt-2 block rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold">{classOptions.map((name) => <option key={name}>{name}</option>)}</select></label><ArrowRight className="mb-3 hidden text-gray-300 xl:block" /><label className="text-xs font-black uppercase tracking-wide text-gray-500">Kelas Tujuan<select value={targetClass} onChange={(event) => setTargetClass(event.target.value)} className="mt-2 block rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold">{classOptions.map((name) => <option key={name}>{name}</option>)}</select></label><label className="mb-3 inline-flex items-center gap-2 text-sm font-bold text-gray-700"><input type="checkbox" checked={incrementLevel} onChange={(event) => setIncrementLevel(event.target.checked)} className="h-5 w-5 accent-emerald-600" /> Naikkan level +1</label><button type="button" disabled={Boolean(busyKey)} onClick={() => { if (window.confirm(`Pindahkan semua siswa ${sourceClass} ke ${targetClass}?`)) void runAction({ action: "mass_promote", source_class: sourceClass, target_class: targetClass, increment_level: incrementLevel }, "mass"); }} className="rounded-xl bg-[#1b4332] px-5 py-3 font-black text-white disabled:opacity-50">Proses Kenaikan</button></div>
-          </section>
           <AdminClassAcademicPanel
             students={data.students}
             classes={data.classes}
             teachers={data.teachers}
             academicYears={data.academic_years.map((year) => year.year)}
+            selectedClass={selectedAdminClass}
+            onSelectedClassChange={setSelectedAdminClass}
+            onDataChanged={fetchOverview}
           />
           <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-            <div className="flex flex-col gap-4 border-b border-gray-100 p-5 xl:flex-row xl:items-center xl:justify-between"><div className="relative max-w-md flex-1"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari siswa, NIS, kelas, atau Guru..." className="w-full rounded-xl border border-gray-200 py-3 pl-11 pr-4 text-sm font-semibold outline-none focus:border-emerald-500" /></div><div className="flex rounded-xl bg-gray-100 p-1">{(["active", "problem", "archived"] as const).map((mode) => <button key={mode} type="button" onClick={() => setStudentFilter(mode)} className={`rounded-lg px-4 py-2 text-xs font-black ${studentFilter === mode ? "bg-white text-emerald-800 shadow-sm" : "text-gray-500"}`}>{mode === "active" ? "Siswa Aktif" : mode === "problem" ? "Data Bermasalah" : "Arsip"}</button>)}</div></div>
-            {studentFilter === "archived" ? <div className="divide-y divide-gray-100">{filteredStudents.map((student) => <div key={student.id} className="flex items-center justify-between gap-4 px-6 py-4"><div><p className="font-black text-gray-900">{student.name}</p><p className="text-xs font-semibold text-gray-500">NIS {student.nis} · {student.class_name}</p></div><StatusPill tone="gray">Diarsipkan</StatusPill></div>)}</div> : <div className="overflow-x-auto"><table className="min-w-[1180px] w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr><th className="px-4 py-4">Siswa</th><th className="px-3 py-4">Guru</th><th className="px-3 py-4">Kelas</th><th className="px-3 py-4">Level</th><th className="px-4 py-4">Aksi</th></tr></thead><tbody>{filteredStudents.map((student) => <StudentManagementRow key={student.id} student={student} teachers={data.teachers.filter((teacher) => teacher.status === "active")} busy={busyKey === student.id} onSave={(payload) => runAction(payload, student.id)} onArchive={async (reason) => { if (window.confirm(`Arsipkan ${student.name} sebagai ${reason.toLowerCase()}?`)) await runAction({ action: "archive_student", student_id: student.id, reason }, student.id); }} />)}</tbody></table></div>}
+            <div className="border-b border-gray-100 p-5">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-600">Anggota Kelas</p>
+                  <h2 className="mt-1 text-2xl font-black text-gray-900">Kelas {selectedAdminClass}</h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {filteredStudents.length} siswa sesuai filter · Wali kelas mengaji: {selectedAdminClassMaster?.homeroom_teacher || selectedAdminClassMaster?.teacher_name || "Belum ditentukan"}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <div className="relative min-w-72">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Cari siswa kelas ${selectedAdminClass}...`} className="w-full rounded-xl border border-gray-200 py-3 pl-11 pr-4 text-sm font-semibold outline-none focus:border-emerald-500" />
+                  </div>
+                  <select value={studentStatusFilter} onChange={(event) => setStudentStatusFilter(event.target.value as "all" | StudentRow["status"])} className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold outline-none focus:border-emerald-500">
+                    <option value="all">Semua Status</option>
+                    <option value="active">Aktif</option>
+                    <option value="inactive">Nonaktif</option>
+                    <option value="moved">Pindah</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            {filteredStudents.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <Users className="mx-auto text-gray-300" size={48} />
+                <h3 className="mt-4 text-lg font-black text-gray-900">Belum ada siswa di kelas {selectedAdminClass}</h3>
+                <p className="mt-2 text-sm text-gray-500">Kelas ini akan terisi setelah data siswa diimpor atau didaftarkan oleh Guru.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-[1180px] w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                    <tr><th className="px-4 py-4">Siswa</th><th className="px-3 py-4">Kelas</th><th className="px-3 py-4">Wali Kelas Mengaji</th><th className="px-3 py-4">Level Saat Ini</th><th className="px-3 py-4">Status Siswa</th><th className="px-4 py-4">Aksi</th></tr>
+                  </thead>
+                  <tbody>
+                    {filteredStudents.map((student) => (
+                      <StudentManagementRow
+                        key={`${student.id}-${student.status}`}
+                        student={student}
+                        homeroomTeacher={selectedAdminClassMaster?.homeroom_teacher || selectedAdminClassMaster?.teacher_name || ""}
+                        busy={busyKey === student.id}
+                        onSaveStatus={(status) => runAction({ action: "set_student_status", student_id: student.id, class_name: selectedAdminClass, status }, student.id)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         </>
       ) : section === "kelengkapan-laporan" ? (

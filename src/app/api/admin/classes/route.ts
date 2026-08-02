@@ -4,6 +4,7 @@ import {
   createAdminClient,
   isAdminServiceConfigured,
 } from "@/lib/admin-auth";
+import { recordSecurityEvent } from "@/lib/server/account-security";
 
 type QueryError = { message: string } | null;
 
@@ -164,6 +165,142 @@ export async function GET(request: NextRequest) {
           error instanceof Error
             ? error.message
             : "Data akademik kelas gagal dimuat.",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  if (!isAdminServiceConfigured()) {
+    return NextResponse.json(
+      { error: "Konfigurasi layanan Admin belum tersedia di Vercel." },
+      { status: 500 },
+    );
+  }
+
+  const authorization = await authorizeAdmin(request);
+  if (!authorization.authorized) {
+    return NextResponse.json(
+      { error: "Sesi Administrator tidak valid atau sudah berakhir." },
+      { status: 401 },
+    );
+  }
+
+  try {
+    const admin = createAdminClient();
+    const body = await request.json();
+    const className = normalizeClassName(body.class_name);
+    const academicYear = String(body.academic_year || "");
+    const teacherId = String(body.teacher_id || "");
+    if (
+      !/^[1-6][A-Z]$/.test(className) ||
+      !/^\d{4}\/\d{4}$/.test(academicYear) ||
+      !teacherId
+    ) {
+      return NextResponse.json(
+        { error: "Kelas, tahun ajaran, dan wali kelas mengaji wajib dipilih." },
+        { status: 400 },
+      );
+    }
+
+    const { data: roleRow, error: roleError } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", teacherId)
+      .maybeSingle();
+    if (roleError) throw roleError;
+    if (roleRow?.role !== "guru") {
+      return NextResponse.json(
+        { error: "Wali kelas mengaji harus menggunakan akun Guru." },
+        { status: 400 },
+      );
+    }
+
+    const [{ data: profile }, { data: authUser }] = await Promise.all([
+      admin
+        .from("teacher_profiles")
+        .select("full_name")
+        .eq("user_id", teacherId)
+        .maybeSingle(),
+      admin.auth.admin.getUserById(teacherId),
+    ]);
+    const teacherName = String(
+      profile?.full_name ||
+        authUser.user?.user_metadata?.name ||
+        authUser.user?.user_metadata?.username ||
+        authUser.user?.email ||
+        "Guru",
+    );
+
+    const { data: existing, error: existingError } = await admin
+      .from("classes")
+      .select("id,teacher_id,wali_kelas")
+      .eq("nama_kelas", className)
+      .eq("tahun_ajaran", academicYear)
+      .maybeSingle();
+    if (existingError) throw existingError;
+
+    const payload = {
+      teacher_id: teacherId,
+      nama_kelas: className,
+      tingkat: Number(className.charAt(0)),
+      rombel: className.slice(1),
+      wali_kelas: teacherName,
+      tahun_ajaran: academicYear,
+      aktif: true,
+      updated_at: new Date().toISOString(),
+    };
+    const result = existing
+      ? await admin.from("classes").update(payload).eq("id", existing.id)
+      : await admin.from("classes").insert(payload);
+    if (result.error) throw result.error;
+
+    const { data: classStudents, error: studentLookupError } = await admin
+      .from("students")
+      .select("id,kelas");
+    if (studentLookupError) throw studentLookupError;
+    const activeStudentIds = (classStudents || [])
+      .filter(
+        (student) =>
+          !String(student.kelas || "").toUpperCase().startsWith("ARSIP-") &&
+          normalizeClassName(student.kelas) === className,
+      )
+      .map((student) => String(student.id));
+    if (activeStudentIds.length > 0) {
+      const { error: studentUpdateError } = await admin
+        .from("students")
+        .update({ teacher_id: teacherId })
+        .in("id", activeStudentIds);
+      if (studentUpdateError) throw studentUpdateError;
+    }
+
+    await recordSecurityEvent(admin, {
+      actorUserId: authorization.user?.id || null,
+      eventType: "class_quran_teacher_changed",
+      status: "success",
+      request,
+      details: {
+        class_name: className,
+        academic_year: academicYear,
+        previous_teacher_id: existing?.teacher_id || null,
+        teacher_id: teacherId,
+        teacher_name: teacherName,
+        assigned_student_count: activeStudentIds.length,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Wali kelas mengaji ${className} berhasil diperbarui.`,
+    });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Wali kelas mengaji gagal diperbarui.",
       },
       { status: 500 },
     );

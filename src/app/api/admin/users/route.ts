@@ -794,6 +794,7 @@ export async function POST(request: NextRequest) {
           user_metadata: {
             ...(targetData.user.user_metadata || {}),
             password_changed_at: passwordChangedAt,
+            password_changed_by: guard.authorization?.user?.id || null,
           },
         });
       if (updateError) {

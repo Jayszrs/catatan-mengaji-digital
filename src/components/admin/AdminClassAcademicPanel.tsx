@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Loader2,
   RefreshCw,
+  Save,
   School,
   Users,
 } from "lucide-react";
@@ -81,6 +82,9 @@ interface Props {
   classes: AdminClass[];
   teachers: AdminTeacher[];
   academicYears: string[];
+  selectedClass: string;
+  onSelectedClassChange: (className: string) => void;
+  onDataChanged: () => Promise<void>;
 }
 
 const canonicalClassNames = Array.from({ length: 6 }, (_, index) => [
@@ -145,6 +149,9 @@ export function AdminClassAcademicPanel({
   classes,
   teachers,
   academicYears,
+  selectedClass,
+  onSelectedClassChange,
+  onDataChanged,
 }: Props) {
   const yearOptions = useMemo(() => {
     const options = new Set([getCurrentAcademicYear(), ...academicYears]);
@@ -158,7 +165,6 @@ export function AdminClassAcademicPanel({
     yearOptions[0] || getCurrentAcademicYear(),
   );
   const [selectedTeacher, setSelectedTeacher] = useState("all");
-  const [selectedClass, setSelectedClass] = useState("1A");
   const [selectedLevel, setSelectedLevel] = useState("all");
   const [viewMode, setViewMode] = useState<"scores" | "daily">("scores");
   const [scores, setScores] = useState<ScoreRow[]>([]);
@@ -166,7 +172,13 @@ export function AdminClassAcademicPanel({
   const [curriculum, setCurriculum] = useState<CurriculumRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const [homeroomSelection, setHomeroomSelection] = useState<{
+    scope: string;
+    teacherId: string;
+  } | null>(null);
+  const [savingHomeroom, setSavingHomeroom] = useState(false);
 
   const activeStudents = useMemo(
     () => students.filter((student) => !student.archived),
@@ -215,11 +227,7 @@ export function AdminClassAcademicPanel({
   }, [teacherScopedStudents]);
 
   const classRows = useMemo(() => {
-    const masters = classes.filter(
-      (row) =>
-        row.academic_year === selectedYear &&
-        (selectedTeacher === "all" || row.teacher_id === selectedTeacher),
-    );
+    const masters = classes.filter((row) => row.academic_year === selectedYear);
     const additional = masters
       .map((row) => normalizeClassName(row.name))
       .filter((name) => name && !canonicalClassNames.includes(name));
@@ -231,7 +239,59 @@ export function AdminClassAcademicPanel({
         ),
       }),
     );
-  }, [classes, selectedTeacher, selectedYear]);
+  }, [classes, selectedYear]);
+
+  const selectedMaster = useMemo(
+    () =>
+      classes.find(
+        (row) =>
+          row.academic_year === selectedYear &&
+          normalizeClassName(row.name) === selectedClass,
+      ),
+    [classes, selectedClass, selectedYear],
+  );
+
+  const homeroomScope = `${selectedYear}:${selectedClass}`;
+  const homeroomTeacherId =
+    homeroomSelection?.scope === homeroomScope
+      ? homeroomSelection.teacherId
+      : selectedMaster?.teacher_id || "";
+
+  const saveHomeroomTeacher = async () => {
+    if (!homeroomTeacherId) return;
+    setSavingHomeroom(true);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await fetch("/api/admin/classes", {
+        method: "POST",
+        headers: {
+          ...(await getAdminHeaders()),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          class_name: selectedClass,
+          academic_year: selectedYear,
+          teacher_id: homeroomTeacherId,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Wali kelas mengaji gagal disimpan.");
+      }
+      setSuccess(result.message || "Wali kelas mengaji berhasil disimpan.");
+      await onDataChanged();
+      setHomeroomSelection(null);
+    } catch (caughtError: unknown) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Wali kelas mengaji gagal disimpan.",
+      );
+    } finally {
+      setSavingHomeroom(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -426,7 +486,7 @@ export function AdminClassAcademicPanel({
                     <td className="px-4 py-3 text-left">
                       <button
                         type="button"
-                        onClick={() => setSelectedClass(name)}
+                        onClick={() => onSelectedClassChange(name)}
                         className={`inline-flex min-w-14 items-center justify-center rounded-xl px-3 py-2 font-black ${
                           selectedClass === name
                             ? "bg-emerald-600 text-white"
@@ -453,6 +513,62 @@ export function AdminClassAcademicPanel({
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="border-b border-gray-100 bg-gray-50/60 p-5 md:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+          <div className="flex-1">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-600">
+              Kelas {selectedClass} · {selectedYear}
+            </p>
+            <h3 className="mt-1 text-xl font-black text-gray-900">
+              Wali Kelas Mengaji
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Satu Guru penanggung jawab untuk kegiatan mengaji kelas ini.
+            </p>
+          </div>
+          <label className="min-w-72 text-xs font-black uppercase tracking-wide text-gray-500">
+            Pilih Guru
+            <select
+              value={homeroomTeacherId}
+              onChange={(event) =>
+                setHomeroomSelection({
+                  scope: homeroomScope,
+                  teacherId: event.target.value,
+                })
+              }
+              className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-900 outline-none focus:border-emerald-500"
+            >
+              <option value="">Belum ditentukan</option>
+              {teachers
+                .filter((teacher) => teacher.status === "active")
+                .map((teacher) => (
+                  <option key={teacher.id} value={teacher.id}>
+                    {teacher.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => void saveHomeroomTeacher()}
+            disabled={!homeroomTeacherId || savingHomeroom}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1b4332] px-5 py-3 font-black text-white disabled:opacity-50"
+          >
+            {savingHomeroom ? (
+              <Loader2 size={17} className="animate-spin" />
+            ) : (
+              <Save size={17} />
+            )}
+            Simpan Wali Kelas
+          </button>
+        </div>
+        {success && (
+          <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+            {success}
+          </p>
+        )}
       </div>
 
       <div className="border-b border-gray-100 p-5 md:p-6">

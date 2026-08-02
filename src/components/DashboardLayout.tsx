@@ -22,7 +22,6 @@ import {
   Link2,
   School,
   ClipboardCheck,
-  CalendarRange,
   History,
   ShieldCheck,
 } from "lucide-react";
@@ -189,10 +188,6 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
                 <Link href="/dashboard/admin/kelengkapan-laporan" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/admin/kelengkapan-laporan") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <ClipboardCheck size={20} />
                   <span>Kelengkapan Laporan</span>
-                </Link>
-                <Link href="/dashboard/admin/tahun-ajaran" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/admin/tahun-ajaran") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
-                  <CalendarRange size={20} />
-                  <span>Tahun & Kurikulum</span>
                 </Link>
                 <Link href="/dashboard/admin/audit" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/admin/audit") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
                   <History size={20} />

@@ -77,8 +77,28 @@ function normalizeClassName(value: unknown) {
     .replace(/\s+/g, "");
 }
 
+function studentPlacement(value: unknown) {
+  const raw = String(value || "").trim().toUpperCase();
+  const archived = raw.match(
+    /^ARSIP-(NONAKTIF|PINDAH|LULUS)(?:-([1-6][A-Z]))?$/,
+  );
+  if (!archived) {
+    return {
+      className: normalizeClassName(raw),
+      status: "active" as const,
+    };
+  }
+  return {
+    className: archived[2] || "",
+    status:
+      archived[1] === "PINDAH"
+        ? ("moved" as const)
+        : ("inactive" as const),
+  };
+}
+
 function isArchivedClass(value: unknown) {
-  return normalizeClassName(value).startsWith("ARSIP-");
+  return studentPlacement(value).status !== "active";
 }
 
 async function optionalRows(
@@ -342,20 +362,24 @@ export async function GET(request: NextRequest) {
       if (count > 1) duplicateNis.add(nis);
     });
 
-    const safeStudents = students.map((student) => ({
-      id: student.id,
-      name: student.nama_lengkap,
-      nis: student.nis,
-      class_name: student.kelas,
-      level: Number(student.level || 1),
-      teacher_id: student.teacher_id,
-      teacher_name:
-        teacherNameById.get(String(student.teacher_id)) || "Belum ada Guru",
-      parent_linked: linkedStudentIds.has(String(student.id)),
-      duplicate_nis: duplicateNis.has(String(student.nis || "").trim()),
-      archived: isArchivedClass(student.kelas),
-      updated_at: student.updated_at || student.created_at,
-    }));
+    const safeStudents = students.map((student) => {
+      const placement = studentPlacement(student.kelas);
+      return {
+        id: student.id,
+        name: student.nama_lengkap,
+        nis: student.nis,
+        class_name: placement.className,
+        level: Number(student.level || 1),
+        teacher_id: student.teacher_id,
+        teacher_name:
+          teacherNameById.get(String(student.teacher_id)) || "Belum ada Guru",
+        parent_linked: linkedStudentIds.has(String(student.id)),
+        duplicate_nis: duplicateNis.has(String(student.nis || "").trim()),
+        status: placement.status,
+        archived: placement.status !== "active",
+        updated_at: student.updated_at || student.created_at,
+      };
+    });
 
     const safeClasses = classes.map((row) => ({
       id: row.id,
@@ -405,7 +429,7 @@ export async function GET(request: NextRequest) {
             : "Perlu Dicek",
     }));
 
-    const auditEvents = securityEvents.map((event) => ({
+    const storedAuditEvents = securityEvents.map((event) => ({
       id: event.id,
       event_type: event.event_type,
       status: event.status,
@@ -420,6 +444,71 @@ export async function GET(request: NextRequest) {
       details: event.details || {},
       created_at: event.created_at,
     }));
+
+    // Password Admin disimpan di metadata Auth. Jadikan metadata ini sumber
+    // cadangan agar audit tetap terlihat jika migrasi tabel audit belum aktif.
+    const passwordAuditEvents = activeUsers.flatMap((user) => {
+      const changedAt = String(user.user_metadata?.password_changed_at || "");
+      const changedTimestamp = new Date(changedAt).getTime();
+      const alreadyRecorded = securityEvents.some(
+        (event) =>
+          event.event_type === "admin_password_changed" &&
+          String(event.target_user_id) === user.id &&
+          new Date(event.created_at).getTime() >= changedTimestamp - 5_000,
+      );
+      if (!changedAt || alreadyRecorded) return [];
+      const changedBy = String(
+        user.user_metadata?.password_changed_by || "",
+      );
+      return [
+        {
+          id: `password-${user.id}-${changedAt}`,
+          event_type: "admin_password_changed",
+          status: "success" as const,
+          actor_id: changedBy || null,
+          actor_name: userNameById.get(changedBy) || "Administrator",
+          target_id: user.id,
+          target_name: userDisplayName(user),
+          details: { source: "auth_metadata", password_changed_at: changedAt },
+          created_at: changedAt,
+        },
+      ];
+    });
+
+    // Laporan harian sebelumnya ditulis langsung oleh Guru melalui RLS, bukan
+    // endpoint Admin. Bentuk event audit dari data laporan yang otoritatif agar
+    // setiap simpan/edit tetap terpantau tanpa bergantung pada tabel audit.
+    const dailyReportAuditEvents = dailyReports.map((report) => ({
+      id: `daily-${report.id}-${report.updated_at || report.tanggal}`,
+      event_type: "teacher_daily_report_saved",
+      status: "success" as const,
+      actor_id: String(report.teacher_id || "") || null,
+      actor_name:
+        teacherNameById.get(String(report.teacher_id)) || "Guru tidak ditemukan",
+      target_id: String(report.student_id || "") || null,
+      target_name:
+        studentById.get(String(report.student_id))?.nama_lengkap ||
+        "Siswa tidak ditemukan",
+      details: {
+        report_id: report.id,
+        report_date: report.tanggal,
+        attendance_status: report.status_presensi,
+        source: "daily_student_reports",
+      },
+      created_at: report.updated_at || `${report.tanggal}T00:00:00+07:00`,
+    }));
+
+    const auditEvents = [
+      ...storedAuditEvents,
+      ...passwordAuditEvents,
+      ...dailyReportAuditEvents,
+    ]
+      .sort(
+        (left, right) =>
+          new Date(right.created_at).getTime() -
+          new Date(left.created_at).getTime(),
+      )
+      .slice(0, 250);
 
     const yearLabels = new Set<string>([getCurrentAcademicYear()]);
     classes.forEach((row) => yearLabels.add(String(row.tahun_ajaran)));
@@ -710,6 +799,67 @@ export async function POST(request: NextRequest) {
         },
       });
       return NextResponse.json({ success: true, message: "Penempatan siswa diperbarui." });
+    }
+
+    if (action === "set_student_status") {
+      const studentId = String(body.student_id || "");
+      const className = normalizeClassName(body.class_name);
+      const status = String(body.status || "");
+      if (
+        !studentId ||
+        !/^[1-6][A-Z]$/.test(className) ||
+        !["active", "inactive", "moved"].includes(status)
+      ) {
+        return NextResponse.json(
+          { error: "Siswa, kelas, dan status wajib dipilih." },
+          { status: 400 },
+        );
+      }
+      const { data: previous, error: previousError } = await admin
+        .from("students")
+        .select("nama_lengkap,kelas")
+        .eq("id", studentId)
+        .maybeSingle();
+      if (previousError) throw previousError;
+      if (!previous) {
+        return NextResponse.json(
+          { error: "Siswa tidak ditemukan." },
+          { status: 404 },
+        );
+      }
+
+      const storedClass =
+        status === "active"
+          ? className
+          : `ARSIP-${status === "moved" ? "PINDAH" : "NONAKTIF"}-${className}`;
+      const { error } = await admin
+        .from("students")
+        .update({ kelas: storedClass })
+        .eq("id", studentId);
+      if (error) throw error;
+
+      await recordSecurityEvent(admin, {
+        actorUserId,
+        eventType: "student_status_changed",
+        status: "success",
+        request,
+        details: {
+          student_id: studentId,
+          student_name: previous.nama_lengkap,
+          previous_class: previous.kelas,
+          class_name: className,
+          student_status: status,
+        },
+      });
+      return NextResponse.json({
+        success: true,
+        message:
+          status === "active"
+            ? "Status siswa diaktifkan kembali."
+            : status === "moved"
+              ? "Status siswa diubah menjadi pindah."
+              : "Status siswa diubah menjadi nonaktif.",
+      });
     }
 
     if (action === "mass_promote") {
