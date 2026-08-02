@@ -8,6 +8,7 @@ import {
 import { isManagedAccountEmail } from "@/lib/account-identifier";
 import { recordSecurityEvent } from "@/lib/server/account-security";
 import { getCurrentAcademicYear } from "@/lib/tahfidz-levels";
+import { normalizeClassName } from "@/lib/class-names";
 
 // Supabase table results are composed dynamically because this endpoint joins
 // several legacy schemas that do not share one generated database type.
@@ -74,14 +75,6 @@ function userAuditIdentity(user: User) {
   if (username) return `@${username}`;
   const emailUsername = String(user.email || "").split("@")[0]?.trim();
   return emailUsername ? `@${emailUsername}` : userDisplayName(user);
-}
-
-function normalizeClassName(value: unknown) {
-  return String(value || "")
-    .trim()
-    .toUpperCase()
-    .replace(/KELAS/g, "")
-    .replace(/[^1-6A-Z]/g, "");
 }
 
 function studentPlacement(value: unknown) {

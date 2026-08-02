@@ -5,16 +5,9 @@ import {
   isAdminServiceConfigured,
 } from "@/lib/admin-auth";
 import { recordSecurityEvent } from "@/lib/server/account-security";
+import { normalizeClassName } from "@/lib/class-names";
 
 type QueryError = { message: string } | null;
-
-function normalizeClassName(value: unknown) {
-  return String(value || "")
-    .trim()
-    .toUpperCase()
-    .replace(/KELAS/g, "")
-    .replace(/[^1-6A-Z]/g, "");
-}
 
 function isMissingFeature(error: QueryError) {
   return Boolean(

@@ -17,6 +17,7 @@ import {
   getTahfidzLevelLabel,
   TAHFIDZ_LEVELS,
 } from "@/lib/tahfidz-levels";
+import { normalizeClassName } from "@/lib/class-names";
 
 interface AdminStudent {
   id: string;
@@ -91,14 +92,6 @@ const canonicalClassNames = Array.from({ length: 6 }, (_, index) => [
   `${index + 1}A`,
   `${index + 1}B`,
 ]).flat();
-
-function normalizeClassName(value?: string | null) {
-  return String(value || "")
-    .trim()
-    .toUpperCase()
-    .replace(/KELAS/g, "")
-    .replace(/[^1-6A-Z]/g, "");
-}
 
 function formatScore(value?: number | null) {
   if (value === null || value === undefined || !Number.isFinite(Number(value))) {

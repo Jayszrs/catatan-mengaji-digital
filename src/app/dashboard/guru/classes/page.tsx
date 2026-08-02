@@ -31,6 +31,7 @@ import {
   getTahfidzLevelLabel,
   TAHFIDZ_LEVELS,
 } from "@/lib/tahfidz-levels";
+import { normalizeClassName } from "@/lib/class-names";
 
 interface ClassRow {
   id: string;
@@ -106,16 +107,6 @@ const createInitialForm = (className = "1A") => ({
   tahun_ajaran: currentAcademicYear,
   aktif: true,
 });
-
-const normalizeClassName = (value?: string | null) => {
-  const normalized = String(value || "")
-    .toUpperCase()
-    .replace(/KELAS/g, "")
-    .replace(/[^1-6A-Z]/g, "");
-  const match = normalized.match(/^([1-6])([A-Z])?/);
-  if (!match) return "";
-  return `${match[1]}${match[2] || "A"}`;
-};
 
 const normalizeNis = (value: unknown) => String(value ?? "").trim();
 
