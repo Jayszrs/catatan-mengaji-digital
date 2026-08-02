@@ -168,6 +168,13 @@ Migrasi ditulis agar dapat dijalankan ulang sejauh memungkinkan. Jika Supabase m
 - [Panduan mulai cepat](docs/QUICKSTART.md)
 - [Setup dan migrasi Supabase](docs/SUPABASE_SETUP.md)
 - [MOM/notulen perjalanan proyek](docs/MOM.md)
+- [PDF MOM lengkap](docs/MOM.pdf)
+
+PDF MOM dapat dibuat ulang setelah dokumen diperbarui:
+
+```bash
+python scripts/generate_mom_pdf.py
+```
 
 ## Pemeliharaan
 
