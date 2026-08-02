@@ -325,6 +325,15 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      await recordSecurityEvent(supabaseAdmin, {
+        actorUserId: guard.authorization?.user?.id || null,
+        targetUserId: data.user?.id || null,
+        eventType: "admin_account_created",
+        status: "success",
+        request,
+        details: { role, username: normalizedUsername },
+      });
+
       return NextResponse.json({
         success: true,
         user: {
@@ -478,6 +487,21 @@ export async function POST(request: NextRequest) {
           );
         }
       }
+
+      await recordSecurityEvent(supabaseAdmin, {
+        actorUserId: guard.authorization?.user?.id || null,
+        targetUserId: userId,
+        eventType: "admin_role_changed",
+        status: "success",
+        request,
+        details: {
+          previous_role:
+            previousAppMetadata.role ||
+            userData.user.user_metadata?.role ||
+            null,
+          new_role: role,
+        },
+      });
 
       return NextResponse.json({
         success: true,
@@ -809,6 +833,14 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      await recordSecurityEvent(supabaseAdmin, {
+        actorUserId: guard.authorization?.user?.id || null,
+        targetUserId: userId,
+        eventType: "admin_password_changed",
+        status: "success",
+        request,
+      });
+
       return NextResponse.json({
         success: true,
         password_changed_at: passwordChangedAt,
@@ -915,6 +947,19 @@ export async function POST(request: NextRequest) {
       const cleanupWarnings = cleanupResults
         .map((result) => result.error?.message)
         .filter((message): message is string => Boolean(message));
+
+      await recordSecurityEvent(supabaseAdmin, {
+        actorUserId: guard.authorization?.user?.id || null,
+        targetUserId: userId,
+        eventType: "admin_account_deleted",
+        status: "success",
+        request,
+        details: {
+          previous_role: targetRole || null,
+          historical_data_preserved: true,
+          cleanup_warning_count: cleanupWarnings.length,
+        },
+      });
 
       return NextResponse.json({
         success: true,

@@ -91,7 +91,7 @@ export default function Home() {
     role === "orang_tua"
       ? "/dashboard/orang-tua"
       : role === "admin"
-        ? "/dashboard/admin"
+        ? "/dashboard/admin/monitoring"
         : "/dashboard/guru";
 
   return (

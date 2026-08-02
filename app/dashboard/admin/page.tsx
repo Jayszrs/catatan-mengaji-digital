@@ -405,10 +405,10 @@ export default function AdminDashboard() {
       <div className="mb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-6">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mb-2">
-            Manajemen Akun
+            Persetujuan & Manajemen Akun
           </h1>
           <p className="text-sm text-gray-500 font-medium">
-            Kelola akun, password, serta role Admin, Guru, dan Orang Tua.
+            Setujui pendaftaran Guru serta kelola akun, password, role, dan hubungan anak.
           </p>
         </div>
         <div className="flex gap-4">

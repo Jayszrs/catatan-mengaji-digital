@@ -38,7 +38,7 @@ export default function LoginPage() {
           }),
         });
         if (response.ok) {
-          router.push("/dashboard/admin");
+          router.push("/dashboard/admin/monitoring");
           return;
         }
       }
@@ -80,7 +80,7 @@ export default function LoginPage() {
         }
 
         if (data.user.app_metadata?.role === "admin") {
-          router.push("/dashboard/admin");
+          router.push("/dashboard/admin/monitoring");
           return;
         }
 

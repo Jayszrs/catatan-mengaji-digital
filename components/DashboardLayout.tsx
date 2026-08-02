@@ -16,7 +16,15 @@ import {
   Menu,
   X,
   Award,
-  FileText
+  FileText,
+  Activity,
+  UserCheck,
+  Link2,
+  School,
+  ClipboardCheck,
+  CalendarRange,
+  History,
+  ShieldCheck,
 } from "lucide-react";
 
 interface LayoutProps {
@@ -158,9 +166,37 @@ export function DashboardLayout({ children, userRole }: LayoutProps) {
             <div>
               <p className="px-4 text-xs font-bold text-gray-400 mb-4 tracking-widest uppercase">Admin Panel</p>
               <nav className="space-y-1">
+                <Link href="/dashboard/admin/monitoring" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/admin/monitoring") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <Activity size={20} />
+                  <span>Dashboard Monitoring</span>
+                </Link>
+                <Link href="/dashboard/admin/guru" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/admin/guru") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <UserCheck size={20} />
+                  <span>Monitoring Guru</span>
+                </Link>
+                <Link href="/dashboard/admin/orang-tua" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/admin/orang-tua") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <Link2 size={20} />
+                  <span>Monitoring Orang Tua</span>
+                </Link>
+                <Link href="/dashboard/admin/siswa-kelas" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/admin/siswa-kelas") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <School size={20} />
+                  <span>Siswa & Kelas</span>
+                </Link>
                 <Link href="/dashboard/admin" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/admin") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
-                  <Users size={20} />
-                  <span>Manajemen Akun</span>
+                  <ShieldCheck size={20} />
+                  <span>Persetujuan Akun</span>
+                </Link>
+                <Link href="/dashboard/admin/kelengkapan-laporan" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/admin/kelengkapan-laporan") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <ClipboardCheck size={20} />
+                  <span>Kelengkapan Laporan</span>
+                </Link>
+                <Link href="/dashboard/admin/tahun-ajaran" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/admin/tahun-ajaran") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <CalendarRange size={20} />
+                  <span>Tahun & Kurikulum</span>
+                </Link>
+                <Link href="/dashboard/admin/audit" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive("/dashboard/admin/audit") ? "bg-[#1b4332] text-white shadow-md shadow-[#1b4332]/20" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+                  <History size={20} />
+                  <span>Audit Aktivitas</span>
                 </Link>
               </nav>
             </div>
