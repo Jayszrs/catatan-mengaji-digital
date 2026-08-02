@@ -1,214 +1,177 @@
-# Laporan Harian Tahsin & Tahfidz
+# Catatan Mengaji Digital
 
-Platform digital modern untuk mencatat dan memantau perkembangan pembelajaran Quran siswa. Menghubungkan guru dan orang tua dalam satu sistem terintegrasi.
+Platform pencatatan Tahsin dan Tahfidz SD Islam Labschool Bani Saleh. Aplikasi ini menyatukan data siswa, kelas, presensi, laporan harian, ujian kenaikan level, Munaqosyah, rapor resmi, kurikulum surat, serta pemantauan Admin dalam satu sumber data Supabase.
 
-## 🎯 Fitur Utama
+Status proyek: **siap dijalankan dan dideploy**. Dokumentasi ini diperbarui pada 2 Agustus 2026 setelah perapihan struktur proyek.
 
-- ✅ **Sistem Authentication**: Login dan signup dengan role selection (Guru/Orang Tua)
-- ✅ **Dashboard Guru**: Input laporan tadarus pagi dan progress hafalan siswa
-- ✅ **Dashboard Orang Tua**: Pantau perkembangan anak secara real-time
-- ✅ **Laporan Digital**: Terstruktur dan mudah digunakan
-- ✅ **Analitik & Tracking**: Statistik pembelajaran dan penilaian siswa
-- ✅ **Design Modern**: Interface clean dengan warna hijau #2dc653
+## Fitur utama
 
-## 🛠️ Tech Stack
+### Admin
 
-- **Frontend**: Next.js 14+ dengan TypeScript
-- **Styling**: Tailwind CSS
-- **Backend/Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
+- Dashboard monitoring jumlah akun, siswa, kelas, laporan, dan aktivitas terbaru.
+- Monitoring Guru beserta kelas, jumlah siswa, kelengkapan laporan, dan status aktivitas.
+- Monitoring Orang Tua beserta anak yang terhubung, kelengkapan biodata, dan waktu login.
+- Manajemen akun: membuat akun berbasis username, mengganti sandi dan role, menonaktifkan, serta menghapus akun secara aman.
+- Persetujuan akun Guru dan pengaitan akun Orang Tua melalui NIS siswa.
+- Manajemen siswa dan kelas lintas Guru, deteksi NIS ganda, pemindahan kelas, dan kenaikan kelas massal.
+- Rekap kelengkapan laporan per Guru.
+- Pengaturan tahun ajaran, kurikulum surat Level 1–6 dan Mustawa Muttawasit 1–3.
+- Audit aktivitas perubahan akun dan data penting.
 
-## 📋 Prerequisites
+### Guru
 
-- Node.js 18+ dan npm
-- Akun Supabase (gratis di https://supabase.com)
+- Kelola siswa dan kelas, termasuk impor Excel daftar siswa.
+- Presensi dan laporan harian terintegrasi.
+- Input ujian kenaikan level dengan pilihan surat sesuai level dan tahun ajaran.
+- Form Munaqosyah lengkap dengan nilai angka, huruf Indonesia/Arab, kepribadian, dan catatan.
+- Kelola data surat per jenjang dan tahun ajaran.
+- Rapor Hafalan Harian, Hafalan Level, dan Munaqosyah menggunakan template resmi.
+- Ekspor Excel, cetak, dan simpan PDF.
+- Profil Guru dan foto profil.
 
-## 🚀 Setup & Installation
+### Orang Tua
 
-### 1. Install Dependencies
+- Melihat progres anak berdasarkan NIS yang telah diklaim secara aman.
+- Melihat laporan harian, hasil ujian level, Munaqosyah, komposisi nilai, dan data surat.
+- Mengubah biodata Orang Tua dan data anak yang diizinkan.
+- Panduan penggunaan khusus role Orang Tua.
+
+## Teknologi
+
+- Next.js 16.2.7 App Router
+- React 19.2.4 dan TypeScript 5
+- Tailwind CSS 4
+- Supabase Auth, PostgreSQL, Row Level Security, RPC, dan Storage
+- Recharts untuk visualisasi monitoring
+- SheetJS (`xlsx`) untuk impor dan ekspor Excel
+- Vercel Analytics, Speed Insights, dan deployment
+
+## Arsitektur dan struktur folder
+
+Proyek ini memakai arsitektur **Next.js full-stack**. Frontend dan backend tetap berada dalam satu aplikasi agar routing, autentikasi, build, dan deployment Vercel konsisten, tetapi tanggung jawab setiap folder dibuat jelas:
+
+```text
+catatan-mengaji-digital/
+├── src/
+│   ├── app/
+│   │   ├── api/                 # Backend: HTTP route handlers
+│   │   ├── auth/                # Frontend: login, daftar, verifikasi, reset sandi
+│   │   ├── dashboard/           # Frontend: halaman Admin, Guru, dan Orang Tua
+│   │   ├── globals.css          # Gaya global
+│   │   ├── layout.tsx           # Root layout
+│   │   └── page.tsx             # Landing/onboarding
+│   ├── components/              # Frontend: komponen UI reusable
+│   │   └── admin/               # Komponen modul Admin
+│   ├── lib/                     # Logika aplikasi dan integrasi bersama
+│   │   └── server/              # Backend: layanan yang hanya berjalan di server
+│   └── types/                   # Deklarasi TypeScript
+├── database/
+│   └── migrations/              # Migrasi PostgreSQL/Supabase
+├── docs/
+│   ├── MOM.md                   # Notulen perjalanan proyek
+│   ├── QUICKSTART.md            # Panduan mulai cepat
+│   └── SUPABASE_SETUP.md        # Urutan setup dan migrasi database
+├── public/                       # Logo dan gambar statis
+├── .env.example                 # Contoh environment variable
+├── next.config.ts               # Konfigurasi Next.js
+├── package.json                 # Dependency dan perintah npm
+└── tsconfig.json                # Konfigurasi TypeScript dan alias @/ ke src/
+```
+
+Ringkasnya:
+
+- **Frontend:** `src/app` selain `src/app/api`, ditambah `src/components`.
+- **Backend:** `src/app/api` dan `src/lib/server`.
+- **Shared/application layer:** `src/lib` dan `src/types`.
+- **Database:** `database/migrations`.
+
+## Persyaratan
+
+- Node.js 20.9.0 atau lebih baru
+- npm
+- Project Supabase
+- Akun Vercel untuk deployment production
+
+## Menjalankan secara lokal
+
+1. Instal dependency:
+
+   ```bash
+   npm install
+   ```
+
+2. Salin konfigurasi environment:
+
+   ```powershell
+   Copy-Item .env.example .env.local
+   ```
+
+3. Isi `.env.local`:
+
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=https://PROJECT_ID.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+   SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=GANTI_DENGAN_PASSWORD_ADMIN_YANG_KUAT
+   ```
+
+4. Jalankan migrasi sesuai [panduan Supabase](docs/SUPABASE_SETUP.md).
+
+5. Jalankan aplikasi:
+
+   ```bash
+   npm run dev
+   ```
+
+6. Buka `http://localhost:3000`.
+
+## Pemeriksaan kualitas
+
+Jalankan sebelum commit atau deployment:
 
 ```bash
-npm install
+npm run lint
+npx tsc --noEmit
+npm run build
 ```
 
-### 2. Setup Supabase
-
-#### a. Buat Project Baru di Supabase
-
-1. Kunjungi https://supabase.com
-2. Sign up atau login dengan akun Anda
-3. Buat project baru
-4. Copy URL dan Anon Key dari project settings
-
-#### b. Setup Environment Variables
-
-Buat file `.env.local` di root project:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-#### c. Setup Database Schema
-
-Buka SQL Editor di Supabase dan jalankan script berikut:
-
-```sql
--- Create user_roles table
-CREATE TABLE user_roles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT NOT NULL,
-  role VARCHAR(20) NOT NULL CHECK (role IN ('guru', 'orang_tua')),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Create laporan_tadarus_pagi table
-CREATE TABLE laporan_tadarus_pagi (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  teacher_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  tanggal DATE NOT NULL,
-  nama_surah VARCHAR(100) NOT NULL,
-  hal_ayat VARCHAR(50),
-  keterangan TEXT,
-  guru_paraf BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Create indexes
-CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
-CREATE INDEX idx_laporan_teacher_id ON laporan_tadarus_pagi(teacher_id);
-CREATE INDEX idx_laporan_tanggal ON laporan_tadarus_pagi(tanggal);
-
--- Enable RLS (Row Level Security)
-ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE laporan_tadarus_pagi ENABLE ROW LEVEL SECURITY;
-
--- Create RLS policies
--- User roles
-CREATE POLICY "Users can view their own role"
-  ON user_roles FOR SELECT
-  USING (auth.uid() = user_id);
-
--- Laporan tadarus - guru dapat lihat laporan mereka sendiri
-CREATE POLICY "Teachers can view their own reports"
-  ON laporan_tadarus_pagi FOR SELECT
-  USING (auth.uid() = teacher_id);
-
--- Laporan tadarus - guru dapat insert laporan mereka
-CREATE POLICY "Teachers can create reports"
-  ON laporan_tadarus_pagi FOR INSERT
-  WITH CHECK (auth.uid() = teacher_id);
-
--- Laporan tadarus - guru dapat update laporan mereka
-CREATE POLICY "Teachers can update their reports"
-  ON laporan_tadarus_pagi FOR UPDATE
-  USING (auth.uid() = teacher_id);
-```
-
-### 3. Run Development Server
+Build production proyek memakai Webpack agar sama dengan proses validasi yang telah digunakan selama pengembangan:
 
 ```bash
-npm run dev
+npx next build --webpack
 ```
 
-Server akan jalan di `http://localhost:3000`
+## Database dan migrasi
 
-## 📱 Struktur Project
+Semua SQL berada di `database/migrations`. Jangan menjalankan migrasi pada production tanpa backup. Gunakan urutan dan langkah verifikasi pada [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
 
-```
-.
-├── app/
-│   ├── auth/
-│   │   ├── login/          # Halaman login
-│   │   └── signup/         # Halaman signup
-│   ├── dashboard/
-│   │   ├── guru/           # Dashboard guru
-│   │   └── orang-tua/      # Dashboard orang tua
-│   ├── page.tsx            # Home page
-│   └── layout.tsx          # Root layout
-├── components/             # React components
-│   ├── Button.tsx
-│   ├── Input.tsx
-│   ├── Navbar.tsx
-│   └── DashboardLayout.tsx
-├── lib/
-│   └── supabase.ts         # Supabase client & utilities
-├── types/
-│   └── index.ts            # TypeScript type definitions
-├── utils/                  # Utility functions
-├── .env.local              # Environment variables
-├── package.json
-├── tailwind.config.js      # Tailwind CSS config
-└── tsconfig.json           # TypeScript config
-```
+Migrasi ditulis agar dapat dijalankan ulang sejauh memungkinkan. Jika Supabase menampilkan error schema cache setelah perubahan kolom, tunggu beberapa saat atau jalankan reload schema dari dashboard sebelum mencoba kembali.
 
-## 🎨 Design Colors
+## Alur akun
 
-- **Primary Green**: #2dc653
-- **Dark Green**: #1f9c3b
-- **Light Green**: rgba(45, 198, 83, 0.1)
+- Guru mendaftar lalu menunggu persetujuan Admin.
+- Orang Tua mendaftar dan menghubungkan akun dengan siswa menggunakan NIS; sistem tetap memvalidasi keberadaan dan status hubungan siswa.
+- Admin dapat membuat akun internal tanpa verifikasi email menggunakan username, nama lengkap, password, konfirmasi password, dan role.
+- Kredensial rahasia dan `SUPABASE_SERVICE_ROLE_KEY` hanya boleh disimpan di environment server/Vercel, bukan di repository.
 
-## 🔐 User Roles
+## Deployment Vercel
 
-### Guru (Teacher)
+1. Hubungkan repository ke Vercel.
+2. Tambahkan seluruh environment variable dari `.env.example` pada environment Production, Preview, dan Development sesuai kebutuhan.
+3. Pastikan project Supabase yang dipakai Vercel sama dengan project yang telah menerima seluruh migrasi.
+4. Push branch `main`; Vercel akan membangun dan menerbitkan commit tersebut.
+5. Periksa halaman Deployments sampai status commit menjadi **Ready**.
 
-- Input laporan tadarus pagi
-- Catat progress hafalan siswa
-- Lihat statistik pembelajaran
-- Verifikasi dan paraf laporan
+## Dokumentasi
 
-### Orang Tua (Parent)
+- [Panduan mulai cepat](docs/QUICKSTART.md)
+- [Setup dan migrasi Supabase](docs/SUPABASE_SETUP.md)
+- [MOM/notulen perjalanan proyek](docs/MOM.md)
 
-- Lihat laporan anak secara real-time
-- Monitor perkembangan tadarus dan hafalan
-- Pantau capaian target hafalan
-- Terima update pembelajaran
+## Pemeliharaan
 
-## 📚 Database Schema
-
-### user_roles
-
-- `id`: UUID
-- `user_id`: FK ke auth.users
-- `email`: VARCHAR
-- `role`: VARCHAR (guru/orang_tua)
-- `created_at`: TIMESTAMP
-- `updated_at`: TIMESTAMP
-
-### laporan_tadarus_pagi
-
-- `id`: UUID
-- `teacher_id`: FK ke auth.users
-- `tanggal`: DATE
-- `nama_surah`: VARCHAR
-- `hal_ayat`: VARCHAR
-- `keterangan`: TEXT
-- `guru_paraf`: BOOLEAN
-- `created_at`: TIMESTAMP
-- `updated_at`: TIMESTAMP
-
-## 🔗 Links Penting
-
-- Dokumentasi Next.js: https://nextjs.org/docs
-- Dokumentasi Supabase: https://supabase.com/docs
-- Tailwind CSS: https://tailwindcss.com/docs
-
-## 📞 Support
-
-Untuk bantuan, hubungi:
-
-- SD Islam Labschool Bani Saleh
-- Bekasi, Jawa Barat
-
-## 📄 License
-
-Copyright © 2026 SD Islam Labschool Bani Saleh. All rights reserved.
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Pertahankan komponen UI umum di `src/components`.
+- Tambahkan endpoint baru di `src/app/api` dan logika rahasia/server-only di `src/lib/server`.
+- Tambahkan perubahan schema sebagai file SQL baru di `database/migrations`; jangan mengubah data production secara manual tanpa catatan.
+- Perbarui README, panduan migrasi, dan MOM ketika ada perubahan fitur besar.

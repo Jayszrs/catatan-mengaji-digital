@@ -95,7 +95,7 @@ const getStudentSaveError = (error: unknown, prefix: string) => {
 
   return `${prefix}${message}${
     needsMigration
-      ? " Jalankan supabase-student-excel-profile-migration.sql di Supabase SQL Editor."
+      ? " Jalankan database/migrations/supabase-student-excel-profile-migration.sql di Supabase SQL Editor."
       : ""
   }`;
 };

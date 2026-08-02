@@ -1,6 +1,6 @@
 {
-  "name": "website_laporan_harian",
-  "version": "0.1.0",
+  "name": "catatan-mengaji-digital",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
