@@ -4,16 +4,98 @@
 
 | Item | Keterangan |
 | --- | --- |
+| Nomor dokumen | MOM/CMD/VIII/2026/001 |
+| Versi dokumen | 2.0 — final dengan kop surat dan lampiran lengkap |
 | Nama proyek | Catatan Mengaji Digital SD Islam Labschool Bani Saleh |
+| Hari/tanggal penyusunan | Minggu, 2 Agustus 2026 |
 | Periode pengembangan tercatat | 6 Juni 2026–2 Agustus 2026 |
 | Sumber notulen | Permintaan pemilik proyek, hasil implementasi, pengujian, dan riwayat Git |
-| Peserta/fungsi | Pemilik produk/sekolah dan pengembang aplikasi |
+| Pimpinan pembahasan | Pemilik produk/perwakilan sekolah |
+| Notulis | Tim pengembang sistem |
+| Peserta/fungsi | Pemilik produk/sekolah, Koordinator Tahfizh, Guru, perwakilan kebutuhan Orang Tua, dan pengembang aplikasi |
+| Agenda | Evaluasi kebutuhan, keputusan fitur, penyelesaian masalah, penerimaan hasil, dan serah terima dokumentasi |
 | Status | Fitur utama selesai, struktur dirapikan, dokumentasi operasional tersedia |
 | Repository utama | `Jayszrs/catatan-mengaji-digital` |
+| Repository sinkron | `alfdhzz/catatan-mengaji-digital` |
+| Deployment | Vercel — `catatan-mengaji-digital.vercel.app` |
+
+## Ringkasan eksekutif
+
+Catatan Mengaji Digital telah berkembang dari aplikasi Next.js awal menjadi sistem operasional sekolah dengan tiga role, data siswa dan kelas terintegrasi, kurikulum sembilan jenjang, tiga jenis penilaian, tiga rapor resmi, impor/ekspor Excel, keamanan akun, dan delapan modul pengawasan Admin. Pengembangan tercatat selama 6 Juni–2 Agustus 2026 dan seluruh perubahan utama dapat ditelusuri melalui riwayat Git.
+
+Hasil akhir telah melalui pemeriksaan TypeScript, production build, route generation, sinkronisasi repository, serta pemeriksaan endpoint production. Migrasi Supabase dan temuan ESLint legacy dicatat secara terbuka agar pengelolaan setelah serah terima tetap terukur.
+
+## Latar belakang
+
+Pencatatan Tahsin dan Tahfizh sebelumnya mengacu pada beberapa lembar Excel, form terpisah, dan template rapor resmi. Kondisi tersebut menimbulkan risiko data ganda, riwayat yang sulit dicari, perbedaan format antara form dan rapor, serta keterlambatan komunikasi progres siswa kepada Orang Tua. Proyek Catatan Mengaji Digital dibangun untuk menyatukan proses tersebut tanpa menghilangkan format administrasi sekolah yang telah digunakan.
+
+Dokumen MOM ini merekam kebutuhan yang disampaikan sejak awal, keputusan yang diambil selama pengembangan, implementasi per fase, masalah dan penyelesaiannya, bukti validasi, riwayat commit, status rilis, risiko tersisa, serta tindakan operasional setelah serah terima.
 
 ## Tujuan proyek
 
 Membangun sistem Tahsin dan Tahfidz yang dapat digunakan Guru, Orang Tua, dan Admin untuk mengelola siswa, kelas, kurikulum surat, laporan harian, ujian kenaikan level, Munaqosyah, rapor resmi, akun, serta pemantauan sekolah dalam satu aplikasi dan satu sumber data Supabase.
+
+Sasaran khusus:
+
+1. Mengurangi input data berulang dan ketergantungan pada banyak file Excel.
+2. Menjaga histori penilaian per siswa, tanggal, level, kelas, dan tahun ajaran.
+3. Menampilkan seluruh surat/nilai yang dicatat pada hari yang sama di rapor harian.
+4. Memastikan tiga rapor menggunakan template resmi sekolah.
+5. Memberi Orang Tua akses terbatas hanya kepada data anak yang terhubung.
+6. Memberi Admin sarana pemantauan menyeluruh tanpa membuka akun Guru satu per satu.
+7. Menyediakan proses migrasi, build, deployment, dan audit yang dapat ditelusuri.
+
+## Pemangku kepentingan dan tanggung jawab
+
+| Pihak | Kebutuhan utama | Tanggung jawab penggunaan |
+| --- | --- | --- |
+| Admin sekolah | Monitoring sistem, persetujuan akun, audit, tahun ajaran, data siswa/kelas | Menjaga akun, role, kurikulum, dan konsistensi data sekolah |
+| Guru Tahfizh | Input laporan, ujian level, Munaqosyah, kelas, siswa, dan rapor | Memastikan data penilaian akurat dan diisi tepat waktu |
+| Orang Tua/Wali | Melihat progres, rapor, komposisi nilai, data surat, dan biodata | Menjaga kerahasiaan akun serta memastikan NIS anak benar |
+| Koordinator Tahfizh | Menetapkan kurikulum, memeriksa laporan dan hasil evaluasi | Memantau standar penilaian dan kelengkapan program |
+| Pengembang sistem | Implementasi, migrasi, pengujian, dokumentasi, deployment | Menjaga source code, keamanan server, dan proses rilis |
+
+## Ruang lingkup dan keluaran proyek
+
+| Area | Keluaran yang disepakati | Status |
+| --- | --- | --- |
+| Landing dan autentikasi | Landing profesional, login/signup, reset password, background sekolah, onboarding per role | Selesai |
+| Akun dan keamanan | Persetujuan Guru, klaim NIS Orang Tua, akun username dari Admin, ubah role/sandi, hapus/nonaktifkan, audit | Selesai |
+| Siswa dan kelas | CRUD siswa/kelas, impor Excel, foto, NIS unik, pemindahan dan kenaikan kelas | Selesai |
+| Laporan harian | Presensi, kegiatan, tadarus, banyak hafalan/surat per tanggal, catatan Guru, histori kalender | Selesai |
+| Ujian level | Level awal/tujuan, dropdown surat per level, komponen nilai, predikat, hasil kenaikan | Selesai |
+| Munaqosyah | Komponen rekap Excel, angka/huruf Indonesia dan Arab, jumlah, rata-rata, kepribadian, catatan | Selesai |
+| Rapor otomatis | Hafalan Harian, Hafalan Level, Munaqosyah, template resmi, Excel, cetak/PDF | Selesai |
+| Kurikulum | Level 1–6, Mustawa Muttawasit 1–3, daftar surat per tahun ajaran, akses baca Orang Tua | Selesai |
+| Monitoring Admin | Delapan modul monitoring, kelengkapan laporan, aktivitas, masalah data, tahun ajaran | Selesai |
+| Dokumentasi | README, Quick Start, panduan Supabase, MOM Markdown, MOM PDF, generator PDF | Selesai |
+
+## Arsitektur implementasi
+
+Aplikasi menggunakan pola Next.js full-stack agar frontend, backend, autentikasi, dan deployment tetap berada dalam satu unit rilis.
+
+| Lapisan | Lokasi | Fungsi |
+| --- | --- | --- |
+| Frontend | `src/app` selain `src/app/api`, serta `src/components` | Halaman, dashboard, form, tabel, rapor, onboarding, dan komponen UI |
+| Backend HTTP | `src/app/api` | Registrasi, sesi Admin, manajemen akun, klaim anak, dan perubahan profil |
+| Layanan server | `src/lib/server` | Operasi service role, keamanan akun, dan audit server-side |
+| Logika bersama | `src/lib` dan `src/types` | Supabase client, ekspor, query rapor, impor siswa, level, dan tipe data |
+| Database | Supabase PostgreSQL dan `database/migrations` | Penyimpanan, RPC, constraint, RLS, seed kurikulum, dan audit |
+| Aset | `public` | Logo sekolah, logo Tahsin/Tahfizh, foto background, dan favicon |
+| Deployment | Vercel | Build Next.js, route statis/dinamis, Analytics, dan Speed Insights |
+
+## Migrasi database yang menjadi bagian proyek
+
+| Urutan | Migrasi | Hasil utama |
+| ---: | --- | --- |
+| 1 | `supabase-nis-shared-data-migration.sql` | Normalisasi NIS, data siswa bersama, dan kebijakan baca yang terkendali |
+| 2 | `supabase-integrated-learning-migration.sql` | Kelas, laporan harian, ujian level, Munaqosyah, rapor, RPC, dan foto siswa |
+| 3 | `supabase-student-excel-profile-migration.sql` | Kolom profil Excel dan nomor telepon bertipe `text` |
+| 4 | `supabase-parent-security-and-automation-migration.sql` | Hubungan Orang Tua–siswa, profil Guru, RLS Orang Tua, dan otomatisasi laporan |
+| 5 | `supabase-surah-curriculum-and-levels-migration.sql` | Data Surat, seed tahun ajaran, dan sembilan jenjang Tahfizh |
+| 6 | `supabase-level-exam-surah-migration.sql` | Surat yang diuji pada hasil kenaikan level |
+| 7 | `supabase-munaqosyah-form-migration.sql` | Penyimpanan Munaqosyah lengkap sesuai rekap Excel |
+| 8 | `supabase-account-approval-and-parent-claim-security.sql` | Persetujuan akun, keamanan klaim NIS, dan event audit |
 
 ## Agenda dan keputusan utama
 
@@ -112,6 +194,94 @@ Hasil:
 - Root repository hanya berisi konfigurasi dan folder utama.
 - Prosedur instalasi, migrasi, validasi, dan deployment terdokumentasi.
 
+## Hasil implementasi per role
+
+### Admin
+
+- Dashboard Monitoring menampilkan ringkasan Guru, Orang Tua, siswa, kelas, laporan, dan aktivitas terbaru.
+- Monitoring Guru memuat kelas yang dipegang, jumlah siswa, waktu input terakhir, dan kelengkapan laporan.
+- Monitoring Orang Tua memuat anak terhubung, status hubungan, biodata, dan aktivitas akun.
+- Manajemen Siswa/Kelas mendukung pemeriksaan NIS ganda, siswa tanpa Orang Tua, perpindahan kelas, serta kenaikan massal.
+- Persetujuan Akun membedakan Guru yang menunggu persetujuan dan Orang Tua yang mengklaim siswa melalui NIS.
+- Kelengkapan Laporan menyajikan perbandingan laporan harian, ujian level, Munaqosyah, dan status per Guru.
+- Tahun Ajaran/Kurikulum mendukung pengaturan periode serta data surat Level 1–6 dan Mustawa Muttawasit 1–3.
+- Audit Aktivitas merekam operasi akun dan perubahan penting yang diproses server.
+
+### Guru
+
+- Mengelola siswa, foto, profil siswa, kelas, level, dan impor daftar Excel sekolah.
+- Mengisi presensi, kegiatan, tadarus, beberapa surat/hafalan, dan catatan pada tanggal yang sama.
+- Memilih surat ujian sesuai kurikulum level dan tahun ajaran.
+- Mengisi nilai Munaqosyah lengkap sesuai struktur Excel.
+- Menambah, mengubah, atau menghapus Data Surat untuk tahun ajaran yang berwenang.
+- Melihat preview resmi dan mengunduh/cetak tiga rapor otomatis.
+- Menggunakan panduan langkah demi langkah yang lebih lengkap daripada panduan Orang Tua.
+
+### Orang Tua
+
+- Menghubungkan akun dengan anak melalui NIS yang divalidasi dan tetap dibatasi oleh RLS.
+- Melihat progres, laporan harian historis, ujian kenaikan level, Munaqosyah, dan komposisi nilai.
+- Melihat Data Surat sesuai level tanpa hak mengubah kurikulum.
+- Mengubah biodata yang diperbolehkan melalui endpoint server.
+- Menggunakan onboarding dan panduan khusus Orang Tua.
+
+## Ketentuan rapor resmi
+
+1. Form input tidak menjadi template cetak; form hanya memasok data.
+2. Rapor Hafalan Harian menampilkan seluruh data pada tanggal pilihan, termasuk lebih dari satu surat/hafalan.
+3. Rapor Hafalan Level mengambil hasil ujian kenaikan level dan surat yang diuji.
+4. Rapor Munaqosyah mengambil komponen nilai sesuai rekap Excel tetapi tetap memakai tata letak resmi aplikasi.
+5. Identitas siswa, NIS, kelas, level, periode, sumber nilai, catatan Guru, dan tanda tangan dipertahankan.
+6. Kalender rapor mendukung pemilihan tanggal historis lintas hari, bulan, dan tahun.
+7. Aksi cetak dari form dan menu 3 Rapor Otomatis harus menuju template resmi yang sama.
+
+## Keamanan dan tata kelola data
+
+| Kontrol | Implementasi |
+| --- | --- |
+| Pemisahan role | Admin, Guru, dan Orang Tua memiliki menu serta operasi berbeda |
+| Persetujuan Guru | Akun Guru baru tidak langsung memperoleh akses operasional sebelum disetujui |
+| Pengaitan Orang Tua | NIS menjadi referensi klaim, tetapi akses tetap divalidasi dan dibatasi ke satu hubungan yang sah |
+| Operasi Admin | Ubah role, ubah sandi, nonaktifkan, dan hapus akun diproses melalui API server |
+| Perlindungan Admin terakhir | Sistem menolak penghapusan Admin terakhir untuk mencegah kehilangan akses pengelolaan |
+| RLS | Kebijakan Supabase membatasi data anak dan operasi pengguna sesuai role |
+| Service role | `SUPABASE_SERVICE_ROLE_KEY` hanya digunakan pada sisi server dan environment Vercel |
+| Audit | Event keamanan serta perubahan penting disimpan untuk penelusuran |
+| Rahasia | File `.env.local`, service key, dan password tidak dimasukkan ke repository |
+
+## Validasi teknis dan penerimaan
+
+| Pemeriksaan | Hasil | Catatan |
+| --- | --- | --- |
+| TypeScript `tsc --noEmit` | Lulus | Tidak ada error tipe setelah struktur dipindahkan ke `src` |
+| Next.js production build | Lulus | Next.js 16.2.7 dengan Webpack berhasil menghasilkan build production |
+| Route generation | Lulus | 40 route terdeteksi, termasuk 6 endpoint backend dan dashboard seluruh role |
+| Pemeriksaan production | Lulus | Landing, login, dan monitoring Admin merespons HTTP 200 setelah deployment |
+| Sinkronisasi repository | Lulus | `origin/main` dan `upstream/main` telah menunjuk commit yang sama pada finalisasi struktur |
+| Kelengkapan PDF MOM | Lulus | Halaman awal, commit pertama/terakhir, finalisasi, dan penutupan dapat diekstrak dari PDF |
+| ESLint keseluruhan | Tercatat sebagai utang teknis | Baseline terakhir: 48 error dan 57 warning pada form legacy; tidak menghambat TypeScript/build |
+
+## Riwayat rilis akhir
+
+| Tanggal | Commit/rilis | Keterangan |
+| --- | --- | --- |
+| 2 Agustus 2026 | `e5c7935` | Delapan modul monitoring dan pengelolaan Admin selesai |
+| 2 Agustus 2026 | `76b3124` | Struktur `src`, folder database/docs, README, panduan, dan MOM dirapikan |
+| 2 Agustus 2026 | `b72e611` | PDF MOM lengkap awal dan generator PDF ditambahkan |
+| 2 Agustus 2026 | Finalisasi dokumen v2.0 | Kop surat, logo web, isi MOM diperluas, verifikasi PDF, dan serah terima dokumen |
+
+## Batasan dan risiko tersisa
+
+| Risiko/batasan | Dampak | Mitigasi |
+| --- | --- | --- |
+| Migrasi production belum dijalankan seluruhnya | Fitur database dapat menampilkan pesan belum aktif | Ikuti urutan `docs/SUPABASE_SETUP.md`, backup, dan jalankan satu per satu |
+| Schema cache Supabase terlambat diperbarui | Kolom baru sementara tidak dikenali REST API | Reload schema atau tunggu propagasi sebelum mengulang operasi |
+| ESLint legacy belum bersih | Menambah beban pemeliharaan dan risiko regresi | Jadwalkan refactor tipe `any`, dependency hook, dan HTML entity per modul |
+| Data Excel tidak konsisten | Header atau nilai siswa dapat gagal dipetakan | Gunakan template sekolah yang sama dan validasi hasil preview impor |
+| Perbedaan environment lokal/production | Login atau data terlihat berbeda | Pastikan seluruh environment menunjuk project Supabase yang sama |
+| Perubahan kurikulum tahunan | Daftar surat dapat berbeda | Gunakan tahun ajaran dan salin kurikulum tanpa mengubah histori lama |
+| Akun berbasis username dikelola internal | Pemulihan mandiri melalui email tidak selalu tersedia | Admin menjadi jalur resmi reset password akun internal |
+
 ## Masalah penting dan penyelesaiannya
 
 | Masalah | Keputusan/penyelesaian |
@@ -138,7 +308,8 @@ Hasil:
 - [x] Data Surat mendukung sembilan jenjang dan tahun ajaran.
 - [x] Admin memiliki delapan modul monitoring dan pengelolaan.
 - [x] Migrasi, setup, struktur proyek, dan deployment terdokumentasi.
-- [x] Source siap divalidasi melalui lint, TypeScript, dan production build.
+- [x] TypeScript dan production build berhasil; baseline ESLint legacy telah dicatat sebagai tindak lanjut.
+- [x] MOM tersedia dalam Markdown serta PDF resmi dengan kop surat dan logo aplikasi.
 
 ## Tindak lanjut operasional
 
@@ -147,10 +318,13 @@ Hasil:
 3. Audit akun, NIS ganda, siswa tanpa Orang Tua, dan kelengkapan laporan melalui panel Admin.
 4. Pastikan commit production Vercel sama dengan `main` setelah setiap rilis.
 5. Perbarui dokumen ini saat ruang lingkup proyek berubah.
+6. Bersihkan temuan ESLint secara bertahap tanpa mengubah perilaku form yang sudah diterima.
+7. Uji pemulihan bencana melalui restore backup Supabase pada environment terpisah.
+8. Review hak akses dan akun tidak aktif minimal setiap akhir semester.
 
 ## Lampiran — Riwayat commit lengkap
 
-Riwayat berikut disusun kronologis dari commit pertama sampai commit terakhir sebelum finalisasi dokumen ini.
+Riwayat berikut disusun kronologis dari commit pertama sampai finalisasi dokumen resmi. Baris “Finalisasi dokumen v2.0” mewakili commit penerbitan PDF ini yang hash akhirnya terbentuk setelah dokumen disimpan.
 
 | No. | Tanggal | Commit | Ringkasan |
 | ---: | --- | --- | --- |
@@ -205,8 +379,28 @@ Riwayat berikut disusun kronologis dari commit pertama sampai commit terakhir se
 | 49 | 2026-07-29 | `9212045` | Persetujuan Guru dan pengaitan Orang Tua melalui NIS |
 | 50 | 2026-07-29 | `98a2e22` | Dashboard nilai kelas terintegrasi |
 | 51 | 2026-08-02 | `e5c7935` | Delapan modul monitoring Admin |
-| 52 | 2026-08-02 | Finalisasi | Perapihan struktur frontend/backend, migrasi, README, panduan, dan MOM |
+| 52 | 2026-08-02 | `76b3124` | Perapihan struktur frontend/backend, migrasi, README, panduan, dan MOM |
+| 53 | 2026-08-02 | `b72e611` | PDF MOM lengkap awal dan generator PDF |
+| 54 | 2026-08-02 | Finalisasi dokumen v2.0 | Kop surat, logo web, perluasan notulen, pemeriksaan PDF, dan penerbitan akhir |
+
+## Kesimpulan rapat dan keputusan penutupan
+
+1. Ruang lingkup utama aplikasi dinyatakan telah diimplementasikan sesuai pembahasan yang terdokumentasi.
+2. Tiga template rapor resmi tetap menjadi format cetak utama dan tidak diganti oleh tampilan form input.
+3. Data production harus diaktifkan melalui urutan migrasi resmi dan tidak boleh dimodifikasi dengan skrip reset yang menghapus tabel.
+4. Utang teknis ESLint diterima sebagai pekerjaan pemeliharaan terpisah karena TypeScript dan production build telah lulus.
+5. Perubahan fitur setelah dokumen v2.0 dicatat sebagai fase pemeliharaan atau pengembangan baru.
+6. README, panduan Supabase, MOM Markdown, dan MOM PDF menjadi dokumen serah terima teknis proyek.
+
+## Lembar pemeriksaan dan pengesahan
+
+| Disusun oleh | Diperiksa oleh | Disetujui oleh |
+| --- | --- | --- |
+| Tim Pengembang Sistem | Koordinator Tahfizh | Kepala Sekolah |
+| Catatan Mengaji Digital | ULFA DWI HASTUTI, S.LI | WIDI NURMARA, S.Pd.I |
+| Tanda tangan: ____________________ | Tanda tangan: ____________________ | Tanda tangan: ____________________ |
+| Tanggal: 2 Agustus 2026 | Tanggal: ____________________ | Tanggal: ____________________ |
 
 ## Penutupan
 
-Ruang lingkup utama yang disepakati telah diimplementasikan. Pengembangan berikutnya diperlakukan sebagai pemeliharaan atau fase baru, bukan pekerjaan yang belum tercatat dari fase ini.
+MOM ini menjadi catatan resmi perjalanan pengembangan Catatan Mengaji Digital dari commit pertama sampai finalisasi proyek. Dokumen dapat diperbarui apabila terdapat persetujuan perubahan ruang lingkup, migrasi baru, atau rilis lanjutan.

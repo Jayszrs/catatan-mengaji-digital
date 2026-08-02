@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import html
+import mimetypes
 import re
 import shutil
 import subprocess
@@ -12,6 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE = ROOT / "docs" / "MOM.md"
 DEFAULT_OUTPUT = ROOT / "docs" / "MOM.pdf"
+SCHOOL_LOGO = ROOT / "public" / "logo.png"
+TAHFIDZ_LOGO = ROOT / "public" / "logo-tahsin.png"
 
 
 def inline_markdown(value: str) -> str:
@@ -167,18 +171,26 @@ def markdown_to_html(markdown: str) -> str:
     return "\n".join(blocks)
 
 
+def image_data_uri(path: Path) -> str:
+    mime_type = mimetypes.guess_type(path.name)[0] or "image/png"
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
+
+
 def document_html(content: str) -> str:
+    school_logo = image_data_uri(SCHOOL_LOGO)
+    tahfidz_logo = image_data_uri(TAHFIDZ_LOGO)
     return f"""<!doctype html>
 <html lang="id">
 <head>
   <meta charset="utf-8">
   <title>MOM — Catatan Mengaji Digital</title>
   <style>
-    @page {{ size: A4; margin: 16mm 15mm 17mm; }}
+    @page {{ size: A4; margin: 14mm 15mm 18mm; }}
     * {{ box-sizing: border-box; }}
     html {{ font-family: Arial, Helvetica, sans-serif; color: #14213d; }}
     body {{ margin: 0; font-size: 9.5pt; line-height: 1.46; }}
-    h1 {{ color: #174f3a; font-size: 23pt; line-height: 1.15; margin: 0 0 16pt; border-bottom: 3px solid #1f9d68; padding-bottom: 9pt; }}
+    h1 {{ color: #174f3a; font-size: 19pt; line-height: 1.15; margin: 13pt 0 14pt; text-align: center; text-transform: uppercase; }}
     h2 {{ color: #174f3a; font-size: 15pt; margin: 20pt 0 8pt; break-after: avoid; }}
     h3 {{ color: #1d684c; font-size: 11.5pt; margin: 14pt 0 6pt; break-after: avoid; }}
     p {{ margin: 0 0 8pt; orphans: 3; widows: 3; }}
@@ -196,9 +208,36 @@ def document_html(content: str) -> str:
     a {{ color: #136c4b; text-decoration: none; }}
     hr {{ border: 0; border-top: 1px solid #9fb8ae; margin: 14pt 0; }}
     .check {{ color: #15835a; font-weight: 700; }}
+    .letterhead {{ display: grid; grid-template-columns: 78px 1fr 78px; align-items: center; gap: 10px; padding-bottom: 7pt; border-bottom: 3px solid #173c30; position: relative; }}
+    .letterhead::after {{ content: ""; position: absolute; left: 0; right: 0; bottom: -6px; border-bottom: 1px solid #173c30; }}
+    .letterhead img {{ display: block; width: 70px; height: 70px; object-fit: contain; margin: auto; }}
+    .letterhead .tahfidz-logo {{ width: 76px; height: 64px; border-radius: 4px; }}
+    .letterhead-text {{ text-align: center; color: #102f25; line-height: 1.2; }}
+    .letterhead-text .foundation {{ font-size: 9pt; font-weight: 700; letter-spacing: 0.7pt; }}
+    .letterhead-text .school {{ font-size: 14.5pt; font-weight: 800; letter-spacing: 0.5pt; }}
+    .letterhead-text .program {{ color: #13774f; font-size: 9.5pt; font-weight: 800; letter-spacing: 0.45pt; margin-top: 2pt; }}
+    .letterhead-text .identity {{ font-size: 7.5pt; font-weight: 700; margin-top: 3pt; }}
+    .letterhead-text .address {{ font-size: 6.8pt; margin-top: 2pt; }}
+    .document-band {{ margin-top: 11pt; border: 1px solid #9fb8ae; background: #eff7f3; padding: 6pt 9pt; display: flex; justify-content: space-between; gap: 12pt; color: #174f3a; font-size: 8pt; }}
+    .document-band strong {{ font-size: 9pt; }}
   </style>
 </head>
 <body>
+<header class="letterhead">
+  <img src="{school_logo}" alt="Logo SD Islam Labschool Bani Saleh">
+  <div class="letterhead-text">
+    <div class="foundation">YAYASAN BANI SALEH</div>
+    <div class="school">SEKOLAH DASAR ISLAM LABSCHOOL BANI SALEH</div>
+    <div class="program">CATATAN MENGAJI DIGITAL — PROGRAM TAHSIN &amp; TAHFIZH</div>
+    <div class="identity">NPSN: 70010942 &nbsp;|&nbsp; TERAKREDITASI: A</div>
+    <div class="address">Jl. Pangeran RT 001/008 Desa Lubang Buaya, Kec. Setu, Kab. Bekasi · sdilabschoolbanisalehsetu@gmail.com</div>
+  </div>
+  <img class="tahfidz-logo" src="{tahfidz_logo}" alt="Logo Tahsin dan Tahfizh">
+</header>
+<div class="document-band">
+  <strong>MINUTES OF MEETING / NOTULEN PROYEK</strong>
+  <span>No. MOM/CMD/VIII/2026/001 · Versi 2.0 · 2 Agustus 2026</span>
+</div>
 {content}
 </body>
 </html>"""
