@@ -1,3 +1,8 @@
+export const CANONICAL_CLASS_NAMES = Array.from(
+  { length: 6 },
+  (_, index) => [`${index + 1}A`, `${index + 1}B`],
+).flat();
+
 export function normalizeClassName(value: unknown) {
   const normalized = String(value || "")
     .trim()

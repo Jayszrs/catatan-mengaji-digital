@@ -37,7 +37,10 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { AdminClassAcademicPanel } from "@/components/admin/AdminClassAcademicPanel";
 import { supabase } from "@/lib/supabase";
 import { getTahfidzLevelLabel, TAHFIDZ_LEVELS } from "@/lib/tahfidz-levels";
-import { normalizeClassName } from "@/lib/class-names";
+import {
+  CANONICAL_CLASS_NAMES,
+  normalizeClassName,
+} from "@/lib/class-names";
 
 export type AdminSection =
   | "monitoring"
@@ -653,6 +656,7 @@ export function AdminModulePage({
   const [expandedTeacher, setExpandedTeacher] = useState("");
   const [selectedParent, setSelectedParent] = useState<ParentRow | null>(null);
   const [parentNis, setParentNis] = useState("");
+  const [selectedParentClass, setSelectedParentClass] = useState("all");
   const [selectedAdminClass, setSelectedAdminClass] = useState(() =>
     normalizeClassName(initialAdminClass) || "1A",
   );
@@ -728,6 +732,10 @@ export function AdminModulePage({
       if (!response.ok) throw new Error(result.error || "Operasi Admin gagal.");
       setSuccess(result.message || "Perubahan berhasil disimpan.");
       await fetchOverview();
+      if (payload.action === "manage_parent_link") {
+        setSelectedParent(null);
+        setParentNis("");
+      }
     } catch (caughtError: unknown) {
       setError(
         caughtError instanceof Error
@@ -752,21 +760,59 @@ export function AdminModulePage({
 
   const filteredParents = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!data || !query) return data?.parents || [];
-    return data.parents.filter((parent) =>
-      [
-        parent.name,
-        parent.username,
-        parent.email,
-        parent.linked_student?.name,
-        parent.linked_student?.nis,
+    if (!data) return [];
+    return data.parents.filter((parent) => {
+      const parentClass = normalizeClassName(
         parent.linked_student?.class_name,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [data, search]);
+      );
+      const matchesClass =
+        selectedParentClass === "all" ||
+        (selectedParentClass === "unlinked"
+          ? !parent.linked_student
+          : parentClass === selectedParentClass);
+      const matchesSearch =
+        !query ||
+        [
+          parent.name,
+          parent.username,
+          parent.email,
+          parent.linked_student?.name,
+          parent.linked_student?.nis,
+          parentClass,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      return matchesClass && matchesSearch;
+    });
+  }, [data, search, selectedParentClass]);
+
+  const parentClassRows = useMemo(() => {
+    if (!data) return [];
+    return CANONICAL_CLASS_NAMES.map((className) => {
+      const students = data.students.filter(
+        (student) =>
+          !student.archived &&
+          normalizeClassName(student.class_name) === className,
+      );
+      const linkedParents = data.parents.filter(
+        (parent) =>
+          normalizeClassName(parent.linked_student?.class_name) === className,
+      ).length;
+      return {
+        className,
+        studentCount: students.length,
+        linkedParents,
+        withoutParent: students.filter((student) => !student.parent_linked)
+          .length,
+      };
+    });
+  }, [data]);
+
+  const unlinkedParentCount = useMemo(
+    () => data?.parents.filter((parent) => !parent.linked_student).length || 0,
+    [data],
+  );
 
   const filteredStudents = useMemo(() => {
     if (!data) return [];
@@ -974,6 +1020,119 @@ export function AdminModulePage({
         </section>
       ) : section === "orang-tua" ? (
         <>
+          <section className="mb-6 overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 via-white to-white p-6 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">
+                  Monitoring per Kelas
+                </p>
+                <h2 className="mt-1 text-2xl font-black text-gray-950">
+                  Data Orang Tua Kelas 1A–6B
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Pilih kelas untuk melihat akun Orang Tua, anak terhubung, dan siswa yang belum memiliki akun wali.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedParentClass("all");
+                  setSearch("");
+                }}
+                className={`rounded-xl px-4 py-3 text-sm font-black transition ${
+                  selectedParentClass === "all"
+                    ? "bg-[#173f30] text-white"
+                    : "border border-gray-200 bg-white text-gray-600 hover:border-emerald-300"
+                }`}
+              >
+                Semua Orang Tua ({data.parents.length})
+              </button>
+            </div>
+
+            <div className="overflow-x-auto p-5">
+              <table className="min-w-[850px] w-full overflow-hidden rounded-2xl border border-gray-100 text-left text-sm">
+                <thead className="bg-[#173f30] text-xs uppercase tracking-wide text-white">
+                  <tr>
+                    <th className="px-5 py-4">Kelas</th>
+                    <th className="px-5 py-4">Jumlah Siswa</th>
+                    <th className="px-5 py-4">Orang Tua Terhubung</th>
+                    <th className="px-5 py-4">Siswa Belum Terhubung</th>
+                    <th className="px-5 py-4 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parentClassRows.map((row) => (
+                    <tr
+                      key={row.className}
+                      className={`border-t border-gray-100 ${
+                        selectedParentClass === row.className
+                          ? "bg-emerald-50"
+                          : "hover:bg-gray-50/70"
+                      }`}
+                    >
+                      <td className="px-5 py-3">
+                        <span className="inline-flex min-w-14 items-center justify-center rounded-xl bg-gray-100 px-3 py-2 font-black text-gray-800">
+                          {row.className}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-base font-black text-gray-800">
+                        {row.studentCount}
+                      </td>
+                      <td className="px-5 py-3 text-base font-black text-emerald-700">
+                        {row.linkedParents}
+                      </td>
+                      <td className="px-5 py-3">
+                        <StatusPill tone={row.withoutParent > 0 ? "amber" : "green"}>
+                          {row.withoutParent} siswa
+                        </StatusPill>
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedParentClass(row.className);
+                            setSearch("");
+                          }}
+                          className={`rounded-xl px-4 py-2.5 text-xs font-black transition ${
+                            selectedParentClass === row.className
+                              ? "bg-emerald-600 text-white"
+                              : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                          }`}
+                        >
+                          Lihat Kelas {row.className}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className={`border-t-2 border-amber-100 ${selectedParentClass === "unlinked" ? "bg-amber-50" : "bg-amber-50/40"}`}>
+                    <td className="px-5 py-4 font-black text-amber-900" colSpan={3}>
+                      Akun Orang Tua belum terhubung ke anak
+                    </td>
+                    <td className="px-5 py-4">
+                      <StatusPill tone="amber">{unlinkedParentCount} akun</StatusPill>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedParentClass("unlinked");
+                          setSearch("");
+                        }}
+                        className={`rounded-xl px-4 py-2.5 text-xs font-black ${
+                          selectedParentClass === "unlinked"
+                            ? "bg-amber-500 text-white"
+                            : "bg-white text-amber-800 shadow-sm"
+                        }`}
+                      >
+                        Hubungkan Akun
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
           {selectedParent && (
             <section className="mb-6 rounded-3xl border border-blue-200 bg-white p-6 shadow-sm">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-end">
@@ -987,6 +1146,17 @@ export function AdminModulePage({
           <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
             <div className="flex flex-col gap-4 border-b border-gray-100 p-5 md:flex-row md:items-center md:justify-between"><div className="relative max-w-md flex-1"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari Orang Tua, anak, atau NIS..." className="w-full rounded-xl border border-gray-200 py-3 pl-11 pr-4 text-sm font-semibold outline-none focus:border-emerald-500" /></div><StatusPill tone="blue">{filteredParents.length} Orang Tua</StatusPill></div>
             <div className="overflow-x-auto"><table className="min-w-[1050px] w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr><th className="px-5 py-4">Orang Tua</th><th className="px-5 py-4">Anak Terhubung</th><th className="px-5 py-4">Kelas Anak</th><th className="px-5 py-4">Biodata</th><th className="px-5 py-4">Login Terakhir</th><th className="px-5 py-4">Status</th><th className="px-5 py-4">Aksi</th></tr></thead><tbody>{filteredParents.map((parent) => <tr key={parent.id} className="border-t border-gray-100 hover:bg-gray-50/70"><td className="px-5 py-4"><p className="font-black text-gray-900">{parent.name}</p><p className="mt-1 text-xs text-gray-500">{parent.username ? `@${parent.username}` : parent.email}</p></td><td className="px-5 py-4">{parent.linked_student ? <><p className="font-black text-gray-800">{parent.linked_student.name}</p><p className="text-xs text-gray-500">NIS {parent.linked_student.nis}</p></> : <StatusPill tone="amber">Belum terhubung</StatusPill>}</td><td className="px-5 py-4">{parent.linked_student?.class_name ? <Link href={`/dashboard/admin/siswa-kelas?class=${encodeURIComponent(normalizeClassName(parent.linked_student.class_name))}`} className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3.5 py-2.5 text-xs font-black text-emerald-800 transition hover:bg-emerald-100"><School size={15} /> Kelas {normalizeClassName(parent.linked_student.class_name)}</Link> : <span className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3.5 py-2.5 text-xs font-black text-gray-400"><School size={15} /> Kelas belum tersedia</span>}</td><td className="px-5 py-4"><p className="font-black text-gray-700">{parent.profile_percentage}%</p><div className="mt-2 w-28"><ProgressBar value={parent.profile_percentage} /></div></td><td className="px-5 py-4 font-semibold text-gray-600">{formatRelative(parent.last_login_at)}</td><td className="px-5 py-4"><StatusPill tone={parent.status === "active" ? "green" : "red"}>{parent.status === "active" ? "Aktif" : "Nonaktif"}</StatusPill></td><td className="px-5 py-4"><button type="button" onClick={() => { setSelectedParent(parent); setParentNis(parent.linked_student?.nis || ""); }} className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2.5 text-xs font-black text-blue-700 hover:bg-blue-100"><Link2 size={15} /> Kelola Anak</button></td></tr>)}</tbody></table></div>
+            {filteredParents.length === 0 && (
+              <div className="border-t border-gray-100 px-6 py-14 text-center">
+                <Users className="mx-auto text-gray-300" size={44} />
+                <p className="mt-3 font-black text-gray-800">
+                  Belum ada akun Orang Tua pada filter ini.
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Pilih kelas lain atau buka daftar akun yang belum terhubung.
+                </p>
+              </div>
+            )}
           </section>
         </>
       ) : section === "siswa-kelas" ? (
