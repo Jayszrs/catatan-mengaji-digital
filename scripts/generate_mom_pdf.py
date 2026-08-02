@@ -177,7 +177,11 @@ def image_data_uri(path: Path) -> str:
     return f"data:{mime_type};base64,{encoded}"
 
 
-def document_html(content: str) -> str:
+def document_html(
+    content: str,
+    document_title: str = "MINUTES OF MEETING / NOTULEN PROYEK",
+    document_meta: str = "No. MOM/CMD/VIII/2026/001 · Versi 2.0 · 2 Agustus 2026",
+) -> str:
     school_logo = image_data_uri(SCHOOL_LOGO)
     tahfidz_logo = image_data_uri(TAHFIDZ_LOGO)
     return f"""<!doctype html>
@@ -235,8 +239,8 @@ def document_html(content: str) -> str:
   <img class="tahfidz-logo" src="{tahfidz_logo}" alt="Logo Tahsin dan Tahfizh">
 </header>
 <div class="document-band">
-  <strong>MINUTES OF MEETING / NOTULEN PROYEK</strong>
-  <span>No. MOM/CMD/VIII/2026/001 · Versi 2.0 · 2 Agustus 2026</span>
+  <strong>{html.escape(document_title)}</strong>
+  <span>{html.escape(document_meta)}</span>
 </div>
 {content}
 </body>
@@ -261,7 +265,12 @@ def find_chrome() -> Path:
     raise FileNotFoundError("Google Chrome atau Microsoft Edge tidak ditemukan.")
 
 
-def generate_pdf(source: Path, output: Path) -> None:
+def generate_pdf(
+    source: Path,
+    output: Path,
+    document_title: str = "MINUTES OF MEETING / NOTULEN PROYEK",
+    document_meta: str = "No. MOM/CMD/VIII/2026/001 · Versi 2.0 · 2 Agustus 2026",
+) -> None:
     markdown = source.read_text(encoding="utf-8")
     output.parent.mkdir(parents=True, exist_ok=True)
     chrome = find_chrome()
@@ -271,7 +280,11 @@ def generate_pdf(source: Path, output: Path) -> None:
         html_path = temp / "mom.html"
         profile_path = temp / "chrome-profile"
         html_path.write_text(
-            document_html(markdown_to_html(markdown)),
+            document_html(
+                markdown_to_html(markdown),
+                document_title=document_title,
+                document_meta=document_meta,
+            ),
             encoding="utf-8",
         )
         command = [
@@ -297,8 +310,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Membuat PDF lengkap dari docs/MOM.md")
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--document-title",
+        default="MINUTES OF MEETING / NOTULEN PROYEK",
+    )
+    parser.add_argument(
+        "--document-meta",
+        default="No. MOM/CMD/VIII/2026/001 · Versi 2.0 · 2 Agustus 2026",
+    )
     arguments = parser.parse_args()
-    generate_pdf(arguments.source.resolve(), arguments.output.resolve())
+    generate_pdf(
+        arguments.source.resolve(),
+        arguments.output.resolve(),
+        document_title=arguments.document_title,
+        document_meta=arguments.document_meta,
+    )
     print(f"PDF dibuat: {arguments.output.resolve()}")
 
 

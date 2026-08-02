@@ -169,11 +169,20 @@ Migrasi ditulis agar dapat dijalankan ulang sejauh memungkinkan. Jika Supabase m
 - [Setup dan migrasi Supabase](docs/SUPABASE_SETUP.md)
 - [MOM/notulen perjalanan proyek](docs/MOM.md)
 - [PDF MOM lengkap](docs/MOM.pdf)
+- [Panduan alur Admin (PDF)](docs/panduan/PANDUAN-ALUR-ADMIN.pdf)
+- [Panduan alur Guru (PDF)](docs/panduan/PANDUAN-ALUR-GURU.pdf)
+- [Panduan alur Orang Tua/Wali (PDF)](docs/panduan/PANDUAN-ALUR-ORANG-TUA.pdf)
 
 PDF MOM dapat dibuat ulang setelah dokumen diperbarui:
 
 ```bash
 python scripts/generate_mom_pdf.py
+```
+
+Tiga PDF panduan role dapat dibuat ulang secara bersamaan:
+
+```bash
+python scripts/generate_role_guides.py
 ```
 
 ## Pemeliharaan
