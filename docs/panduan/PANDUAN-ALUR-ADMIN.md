@@ -1,4 +1,4 @@
-# PANDUAN ALUR PENGGUNA ADMIN
+# PANDUAN OPERASIONAL ADMIN LENGKAP
 
 ## Catatan Mengaji Digital
 
@@ -6,208 +6,366 @@
 
 | Informasi Dokumen | Keterangan |
 |---|---|
-| Sasaran | Administrator sistem |
-| Ruang lingkup | Pengawasan akun, Guru, Orang Tua, siswa, kelas, laporan, kurikulum, dan audit |
-| Versi panduan | 1.0 |
+| Nomor dokumen | PND/CMD/ADM/VIII/2026/002 |
+| Sasaran | Administrator sistem dan petugas pengelola data sekolah |
+| Ruang lingkup | Akun, Guru, Orang Tua, siswa, kelas, laporan, dan audit aktivitas |
+| Versi panduan | 2.0 — pembaruan fitur production |
 | Tanggal berlaku | 2 Agustus 2026 |
 | Klasifikasi | Dokumen operasional internal sekolah |
 
-Panduan ini menjelaskan urutan kerja Administrator dari masuk ke sistem sampai keluar. Administrator memiliki akses paling luas dan wajib menjaga ketepatan data, keamanan akun, serta jejak audit. Administrator tidak menggantikan Guru dalam memberi nilai akademik.
+Panduan ini menjadi acuan kerja Administrator Catatan Mengaji Digital. Administrator bertanggung jawab menjaga keamanan akses, konsistensi data, keterhubungan akun, dan kelengkapan pelaporan. Administrator tidak menggantikan Guru dalam menetapkan nilai akademik atau hasil kelulusan siswa.
 
-## 1. Ringkasan Alur Admin
+## 1. Tujuan dan Hasil Akhir
 
-**Masuk → Periksa Dashboard Monitoring → Proses Persetujuan Akun → Pantau Guru dan Orang Tua → Kelola Siswa/Kelas → Periksa Kelengkapan Laporan → Atur Tahun/Kurikulum → Tinjau Audit → Keluar**
+Setelah mengikuti panduan ini, Administrator diharapkan mampu:
+
+- masuk dan keluar dari sistem dengan aman;
+- membaca kondisi sistem melalui Dashboard Monitoring;
+- menyetujui, menolak, membuat, mengubah, menonaktifkan, dan menghapus akun sesuai kewenangan;
+- memantau aktivitas Guru dan kelengkapan laporannya;
+- memantau Orang Tua berdasarkan kelas 1A–6B dan menghubungkan akun dengan anak menggunakan NIS;
+- membaca data siswa, kelas, nilai per surat, Presensi–Tadarus, dan wali kelas mengaji;
+- mengubah wali kelas mengaji serta status siswa tanpa mengubah level secara sembarang;
+- menelusuri aktivitas melalui audit yang mudah dibaca;
+- menangani masalah umum tanpa merusak data production.
+
+## 2. Ringkasan Alur Kerja Admin
+
+**Masuk → Dashboard Monitoring → Persetujuan Akun → Monitoring Guru → Monitoring Orang Tua → Siswa & Kelas → Kelengkapan Laporan → Audit Aktivitas → Keluar**
 
 | Tahap | Hasil yang Diharapkan |
 |---|---|
 | Autentikasi | Admin masuk menggunakan akun yang sah |
-| Pemeriksaan awal | Ringkasan pengguna, kelas, laporan, dan masalah terbaca |
-| Pengendalian akses | Akun Guru disetujui/ditolak dan role pengguna tepat |
-| Pengawasan operasional | Aktivitas Guru dan hubungan Orang Tua–anak dapat dipantau |
-| Pengelolaan akademik | Siswa, kelas, tahun ajaran, level, dan kurikulum tertata |
-| Pengendalian mutu | Kekurangan laporan ditindaklanjuti |
-| Audit | Perubahan penting dapat ditelusuri |
+| Pemeriksaan awal | Jumlah akun, siswa, kelas, laporan, dan peringatan terbaca |
+| Pengendalian akses | Akun memiliki role dan status persetujuan yang tepat |
+| Pengawasan Guru | Aktivitas dan kelengkapan laporan Guru dapat ditindaklanjuti |
+| Pengawasan Orang Tua | Hubungan Orang Tua–anak dan kelas anak terbaca |
+| Pengelolaan kelas | Anggota kelas, wali kelas mengaji, nilai, dan status siswa tertata |
+| Pengendalian mutu | Kekurangan laporan dan data bermasalah ditemukan |
+| Audit | Pelaku, target, rincian, waktu, dan status perubahan dapat ditelusuri |
 
-## 2. Masuk dan Pemeriksaan Awal
+## 3. Masuk, Lupa Password, dan Keluar
 
-1. Buka portal **Catatan Mengaji Digital** lalu pilih **Masuk**.
-2. Isi username dan password Admin.
-3. Pastikan identitas kanan atas menampilkan role **ADMIN**.
-4. Buka **Dashboard Monitoring**.
-5. Periksa jumlah Guru, Orang Tua, siswa, kelas aktif, akun menunggu, laporan terbaru, dan peringatan data.
-6. Jika ada angka tidak wajar, jangan langsung mengubah data; telusuri dahulu pada modul terkait dan **Audit Aktivitas**.
+### 3.1 Masuk ke Sistem
 
-Admin harus keluar melalui tombol **Keluar**, terutama ketika memakai komputer bersama. Jangan hanya menutup tab.
+1. Buka portal Catatan Mengaji Digital.
+2. Pilih **Masuk ke akun**.
+3. Masukkan email atau username Admin.
+4. Masukkan password lalu pilih **Masuk ke Dashboard**.
+5. Pastikan identitas kanan atas menampilkan role **ADMIN**.
+6. Jika halaman tidak berpindah, baca pesan kesalahan sebelum mengulangi login.
 
-## 3. Peta Menu Admin
+### 3.2 Lupa atau Mengganti Password
 
-| Menu | Fungsi Utama | Tindakan Admin |
+1. Pada portal Login, pilih **Lupa password** untuk akun berbasis email.
+2. Masukkan email yang terdaftar.
+3. Buka tautan pemulihan dari inbox atau folder spam.
+4. Isi password baru dan ulangi password yang sama.
+5. Setelah berhasil, kembali ke Login dan gunakan password baru.
+6. Untuk akun internal berbasis username tanpa email, perubahan password dilakukan oleh Admin lain melalui **Persetujuan Akun**.
+
+Password baru berlaku langsung pada login berikutnya. Mode Incognito tidak menjadi syarat untuk mengetes password baru.
+
+### 3.3 Keluar dengan Aman
+
+1. Selesaikan pekerjaan dan pastikan penyimpanan berhasil.
+2. Pilih **Keluar** pada sidebar.
+3. Jangan hanya menutup tab, terutama pada komputer bersama.
+4. Jangan menyimpan password Admin pada browser publik.
+
+## 4. Peta Menu Admin Production
+
+| Menu | Fungsi Utama | Tindakan yang Tersedia |
 |---|---|---|
-| Dashboard Monitoring | Ringkasan seluruh sistem | Membaca indikator dan menentukan prioritas tindak lanjut |
-| Monitoring Guru | Aktivitas, kelas, siswa, dan kelengkapan Guru | Mencari Guru, melihat detail, mengaktifkan/nonaktifkan |
-| Monitoring Orang Tua | Relasi akun Orang Tua dengan siswa | Menghubungkan, memindahkan, atau memutuskan hubungan anak |
-| Siswa & Kelas | Data seluruh siswa dan kelas | Memindahkan Guru/kelas/level dan mengarsipkan siswa |
-| Persetujuan Akun | Pendaftaran dan manajemen akun | Menyetujui Guru, membuat akun internal, mengganti role/password, menghapus akun |
-| Kelengkapan Laporan | Rekap laporan per Guru | Menilai laporan hari ini, tujuh hari, ujian level, dan munaqosyah |
-| Tahun & Kurikulum | Tahun ajaran dan susunan surat | Membuka/menutup tahun, menyalin kurikulum, mengatur level |
-| Audit Aktivitas | Riwayat perubahan penting | Memfilter pengguna, jenis aktivitas, dan tanggal |
+| Dashboard Monitoring | Ringkasan kondisi sistem | Membaca indikator, peringatan, dan aktivitas terbaru |
+| Monitoring Guru | Pengawasan tenaga pengajar | Mencari Guru, membuka detail, mengaktifkan, atau menonaktifkan |
+| Monitoring Orang Tua | Pengawasan akun wali per kelas | Memilih kelas 1A–6B, melihat relasi, menghubungkan, memindahkan, atau memutuskan anak |
+| Siswa & Kelas | Pusat data kelas seluruh Guru | Memilih kelas, melihat nilai/laporan, mengatur wali kelas mengaji, dan status siswa |
+| Persetujuan Akun | Pengendalian akun dan role | Menyetujui Guru, membuat akun, mengganti role/password, menonaktifkan, atau menghapus |
+| Kelengkapan Laporan | Rekap pelaporan Guru | Membandingkan laporan harian, ujian level, dan Munaqosyah |
+| Audit Aktivitas | Jejak perubahan sistem | Memfilter waktu/status, membaca pelaku, target, rincian, dan hasil aktivitas |
 
-## 4. Dashboard Monitoring
+Pengaturan surat dan level operasional dilakukan oleh Guru melalui **Data Surat**. Kenaikan level dilakukan melalui **Ujian Kenaikan Level** pada role Guru. Admin menggunakan menu Siswa & Kelas untuk memantau, bukan menetapkan kenaikan level secara manual.
 
-1. Baca kartu ringkasan akun, siswa, kelas, laporan, dan masalah.
-2. Prioritaskan **akun menunggu**, siswa tanpa kelas, NIS ganda, Orang Tua belum terhubung, dan Guru tanpa laporan.
-3. Gunakan aktivitas terbaru untuk memastikan perubahan besar memang dilakukan petugas berwenang.
-4. Catat masalah yang memerlukan konfirmasi kepada Guru sebelum melakukan koreksi.
+## 5. Dashboard Monitoring
 
-Dashboard adalah halaman pemantauan, bukan sumber tunggal untuk mengubah data. Perubahan dilakukan melalui modul yang sesuai agar tercatat dengan benar.
+### 5.1 Pemeriksaan Harian
 
-## 5. Persetujuan dan Manajemen Akun
+1. Baca jumlah Guru, Orang Tua, siswa, dan kelas aktif.
+2. Periksa jumlah laporan hari ini dan tujuh hari terakhir.
+3. Tinjau jumlah ujian level dan Munaqosyah.
+4. Buka bagian **Perlu Perhatian** untuk akun menunggu atau data bermasalah.
+5. Baca aktivitas terbaru untuk memastikan perubahan dilakukan pengguna yang sah.
+6. Gunakan tombol **Perbarui** jika data baru saja diubah pada halaman lain.
 
-### 5.1 Menyetujui Akun Guru
+### 5.2 Prioritas Penanganan
+
+| Kondisi | Prioritas | Tindakan |
+|---|---|---|
+| Akun Guru menunggu | Tinggi | Verifikasi identitas lalu setujui atau tolak |
+| Siswa tanpa Orang Tua | Sedang | Cocokkan akun wali dan hubungkan menggunakan NIS |
+| Guru tanpa laporan | Sedang | Konfirmasi jadwal mengajar dan status input |
+| NIS ganda | Tinggi | Verifikasi dokumen siswa sebelum memperbaiki |
+| Aktivitas tidak dikenal | Tinggi | Periksa Audit dan nonaktifkan akun jika diperlukan |
+
+Dashboard hanya untuk pemantauan. Lakukan perubahan pada menu yang sesuai agar validasi dan audit tetap berjalan.
+
+## 6. Persetujuan dan Manajemen Akun
+
+### 6.1 Menyetujui Akun Guru
 
 1. Buka **Persetujuan Akun**.
-2. Periksa nama lengkap, username, dan permintaan role Guru.
-3. Cocokkan identitas dengan data tenaga pengajar sekolah.
-4. Pilih **Setujui** jika valid atau **Tolak** jika tidak sesuai.
-5. Pastikan status berubah dari *pending* menjadi *approved* sebelum Guru mencoba masuk.
+2. Pilih daftar akun menunggu persetujuan.
+3. Periksa nama lengkap, username/email, dan role yang diminta.
+4. Cocokkan dengan daftar Guru resmi sekolah.
+5. Pilih **Setujui** jika identitas valid atau **Tolak** jika tidak sesuai.
+6. Pastikan status berubah menjadi disetujui sebelum Guru mencoba login.
 
-### 5.2 Akun Orang Tua
+### 6.2 Pendaftaran Orang Tua
 
-Akun Orang Tua mendaftar menggunakan NIS anak. Sistem memeriksa NIS yang terdaftar, membatasi percobaan, dan mencegah satu siswa diklaim sembarang akun. Jika relasi keliru, perbaiki melalui **Monitoring Orang Tua**, bukan dengan membagikan data NIS kepada pihak lain.
+Orang Tua tidak sepenuhnya terbuka. Pendaftaran memerlukan NIS anak yang telah terdaftar. Sistem memvalidasi NIS, status hubungan, dan batas percobaan. Admin tetap harus memeriksa kecocokan nama wali jika terdapat permintaan perbaikan hubungan.
 
-### 5.3 Membuat Akun dari Admin
+### 6.3 Membuat Akun melalui Admin
 
 1. Pilih **Tambah Akun**.
-2. Isi username, nama lengkap, password, konfirmasi password, dan role.
-3. Email bersifat opsional untuk akun internal yang dibuat Admin.
-4. Gunakan username unik dan password sementara yang kuat.
-5. Sampaikan kredensial secara pribadi dan minta pengguna mengganti password.
+2. Isi username yang unik.
+3. Isi nama lengkap.
+4. Email bersifat opsional untuk akun internal.
+5. Pilih role: Admin, Guru, atau Orang Tua.
+6. Isi password dan konfirmasi password.
+7. Simpan lalu sampaikan kredensial secara pribadi.
+8. Minta pengguna mengganti password awal setelah menerima akun.
 
-### 5.4 Mengubah Role, Password, dan Status
+### 6.4 Mengubah Role
 
-1. Cari akun yang tepat.
-2. Pastikan identitas pemilik sebelum memilih **Ubah Sandi** atau mengganti role.
+1. Cari akun berdasarkan nama, username, atau email.
+2. Pilih kontrol role pada baris akun.
+3. Pastikan perubahan didukung keputusan administrasi.
+4. Simpan dan periksa hasilnya pada daftar pengguna.
+5. Buka Audit Aktivitas untuk memastikan perubahan tercatat.
+
+### 6.5 Mengubah Password Pengguna
+
+1. Pilih **Ubah Sandi** pada akun yang benar.
+2. Pilih alasan perubahan, misalnya pengguna lupa password atau reset keamanan.
 3. Masukkan password baru dan konfirmasi yang sama.
-4. Role hanya diubah jika tugas resmi pengguna berubah.
-5. Gunakan **Nonaktifkan** untuk akses sementara dan **Hapus** hanya jika data memang boleh dihapus.
-6. Sistem melindungi Admin terakhir; siapkan minimal satu Admin aktif lain sebelum menghapus atau menurunkan role Admin.
+4. Simpan hingga muncul notifikasi berhasil.
+5. Pengguna dapat langsung login ulang memakai password baru.
+6. Pastikan audit menampilkan pelaku, target akun, alasan, dan status berhasil.
 
-Password baru berlaku pada proses login berikutnya. Sesi aktif pengguna dapat ditangani sesuai kebijakan keamanan sekolah tanpa meminta pengguna memakai mode Incognito.
+### 6.6 Menonaktifkan atau Menghapus Akun
 
-## 6. Monitoring Guru
+- Gunakan **Nonaktifkan** untuk memblokir akses sementara tanpa menghapus jejak data.
+- Gunakan **Hapus** hanya jika akun memang tidak diperlukan dan dampak relasinya sudah diperiksa.
+- Admin tidak dapat menghapus dirinya sendiri saat sedang digunakan.
+- Admin terakhir tidak dapat dihapus atau diturunkan rolenya.
+- Siapkan minimal dua Admin aktif untuk mencegah kehilangan akses operasional.
+
+## 7. Monitoring Guru
 
 1. Buka **Monitoring Guru**.
 2. Cari berdasarkan nama, kelas, username, atau email.
-3. Periksa kelas dan jumlah siswa, laporan hari ini, persentase tujuh hari, terakhir aktif, dan status.
-4. Buka detail aktivitas untuk menelusuri laporan yang pernah diisi.
-5. Hubungi Guru jika laporan belum lengkap; nonaktifkan hanya jika ada keputusan administrasi atau risiko keamanan.
+3. Periksa kelas dan jumlah siswa yang ditangani.
+4. Bandingkan laporan hari ini dengan jumlah siswa.
+5. Periksa persentase tujuh hari dan waktu aktivitas terakhir.
+6. Buka detail untuk melihat jumlah ujian level, Munaqosyah, dan kelengkapan profil.
+7. Pilih **Nonaktifkan** hanya jika ada keputusan administrasi atau risiko keamanan.
 
 | Indikator | Interpretasi |
 |---|---|
-| Laporan hari ini 0/n | Belum ada laporan untuk siswa yang menjadi tanggung jawab Guru |
-| Persentase 7 hari rendah | Perlu konfirmasi jadwal atau kelengkapan input |
-| Belum ada aktivitas | Guru belum membuat data akademik pada sistem |
-| Login lama tetapi ada laporan | Periksa apakah laporan diinput pengguna lain atau data lama |
-| Status nonaktif | Guru tidak dapat menggunakan akses operasional normal |
+| Laporan 0/n | Guru belum mengisi laporan untuk siswa yang ditangani |
+| Persentase tujuh hari rendah | Perlu konfirmasi jadwal atau kelengkapan input |
+| Belum ada aktivitas | Belum ada laporan akademik yang tersimpan |
+| Kelas kosong | Guru belum ditetapkan sebagai wali kelas mengaji atau belum memiliki siswa |
+| Status nonaktif | Akses operasional Guru diblokir |
 
-## 7. Monitoring Orang Tua
+## 8. Monitoring Orang Tua per Kelas
 
-1. Buka **Monitoring Orang Tua**.
-2. Cari nama Orang Tua, nama anak, atau NIS.
-3. Periksa anak terhubung, kelengkapan biodata, login terakhir, dan status.
-4. Pilih **Kelola Anak** untuk menghubungkan atau memindahkan relasi berdasarkan NIS yang valid.
-5. Putuskan hubungan hanya setelah identitas dan alasan terkonfirmasi.
-6. Nonaktifkan akun jika ada indikasi akses tidak sah.
+### 8.1 Membaca Tabel Kelas
 
-Admin tidak boleh menghubungkan akun berdasarkan kemiripan nama saja. NIS dan identitas wali harus sama dengan data sekolah.
+Monitoring Orang Tua menampilkan kelas **1A sampai 6B**. Setiap baris berisi:
 
-## 8. Manajemen Siswa dan Kelas
+- jumlah siswa pada kelas;
+- jumlah akun Orang Tua yang sudah terhubung;
+- jumlah siswa yang belum memiliki relasi Orang Tua;
+- tombol **Lihat Kelas** untuk memfilter daftar wali;
+- baris khusus akun Orang Tua yang belum terhubung ke anak.
+
+### 8.2 Melihat Orang Tua pada Kelas Tertentu
+
+1. Pilih **Lihat Kelas 1A**, atau kelas lain yang diperlukan.
+2. Tabel bawah hanya menampilkan akun Orang Tua dan anak pada kelas tersebut.
+3. Gunakan pencarian untuk nama Orang Tua, nama anak, NIS, atau kelas.
+4. Pilih tombol kelas anak untuk membuka halaman **Siswa & Kelas** pada kelas yang sama.
+5. Pilih **Semua Orang Tua** untuk menghapus filter kelas.
+
+### 8.3 Menghubungkan Akun yang Belum Terhubung
+
+1. Pilih **Hubungkan Akun** pada baris akun belum terhubung.
+2. Pilih **Kelola Anak** pada akun yang benar.
+3. Masukkan NIS siswa sesuai data sekolah.
+4. Pilih **Hubungkan / Pindahkan**.
+5. Periksa bahwa nama anak dan kelas muncul pada akun tersebut.
+6. Pastikan jumlah Orang Tua terhubung pada tabel kelas bertambah.
+
+### 8.4 Memindahkan atau Memutuskan Hubungan
+
+1. Buka **Kelola Anak**.
+2. Untuk memindahkan hubungan, masukkan NIS anak yang benar lalu pilih **Hubungkan / Pindahkan**.
+3. Untuk menghapus hubungan, pilih **Putuskan**.
+4. Lakukan hanya setelah identitas wali dan dokumen siswa dikonfirmasi.
+5. Periksa Audit Aktivitas setelah perubahan.
+
+Admin tidak boleh menghubungkan akun berdasarkan kemiripan nama. NIS adalah identitas utama relasi siswa.
+
+## 9. Siswa & Kelas Versi Admin
+
+### 9.1 Tabel Master Kelas 1A–6B
 
 1. Buka **Siswa & Kelas**.
-2. Gunakan pencarian nama, NIS, kelas, atau Guru.
-3. Periksa tab siswa aktif, data bermasalah, dan arsip.
-4. Atur Guru, kelas, serta level siswa sesuai keputusan akademik.
-5. Gunakan fitur pindah kelas/naik kelas massal hanya setelah daftar diverifikasi.
-6. Arsipkan siswa lulus atau pindah; jangan menghapus riwayat akademik tanpa dasar.
-7. Tindak lanjuti NIS ganda, siswa tanpa Orang Tua, kelas kosong, dan data level di luar 1–9.
+2. Pilih tahun ajaran yang sesuai.
+3. Gunakan filter Guru atau level jika diperlukan.
+4. Klik kelas 1A–6B untuk membuka rekap kelas.
+5. Periksa jumlah siswa pada Level 1–6 dan Mustawa Muttawasit 1–3.
 
-Jenjang yang digunakan sistem adalah **Level 1–6** serta **Mustawa Muttawasit 1–3**. Kelas sekolah dapat disusun dari **1A sampai 6B** sesuai master kelas aktif.
+Sistem menyamakan format kelas lama seperti `1`, `1 A`, `1-A`, dan `Kelas 1A` menjadi kelas **1A** agar data impor lama tetap terbaca konsisten pada Guru dan Admin.
 
-## 9. Kelengkapan Laporan
+### 9.2 Menetapkan Wali Kelas Mengaji
+
+1. Pilih kelas.
+2. Pilih Guru aktif pada bagian **Wali Kelas Mengaji**.
+3. Pilih **Simpan Wali Kelas**.
+4. Pastikan nama Guru muncul pada master kelas dan daftar anggota kelas.
+
+Wali kelas mengaji dapat berbeda dari wali kelas akademik sekolah. Penetapan ini digunakan untuk tanggung jawab kegiatan Tahsin & Tahfizh.
+
+### 9.3 Melihat Nilai dan Laporan Harian
+
+- Gunakan tab **Nilai per Surat** untuk melihat Kelancaran, Makhorijul Huruf, Hukum Tajwid, Sambung Ayat, jumlah, rata-rata, dan keterangan.
+- Gunakan tab **Presensi & Tadarus** untuk melihat tanggal, kehadiran, kegiatan, bacaan Tadarus, hafalan, dan catatan Guru.
+- Gunakan filter level agar tabel tidak terlalu lebar.
+- Data berasal dari input Guru; Admin memantau dan tidak mengubah nilai akademik dari halaman ini.
+
+### 9.4 Mengelola Status Siswa
+
+Status yang tersedia adalah:
+
+| Status | Penggunaan |
+|---|---|
+| Aktif | Siswa masih mengikuti program |
+| Nonaktif | Siswa sementara/tetap tidak mengikuti program, tetapi riwayat dipertahankan |
+| Pindah | Siswa pindah dan riwayat tetap disimpan |
+
+1. Pilih kelas.
+2. Cari siswa berdasarkan nama atau NIS.
+3. Pilih status yang tepat.
+4. Pilih **Simpan Status**.
+5. Konfirmasi perubahan jika status bukan Aktif.
+
+Level siswa tidak dinaikkan dari halaman Admin. Kenaikan level hanya melalui hasil **Ujian Kenaikan Level** oleh Guru.
+
+## 10. Kelengkapan Laporan
 
 1. Buka **Kelengkapan Laporan**.
-2. Pilih periode atau tanggal pemeriksaan.
-3. Bandingkan jumlah siswa dengan laporan yang masuk.
-4. Tinjau laporan harian, ujian kenaikan level, dan munaqosyah.
-5. Gunakan status lengkap/perlu dicek untuk membuat daftar tindak lanjut Guru.
-6. Jangan mengubah nilai hanya untuk membuat persentase menjadi penuh.
-
-## 10. Tahun Ajaran dan Kurikulum
-
-1. Buka **Tahun & Kurikulum**.
-2. Pastikan tahun ajaran yang benar sebelum melakukan perubahan.
-3. Buka tahun ajaran baru sesuai keputusan sekolah.
-4. Salin data surat dari tahun sebelumnya bila kurikulum tidak berubah.
-5. Atur susunan surat Level 1–6 dan Mustawa Muttawasit 1–3.
-6. Periksa ulang urutan surat sebelum digunakan Guru pada ujian level.
-7. Tutup tahun ajaran hanya setelah laporan dan proses kenaikan kelas selesai.
-
-Perubahan kurikulum tahun berjalan tidak boleh merusak riwayat tahun sebelumnya. Karena itu data surat dipisahkan per tahun ajaran.
+2. Periksa laporan hari ini setiap Guru.
+3. Bandingkan laporan masuk dengan jumlah siswa yang menjadi tanggung jawab Guru.
+4. Tinjau persentase tujuh hari.
+5. Periksa jumlah ujian level dan Munaqosyah.
+6. Gunakan status **Lengkap**, **Hampir Lengkap**, atau **Perlu Dicek** untuk menentukan tindak lanjut.
+7. Jangan mengubah nilai hanya untuk menaikkan persentase kelengkapan.
 
 ## 11. Audit Aktivitas
 
-Audit dipakai untuk menelusuri persetujuan akun, perubahan role/password, penghapusan atau penambahan akun, relasi siswa, perubahan kurikulum, dan data akademik.
+Audit menampilkan informasi dalam bahasa operasional, bukan JSON mentah:
 
-1. Pilih rentang tanggal.
-2. Filter berdasarkan pengguna atau jenis aktivitas.
-3. Cocokkan pelaku, target, waktu, dan rincian perubahan.
-4. Simpan bukti audit jika ada insiden.
-5. Eskalasi perubahan tidak dikenal kepada pengelola sistem dan Kepala Sekolah.
+| Kolom | Isi |
+|---|---|
+| Waktu | Tanggal dan jam aktivitas |
+| Aktivitas | Jenis tindakan, misalnya password diubah atau laporan disimpan |
+| Pelaku | Username pengguna yang melakukan tindakan |
+| Target | Akun, siswa, kelas, surat, atau laporan yang dikenai tindakan |
+| Rincian | Alasan dan ringkasan perubahan |
+| Status | Berhasil, gagal, atau diblokir |
 
-## 12. Rutinitas Admin
+Aktivitas yang dipantau mencakup:
+
+- pembuatan, perubahan role, perubahan password, penonaktifan, dan penghapusan akun;
+- persetujuan atau penolakan Guru;
+- hubungan Orang Tua–anak;
+- perubahan wali kelas dan status siswa;
+- laporan harian, nilai per surat, ujian level, dan Munaqosyah.
+
+### 11.1 Cara Menelusuri Insiden
+
+1. Pilih tanggal kejadian.
+2. Gunakan pencarian berdasarkan username, siswa, atau aktivitas.
+3. Pilih filter status.
+4. Cocokkan pelaku, target, rincian, dan waktu.
+5. Simpan bukti jika terdapat tindakan tidak sah.
+6. Nonaktifkan akun dan ganti kredensial jika insiden terkonfirmasi.
+
+## 12. Rutinitas Operasional Admin
 
 | Frekuensi | Checklist |
 |---|---|
-| Setiap hari | Periksa akun menunggu, laporan hari ini, peringatan data, dan aktivitas terbaru |
-| Setiap minggu | Tinjau kelengkapan per Guru, akun tidak aktif, relasi Orang Tua, serta data bermasalah |
-| Setiap bulan | Audit perubahan role/password, validasi jumlah siswa dan kelas, serta tinjau akun lama |
-| Awal tahun ajaran | Buat tahun, kelas, penugasan Guru, salin/atur data surat, dan validasi level |
-| Akhir semester/tahun | Pastikan rapor lengkap, arsipkan siswa yang tepat, dan tutup periode setelah disahkan |
+| Setiap hari | Periksa akun menunggu, laporan hari ini, peringatan, dan aktivitas terbaru |
+| Setiap minggu | Tinjau kelengkapan Guru, hubungan Orang Tua, kelas tanpa wali mengaji, dan siswa bermasalah |
+| Setiap bulan | Audit role/password, akun tidak aktif, jumlah siswa per kelas, dan keberhasilan backup |
+| Awal tahun ajaran | Verifikasi kelas 1A–6B, wali kelas mengaji, daftar siswa, NIS, dan level awal |
+| Akhir semester | Pastikan rapor lengkap, status siswa benar, dan arsip audit tersedia |
 
 ## 13. Penanganan Kendala
 
-| Kendala | Tindakan |
+| Kendala | Pemeriksaan dan Tindakan |
 |---|---|
-| Guru tidak bisa masuk setelah daftar | Pastikan status persetujuan approved dan akun aktif |
-| Orang Tua gagal memakai NIS | Cocokkan NIS siswa, pastikan belum terhubung, dan tunggu jika terkena batas percobaan |
-| Password baru tidak bekerja | Pastikan konfirmasi sama, perubahan sukses, lalu login ulang dengan username yang benar |
-| Admin tidak bisa dihapus | Pastikan bukan Admin terakhir dan bukan akun sendiri yang sedang digunakan |
-| Data laporan kosong | Periksa tahun ajaran, hubungan Guru–kelas–siswa, dan migrasi database production |
-| Fitur database belum aktif | Jalankan migrasi yang belum diterapkan pada project Supabase production yang dipakai Vercel |
-| Data tidak sama dengan deployment | Pastikan Vercel memakai commit main terbaru dan environment Supabase yang benar |
+| Siswa Guru ada tetapi Admin kosong | Tekan Perbarui, pastikan deployment terbaru, dan periksa normalisasi kelas; data kelas `1` harus terbaca sebagai `1A` |
+| Orang Tua tidak memiliki kelas | Akun belum terhubung; buka daftar Belum Terhubung dan hubungkan menggunakan NIS |
+| Guru tidak bisa login setelah daftar | Pastikan status persetujuan disetujui, role Guru, dan akun aktif |
+| Orang Tua gagal menggunakan NIS | Cocokkan NIS, pastikan siswa belum diklaim akun lain, dan periksa batas percobaan |
+| Password baru tidak bekerja | Pastikan penyimpanan berhasil dan login menggunakan username/email yang benar |
+| Admin gagal dihapus | Pastikan bukan Admin terakhir atau akun sendiri yang sedang digunakan |
+| Nilai/laporan kosong | Periksa kelas, level, Guru pengampu, tanggal, dan migrasi database production |
+| Data Surat kosong | Pastikan migrasi kurikulum aktif dan Guru telah mengisi Data Surat pada tahun ajaran |
+| Deployment tidak berubah | Pastikan commit branch `main` telah menjadi deployment Production berstatus Ready |
 
-## 14. Batas Wewenang dan Keamanan
+## 14. Keamanan dan Privasi
 
-- Jangan membagikan service role key, password, atau kredensial database.
-- Jangan menyetujui Guru tanpa verifikasi identitas.
-- Jangan mengubah nilai akademik tanpa instruksi resmi Guru/Koordinator Tahfizh.
-- Jangan menghapus akun atau siswa sebelum dampak riwayat diperiksa.
-- Gunakan Audit Aktivitas sebagai bukti, bukan untuk menyebarkan data pribadi.
-- Keluar dari sistem setelah pekerjaan selesai.
+- Ganti `ADMIN_PASSWORD` bawaan sebelum sistem digunakan secara resmi.
+- Gunakan password minimal 12 karakter untuk Admin.
+- Jangan membagikan `SUPABASE_SERVICE_ROLE_KEY`, token sesi, atau password database.
+- Service role key hanya boleh berada pada environment server.
+- Jangan menyalin data siswa ke perangkat pribadi tanpa persetujuan.
+- Gunakan akun masing-masing; jangan memakai satu akun bersama.
+- Nonaktifkan akun pengguna yang sudah tidak bertugas.
+- Periksa Audit setelah perubahan sensitif.
+- Backup database dan dokumen harus terenkripsi serta disimpan terpisah dari server utama.
 
-## 15. Checklist Serah Terima Admin
+## 15. Checklist Validasi Setelah Perubahan Besar
 
-- [ ] Dapat masuk dan keluar dengan aman.
-- [ ] Dapat membaca Dashboard Monitoring.
-- [ ] Dapat memproses akun Guru menunggu.
-- [ ] Dapat membuat akun internal dan mengelola role/password.
-- [ ] Dapat memantau Guru dan Orang Tua.
-- [ ] Dapat memperbaiki relasi Orang Tua–anak secara terverifikasi.
-- [ ] Dapat mengelola siswa, kelas, tahun ajaran, dan kurikulum.
-- [ ] Dapat menilai kelengkapan laporan dan membaca audit.
-- [ ] Memahami perlindungan Admin terakhir dan kerahasiaan data.
+- [ ] Login Admin berhasil.
+- [ ] Dashboard menampilkan jumlah siswa dan kelas yang benar.
+- [ ] Kelas 1A–6B terbaca pada Siswa & Kelas.
+- [ ] Nilai dan Presensi–Tadarus dapat dibuka.
+- [ ] Wali kelas mengaji dapat disimpan.
+- [ ] Tabel Monitoring Orang Tua menampilkan seluruh kelas.
+- [ ] Hubungan Orang Tua berdasarkan NIS berhasil.
+- [ ] Persetujuan dan perubahan role akun berhasil.
+- [ ] Password baru langsung dapat digunakan.
+- [ ] Audit menampilkan pelaku, target, rincian, waktu, dan status.
+- [ ] Logout mengakhiri akses Admin.
 
-## 16. Pengesahan
+## 16. Checklist Serah Terima Admin
+
+- [ ] Administrator memahami seluruh menu production.
+- [ ] Tersedia minimal dua akun Admin aktif.
+- [ ] Kredensial bawaan telah diganti.
+- [ ] Daftar Guru dan Orang Tua telah diverifikasi.
+- [ ] Data siswa 1A–6B dan NIS telah divalidasi.
+- [ ] Wali kelas mengaji telah ditetapkan.
+- [ ] Kebijakan backup dan pemulihan telah diuji.
+- [ ] Penanggung jawab teknis VPS/Supabase telah ditentukan.
+
+## 17. Pengesahan
 
 | Disusun/Dikelola oleh | Diperiksa oleh | Disahkan oleh |
 |---|---|---|
@@ -215,4 +373,4 @@ Audit dipakai untuk menelusuri persetujuan akun, perubahan role/password, pengha
 |  | **ULFA DWI HASTUTI, S.LI** | **WIDI NURMARA, S.Pd.I** |
 | Tanggal: ____________ | Tanggal: ____________ | Tanggal: ____________ |
 
-Dokumen ini menjadi pedoman operasional role Admin. Perubahan fitur atau kebijakan harus diikuti pembaruan versi panduan.
+Dokumen ini menjadi pedoman operasional Admin versi 2.0. Setiap perubahan fitur production, struktur role, database, atau proses deployment harus diikuti pembaruan dokumen dan penerbitan ulang PDF.

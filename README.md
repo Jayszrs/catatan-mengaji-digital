@@ -169,9 +169,12 @@ Migrasi ditulis agar dapat dijalankan ulang sejauh memungkinkan. Jika Supabase m
 - [Setup dan migrasi Supabase](docs/SUPABASE_SETUP.md)
 - [MOM/notulen perjalanan proyek](docs/MOM.md)
 - [PDF MOM lengkap](docs/MOM.pdf)
-- [Panduan alur Admin (PDF)](docs/panduan/PANDUAN-ALUR-ADMIN.pdf)
+- [Panduan operasional Admin terbaru (Markdown)](docs/panduan/PANDUAN-ALUR-ADMIN.md)
+- [Panduan operasional Admin terbaru (PDF)](docs/panduan/PANDUAN-ALUR-ADMIN.pdf)
 - [Panduan alur Guru (PDF)](docs/panduan/PANDUAN-ALUR-GURU.pdf)
 - [Panduan alur Orang Tua/Wali (PDF)](docs/panduan/PANDUAN-ALUR-ORANG-TUA.pdf)
+- [Persyaratan dan panduan migrasi VPS (Markdown)](docs/deployment/PERSYARATAN-MIGRASI-VPS.md)
+- [Persyaratan dan panduan migrasi VPS (PDF)](docs/deployment/PERSYARATAN-MIGRASI-VPS.pdf)
 
 PDF MOM dapat dibuat ulang setelah dokumen diperbarui:
 
@@ -183,6 +186,12 @@ Tiga PDF panduan role dapat dibuat ulang secara bersamaan:
 
 ```bash
 python scripts/generate_role_guides.py
+```
+
+PDF persyaratan dan panduan migrasi VPS dapat dibuat ulang dengan:
+
+```bash
+python scripts/generate_vps_guide_pdf.py
 ```
 
 ## Pemeliharaan

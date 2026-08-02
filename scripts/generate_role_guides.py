@@ -12,7 +12,7 @@ GUIDES = (
     {
         "slug": "ADMIN",
         "title": "PANDUAN OPERASIONAL ROLE ADMIN",
-        "meta": "No. PND/CMD/ADM/VIII/2026/001 · Versi 1.0 · 2 Agustus 2026",
+        "meta": "No. PND/CMD/ADM/VIII/2026/002 · Versi 2.0 · 2 Agustus 2026",
     },
     {
         "slug": "GURU",
