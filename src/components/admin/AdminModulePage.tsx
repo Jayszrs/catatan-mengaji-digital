@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -183,6 +184,15 @@ interface AdminOverviewData {
   curriculum: CurriculumRow[];
   academic_settings: AcademicSettings;
   alerts: string[];
+}
+
+function normalizeAdminClassName(value?: string | null) {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/KELAS/g, "")
+    .replace(/[^1-6A-Z]/g, "");
+  return /^[1-6][A-Z]$/.test(normalized) ? normalized : "";
 }
 
 const sectionMeta: Record<
@@ -633,7 +643,13 @@ function StudentManagementRow({
   );
 }
 
-export function AdminModulePage({ section }: { section: AdminSection }) {
+export function AdminModulePage({
+  section,
+  initialAdminClass = "1A",
+}: {
+  section: AdminSection;
+  initialAdminClass?: string;
+}) {
   const router = useRouter();
   const meta = sectionMeta[section];
   const [data, setData] = useState<AdminOverviewData | null>(null);
@@ -645,7 +661,9 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
   const [expandedTeacher, setExpandedTeacher] = useState("");
   const [selectedParent, setSelectedParent] = useState<ParentRow | null>(null);
   const [parentNis, setParentNis] = useState("");
-  const [selectedAdminClass, setSelectedAdminClass] = useState("1A");
+  const [selectedAdminClass, setSelectedAdminClass] = useState(() =>
+    normalizeAdminClassName(initialAdminClass) || "1A",
+  );
   const [studentStatusFilter, setStudentStatusFilter] = useState<
     "all" | StudentRow["status"]
   >("all");
@@ -750,6 +768,7 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
         parent.email,
         parent.linked_student?.name,
         parent.linked_student?.nis,
+        parent.linked_student?.class_name,
       ]
         .join(" ")
         .toLowerCase()
@@ -761,7 +780,8 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
     if (!data) return [];
     const query = search.trim().toLowerCase();
     return data.students.filter((student) => {
-      const matchesClass = student.class_name === selectedAdminClass;
+      const matchesClass =
+        normalizeAdminClassName(student.class_name) === selectedAdminClass;
       const matchesStatus =
         studentStatusFilter === "all" ||
         student.status === studentStatusFilter;
@@ -778,7 +798,9 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
   const selectedAdminClassMaster = useMemo(() => {
     if (!data) return null;
     return data.classes
-      .filter((row) => row.name === selectedAdminClass)
+      .filter(
+        (row) => normalizeAdminClassName(row.name) === selectedAdminClass,
+      )
       .sort((left, right) =>
         right.academic_year.localeCompare(left.academic_year),
       )[0] || null;
@@ -972,7 +994,7 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
           )}
           <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
             <div className="flex flex-col gap-4 border-b border-gray-100 p-5 md:flex-row md:items-center md:justify-between"><div className="relative max-w-md flex-1"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari Orang Tua, anak, atau NIS..." className="w-full rounded-xl border border-gray-200 py-3 pl-11 pr-4 text-sm font-semibold outline-none focus:border-emerald-500" /></div><StatusPill tone="blue">{filteredParents.length} Orang Tua</StatusPill></div>
-            <div className="overflow-x-auto"><table className="min-w-[980px] w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr><th className="px-5 py-4">Orang Tua</th><th className="px-5 py-4">Anak Terhubung</th><th className="px-5 py-4">Biodata</th><th className="px-5 py-4">Login Terakhir</th><th className="px-5 py-4">Status</th><th className="px-5 py-4">Aksi</th></tr></thead><tbody>{filteredParents.map((parent) => <tr key={parent.id} className="border-t border-gray-100 hover:bg-gray-50/70"><td className="px-5 py-4"><p className="font-black text-gray-900">{parent.name}</p><p className="mt-1 text-xs text-gray-500">{parent.username ? `@${parent.username}` : parent.email}</p></td><td className="px-5 py-4">{parent.linked_student ? <><p className="font-black text-gray-800">{parent.linked_student.name}</p><p className="text-xs text-gray-500">NIS {parent.linked_student.nis} · Kelas {parent.linked_student.class_name}</p></> : <StatusPill tone="amber">Belum terhubung</StatusPill>}</td><td className="px-5 py-4"><p className="font-black text-gray-700">{parent.profile_percentage}%</p><div className="mt-2 w-28"><ProgressBar value={parent.profile_percentage} /></div></td><td className="px-5 py-4 font-semibold text-gray-600">{formatRelative(parent.last_login_at)}</td><td className="px-5 py-4"><StatusPill tone={parent.status === "active" ? "green" : "red"}>{parent.status === "active" ? "Aktif" : "Nonaktif"}</StatusPill></td><td className="px-5 py-4"><button type="button" onClick={() => { setSelectedParent(parent); setParentNis(parent.linked_student?.nis || ""); }} className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2.5 text-xs font-black text-blue-700 hover:bg-blue-100"><Link2 size={15} /> Kelola Anak</button></td></tr>)}</tbody></table></div>
+            <div className="overflow-x-auto"><table className="min-w-[1050px] w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr><th className="px-5 py-4">Orang Tua</th><th className="px-5 py-4">Anak Terhubung</th><th className="px-5 py-4">Kelas Anak</th><th className="px-5 py-4">Biodata</th><th className="px-5 py-4">Login Terakhir</th><th className="px-5 py-4">Status</th><th className="px-5 py-4">Aksi</th></tr></thead><tbody>{filteredParents.map((parent) => <tr key={parent.id} className="border-t border-gray-100 hover:bg-gray-50/70"><td className="px-5 py-4"><p className="font-black text-gray-900">{parent.name}</p><p className="mt-1 text-xs text-gray-500">{parent.username ? `@${parent.username}` : parent.email}</p></td><td className="px-5 py-4">{parent.linked_student ? <><p className="font-black text-gray-800">{parent.linked_student.name}</p><p className="text-xs text-gray-500">NIS {parent.linked_student.nis}</p></> : <StatusPill tone="amber">Belum terhubung</StatusPill>}</td><td className="px-5 py-4">{parent.linked_student?.class_name ? <Link href={`/dashboard/admin/siswa-kelas?class=${encodeURIComponent(normalizeAdminClassName(parent.linked_student.class_name))}`} className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3.5 py-2.5 text-xs font-black text-emerald-800 transition hover:bg-emerald-100"><School size={15} /> Kelas {normalizeAdminClassName(parent.linked_student.class_name)}</Link> : <span className="text-sm font-semibold text-gray-400">Belum ada kelas</span>}</td><td className="px-5 py-4"><p className="font-black text-gray-700">{parent.profile_percentage}%</p><div className="mt-2 w-28"><ProgressBar value={parent.profile_percentage} /></div></td><td className="px-5 py-4 font-semibold text-gray-600">{formatRelative(parent.last_login_at)}</td><td className="px-5 py-4"><StatusPill tone={parent.status === "active" ? "green" : "red"}>{parent.status === "active" ? "Aktif" : "Nonaktif"}</StatusPill></td><td className="px-5 py-4"><button type="button" onClick={() => { setSelectedParent(parent); setParentNis(parent.linked_student?.nis || ""); }} className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2.5 text-xs font-black text-blue-700 hover:bg-blue-100"><Link2 size={15} /> Kelola Anak</button></td></tr>)}</tbody></table></div>
           </section>
         </>
       ) : section === "siswa-kelas" ? (

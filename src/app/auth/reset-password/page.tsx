@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -9,8 +8,11 @@ import {
   CheckCircle2,
   KeyRound,
   Loader2,
+  LockKeyhole,
   Mail,
 } from "lucide-react";
+import { AuthInput } from "@/components/AuthInput";
+import { AuthSplitLayout } from "@/components/AuthSplitLayout";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { getAppErrorMessage } from "@/lib/app-errors";
 
@@ -134,14 +136,17 @@ function ResetPasswordContent() {
 
   return (
     <ResetShell>
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
         {mode === "success" ? <CheckCircle2 size={32} /> : mode === "update" ? <KeyRound size={32} /> : <Mail size={32} />}
       </div>
-      <h1 className="mt-5 text-center text-3xl font-black text-gray-900">
+      <p className="mt-6 text-xs font-black uppercase tracking-[0.18em] text-[#2b8053]">
+        Pemulihan Akun
+      </p>
+      <h1 className="mt-3 text-3xl font-black tracking-[-0.035em] text-[#12271d] sm:text-4xl">
         {mode === "update" ? "Buat Password Baru" : mode === "success" ? "Permintaan Berhasil" : "Reset Password"}
       </h1>
-      <p className="mt-2 text-center font-medium text-gray-500">
-        {mode === "update" ? "Masukkan password baru untuk akun Anda." : "Gunakan email yang terdaftar pada akun."}
+      <p className="mt-2 text-sm font-medium leading-6 text-gray-500">
+        {mode === "update" ? "Masukkan password baru untuk akun Anda." : mode === "success" ? "Lanjutkan sesuai petunjuk pemulihan akun di bawah." : "Gunakan email yang terdaftar pada akun."}
       </p>
 
       {message && (
@@ -153,11 +158,8 @@ function ResetPasswordContent() {
 
       {mode === "request" && (
         <form onSubmit={requestReset} className="mt-7 space-y-4">
-          <label>
-            <span className="mb-2 block text-sm font-bold text-gray-700">Email akun</span>
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="nama@email.com" className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 font-medium outline-none focus:border-emerald-500" />
-          </label>
-          <button disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-4 font-black text-white hover:bg-emerald-700 disabled:opacity-50">
+          <AuthInput label="Email akun" icon={Mail} type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="nama@email.com" />
+          <button disabled={loading} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0e622f] px-5 text-sm font-black uppercase tracking-[0.04em] text-white shadow-[0_12px_28px_rgba(14,98,47,0.18)] transition hover:bg-[#0a5127] disabled:opacity-50">
             {loading ? <Loader2 className="animate-spin" size={20} /> : <Mail size={20} />}
             Kirim Email Reset
           </button>
@@ -168,7 +170,7 @@ function ResetPasswordContent() {
         <form onSubmit={updatePassword} className="mt-7 space-y-4">
           <PasswordField label="Password Baru" value={password} onChange={setPassword} />
           <PasswordField label="Ulangi Password Baru" value={confirmation} onChange={setConfirmation} />
-          <button disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-4 font-black text-white hover:bg-emerald-700 disabled:opacity-50">
+          <button disabled={loading} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0e622f] px-5 text-sm font-black uppercase tracking-[0.04em] text-white shadow-[0_12px_28px_rgba(14,98,47,0.18)] transition hover:bg-[#0a5127] disabled:opacity-50">
             {loading ? <Loader2 className="animate-spin" size={20} /> : <KeyRound size={20} />}
             Simpan Password Baru
           </button>
@@ -184,22 +186,22 @@ function ResetPasswordContent() {
 
 function PasswordField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-bold text-gray-700">{label}</span>
-      <input type="password" minLength={6} value={value} onChange={(event) => onChange(event.target.value)} required className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 font-medium outline-none focus:border-emerald-500" />
-    </label>
+    <AuthInput
+      label={label}
+      icon={LockKeyhole}
+      type="password"
+      minLength={6}
+      autoComplete="new-password"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      required
+      placeholder="Minimal 6 karakter"
+    />
   );
 }
 
 function ResetShell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-600 to-emerald-800 p-4">
-      <section className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
-        <Image src="/logo.png" alt="Logo sekolah" width={72} height={72} className="mx-auto h-18 w-18 object-contain" />
-        {children}
-      </section>
-    </main>
-  );
+  return <AuthSplitLayout mode="login">{children}</AuthSplitLayout>;
 }
 
 export default function ResetPasswordPage() {

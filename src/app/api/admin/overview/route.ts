@@ -81,7 +81,7 @@ function normalizeClassName(value: unknown) {
     .trim()
     .toUpperCase()
     .replace(/KELAS/g, "")
-    .replace(/\s+/g, "");
+    .replace(/[^1-6A-Z]/g, "");
 }
 
 function studentPlacement(value: unknown) {
@@ -162,9 +162,7 @@ export async function GET(request: NextRequest) {
       optionalRows(
         admin
           .from("students")
-          .select(
-            "id,teacher_id,nama_lengkap,nis,kelas,level,wali_murid,no_telp,created_at,updated_at",
-          )
+          .select("id,teacher_id,nama_lengkap,nis,kelas,level")
           .order("nama_lengkap", { ascending: true }),
       ),
       optionalRows(
@@ -364,7 +362,7 @@ export async function GET(request: NextRequest) {
                 id: student.id,
                 name: student.nama_lengkap,
                 nis: student.nis,
-                class_name: student.kelas,
+                class_name: studentPlacement(student.kelas).className,
                 level: student.level,
               }
             : null,
@@ -401,7 +399,7 @@ export async function GET(request: NextRequest) {
         duplicate_nis: duplicateNis.has(String(student.nis || "").trim()),
         status: placement.status,
         archived: placement.status !== "active",
-        updated_at: student.updated_at || student.created_at,
+        updated_at: null,
       };
     });
 
