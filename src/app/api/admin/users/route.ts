@@ -216,7 +216,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, email, password, name, role, userId, username } = body;
+    const {
+      action,
+      email,
+      password,
+      name,
+      role,
+      userId,
+      username,
+      reason,
+    } = body;
 
     if (action === "create") {
       const normalizedUsername = normalizeUsername(username);
@@ -765,6 +774,14 @@ export async function POST(request: NextRequest) {
     if (action === "update_password") {
       const normalizedPassword =
         typeof password === "string" ? password : "";
+      const passwordReason = [
+        "forgot_password",
+        "user_request",
+        "security_reset",
+        "other",
+      ].includes(String(reason))
+        ? String(reason)
+        : "user_request";
       if (!userId || normalizedPassword.length < 6) {
         return NextResponse.json(
           { error: "Password baru minimal 6 karakter." },
@@ -795,6 +812,7 @@ export async function POST(request: NextRequest) {
             ...(targetData.user.user_metadata || {}),
             password_changed_at: passwordChangedAt,
             password_changed_by: guard.authorization?.user?.id || null,
+            password_change_reason: passwordReason,
           },
         });
       if (updateError) {
@@ -840,6 +858,7 @@ export async function POST(request: NextRequest) {
         eventType: "admin_password_changed",
         status: "success",
         request,
+        details: { reason: passwordReason, method: "admin_panel" },
       });
 
       return NextResponse.json({

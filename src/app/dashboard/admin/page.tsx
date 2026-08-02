@@ -18,6 +18,11 @@ import {
 } from "lucide-react";
 
 type AdminRole = "admin" | "guru" | "orang_tua";
+type PasswordChangeReason =
+  | "forgot_password"
+  | "user_request"
+  | "security_reset"
+  | "other";
 
 interface AdminUser {
   id: string;
@@ -90,6 +95,8 @@ export default function AdminDashboard() {
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordReason, setPasswordReason] =
+    useState<PasswordChangeReason>("forgot_password");
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [passwordUpdatingUserId, setPasswordUpdatingUserId] = useState("");
   const [repairingUserId, setRepairingUserId] = useState("");
@@ -212,7 +219,8 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           action: "update_password",
           userId: targetUser.id,
-          password: newPassword
+          password: newPassword,
+          reason: passwordReason,
         })
       });
       
@@ -230,6 +238,7 @@ export default function AdminDashboard() {
       setShowPasswordForm(false);
       setNewPassword("");
       setConfirmPassword("");
+      setPasswordReason("forgot_password");
       setSelectedUser(null);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Gagal mengubah password"));
@@ -655,6 +664,7 @@ export default function AdminDashboard() {
                 setSelectedUser(null);
                 setNewPassword("");
                 setConfirmPassword("");
+                setPasswordReason("forgot_password");
               }}
               className="text-gray-400 hover:text-gray-700"
             >
@@ -673,7 +683,24 @@ export default function AdminDashboard() {
               Sistem akan memeriksa ulang perubahan di Supabase sebelum
               menampilkan status berhasil.
             </div>
-            <div className="grid max-w-3xl grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="grid max-w-5xl grid-cols-1 gap-5 md:grid-cols-3">
+              <label className="text-sm font-bold text-gray-700">
+                Alasan Perubahan
+                <select
+                  value={passwordReason}
+                  onChange={(event) =>
+                    setPasswordReason(
+                      event.target.value as PasswordChangeReason,
+                    )
+                  }
+                  className="mt-2 w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-3 font-medium outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#2dc653]"
+                >
+                  <option value="forgot_password">Pengguna lupa password</option>
+                  <option value="user_request">Permintaan pengguna</option>
+                  <option value="security_reset">Reset keamanan akun</option>
+                  <option value="other">Alasan lainnya</option>
+                </select>
+              </label>
               <Input
                 label="Password Baru"
                 type="password"
@@ -841,6 +868,7 @@ export default function AdminDashboard() {
                             setShowAddForm(false);
                             setNewPassword("");
                             setConfirmPassword("");
+                            setPasswordReason("forgot_password");
                             setError("");
                             setSuccess("");
                             window.scrollTo({ top: 0, behavior: "smooth" });

@@ -237,6 +237,7 @@ const eventLabels: Record<string, string> = {
   admin_account_created: "Akun dibuat",
   admin_role_changed: "Role diubah",
   admin_password_changed: "Password diubah",
+  self_password_reset_completed: "Reset password mandiri",
   admin_account_deleted: "Akun dihapus",
   teacher_registration_review: "Persetujuan Guru",
   admin_parent_link_connect: "Orang Tua dihubungkan",
@@ -249,11 +250,182 @@ const eventLabels: Record<string, string> = {
   student_status_changed: "Status siswa diubah",
   class_quran_teacher_changed: "Wali kelas mengaji diubah",
   teacher_daily_report_saved: "Laporan harian Guru disimpan",
+  teacher_daily_score_saved: "Nilai harian disimpan",
+  teacher_level_exam_saved: "Hasil ujian level disimpan",
+  teacher_munaqosyah_saved: "Hasil Munaqosyah disimpan",
   academic_year_opened: "Tahun ajaran dibuka",
   academic_year_closed: "Tahun ajaran ditutup",
   curriculum_copied: "Kurikulum disalin",
   academic_settings_updated: "Komposisi nilai diubah",
 };
+
+const passwordReasonLabels: Record<string, string> = {
+  forgot_password: "Pengguna lupa password",
+  user_request: "Perubahan diminta oleh pengguna",
+  security_reset: "Password direset untuk keamanan akun",
+  other: "Password diubah karena alasan lain",
+  admin_reset: "Password diubah oleh Administrator",
+};
+
+function formatAuditDate(value: unknown) {
+  const raw = String(value || "");
+  if (!raw) return "tanggal tidak tersedia";
+  const date = new Date(raw.includes("T") ? raw : `${raw}T00:00:00+07:00`);
+  if (Number.isNaN(date.getTime())) return raw;
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "long",
+    timeZone: "Asia/Jakarta",
+  }).format(date);
+}
+
+function getAuditActivityLabel(event: AuditRow) {
+  if (event.event_type === "teacher_daily_report_saved") {
+    return event.details.operation === "updated"
+      ? "Laporan harian diperbarui"
+      : "Laporan harian ditambahkan";
+  }
+  return (
+    eventLabels[event.event_type] || event.event_type.replaceAll("_", " ")
+  );
+}
+
+function getAuditTarget(event: AuditRow) {
+  const target = event.target_name && event.target_name !== "-"
+    ? event.target_name
+    : "data terkait";
+  switch (event.event_type) {
+    case "admin_password_changed":
+    case "self_password_reset_completed":
+      return `Password akun ${target}`;
+    case "admin_role_changed":
+      return `Role akun ${target}`;
+    case "admin_account_created":
+    case "admin_account_deleted":
+      return `Akun ${target}`;
+    case "teacher_registration_review":
+      return `Pendaftaran Guru ${target}`;
+    case "teacher_activated":
+    case "teacher_deactivated":
+      return `Akun Guru ${target}`;
+    case "admin_parent_link_connect":
+    case "admin_parent_link_disconnect":
+      return `Relasi anak akun ${target}`;
+    case "teacher_daily_report_saved":
+      return `Laporan ${target} • ${formatAuditDate(event.details.report_date)}`;
+    case "teacher_daily_score_saved":
+      return `Nilai ${String(event.details.surah_name || "harian")} • ${target}`;
+    case "teacher_level_exam_saved":
+      return `Ujian level ${target}`;
+    case "teacher_munaqosyah_saved":
+      return `Munaqosyah ${target}`;
+    case "student_status_changed":
+      return `Status siswa ${String(event.details.student_name || target)}`;
+    case "student_assignment_updated":
+      return `Penempatan siswa ${String(event.details.student_name || target)}`;
+    case "student_archived":
+      return `Data siswa ${String(event.details.student_name || target)}`;
+    case "class_quran_teacher_changed":
+      return `Wali mengaji Kelas ${String(event.details.class_name || target)}`;
+    case "academic_year_opened":
+    case "academic_year_closed":
+      return `Tahun ajaran ${String(event.details.academic_year || target)}`;
+    case "curriculum_copied":
+      return `Kurikulum ${String(event.details.source_year || "-")} → ${String(event.details.target_year || "-")}`;
+    case "academic_settings_updated":
+      return "Komposisi dan syarat nilai";
+    default:
+      return target;
+  }
+}
+
+function getAuditDetail(event: AuditRow) {
+  const details = event.details || {};
+  const successful = event.status === "success";
+  switch (event.event_type) {
+    case "admin_password_changed":
+      return `${passwordReasonLabels[String(details.reason || "admin_reset")] || passwordReasonLabels.admin_reset}. Administrator ${successful ? "berhasil" : "gagal"} mengganti password akun.`;
+    case "self_password_reset_completed":
+      return `Pengguna memilih lupa password dan ${successful ? "berhasil" : "gagal"} membuat password baru melalui tautan pemulihan.`;
+    case "teacher_daily_report_saved": {
+      const operation = details.operation === "updated" ? "memperbarui" : "menambahkan";
+      const additions = [
+        details.attendance_status
+          ? `presensi ${String(details.attendance_status)}`
+          : null,
+        details.activity ? `kegiatan “${String(details.activity)}”` : null,
+        details.tadarus ? `tadarus “${String(details.tadarus)}”` : null,
+        details.memorization
+          ? `hafalan “${String(details.memorization)}”`
+          : null,
+      ].filter(Boolean);
+      return `Guru berhasil ${operation} laporan tanggal ${formatAuditDate(details.report_date)}${additions.length ? ` dengan ${additions.join(", ")}` : ""}.`;
+    }
+    case "teacher_level_exam_saved":
+      return `Guru menyimpan ujian Level ${String(details.source_level || "-")} → Level ${String(details.target_level || "-")} dengan nilai rata-rata ${String(details.average_score ?? "-")} dan hasil ${String(details.result || "-")}.`;
+    case "teacher_daily_score_saved":
+      return `Guru menyimpan nilai ${String(details.surah_name || "harian")} sebesar ${String(details.average_score ?? "-")} pada ${formatAuditDate(details.score_date)}${details.description ? ` dengan keterangan “${String(details.description)}”` : ""}.`;
+    case "teacher_munaqosyah_saved":
+      return `Guru menyimpan hasil Munaqosyah Juz ${String(details.juz || "-")}, nilai rata-rata ${String(details.average_score ?? "-")}, predikat ${String(details.predicate || details.exam_status || "-")}.`;
+    case "student_status_changed":
+      return `Status siswa berhasil diubah menjadi ${String(details.student_status || "status baru")}. Riwayat siswa tetap disimpan.`;
+    case "student_assignment_updated":
+      return `Penempatan siswa berhasil diubah dari kelas ${String(details.from_class || "-")} ke kelas ${String(details.to_class || "-")} dan Level ${String(details.to_level || "-")}.`;
+    case "student_archived":
+      return `Siswa berhasil diarsipkan dengan alasan ${String(details.reason || "arsip")}. Riwayat akademik tetap disimpan.`;
+    case "class_quran_teacher_changed":
+      return `Wali kelas mengaji berhasil diganti menjadi ${String(details.teacher_name || "Guru terpilih")} untuk ${String(details.assigned_student_count ?? 0)} siswa aktif.`;
+    case "admin_role_changed":
+      return `Role akun berhasil diubah menjadi ${String(details.role || details.new_role || "role baru")}.`;
+    case "admin_account_created":
+      return `Administrator berhasil membuat akun baru dengan role ${String(details.role || "yang dipilih")}.`;
+    case "admin_account_deleted":
+      return "Administrator berhasil menghapus akun dari sistem.";
+    case "teacher_registration_review":
+      return `Pendaftaran akun Guru ${String(details.decision || "telah ditinjau")} oleh Administrator.`;
+    case "admin_parent_link_connect":
+      return "Administrator berhasil menghubungkan akun Orang Tua dengan siswa.";
+    case "admin_parent_link_disconnect":
+      return "Administrator berhasil memutus hubungan akun Orang Tua dengan siswa.";
+    case "teacher_activated":
+      return "Administrator berhasil mengaktifkan kembali akun Guru.";
+    case "teacher_deactivated":
+      return "Administrator berhasil menonaktifkan akun Guru.";
+    case "academic_year_opened":
+      return "Tahun ajaran berhasil dibuka.";
+    case "academic_year_closed":
+      return "Tahun ajaran berhasil ditutup.";
+    case "curriculum_copied":
+      return `${String(details.surah_count || 0)} surat berhasil disalin dari ${String(details.source_year || "-")} ke ${String(details.target_year || "-")}.`;
+    case "academic_settings_updated":
+      return "Komposisi nilai dan syarat kelulusan berhasil diperbarui.";
+    default: {
+      const technicalKeys = new Set([
+        "source",
+        "method",
+        "report_id",
+        "student_id",
+        "nis_hash",
+        "password_changed_at",
+      ]);
+      const readable = Object.entries(details)
+        .filter(
+          ([key, value]) =>
+            !technicalKeys.has(key) &&
+            value !== null &&
+            value !== undefined &&
+            typeof value !== "object",
+        )
+        .map(([key, value]) =>
+          `${key.replaceAll("_", " ")}: ${String(value)}`,
+        );
+      return readable.length > 0
+        ? readable.join(" • ")
+        : successful
+          ? "Aktivitas berhasil diproses."
+          : "Aktivitas tidak berhasil diproses.";
+    }
+  }
+}
 
 function formatDateTime(value?: string | null) {
   if (!value) return "Belum pernah";
@@ -619,9 +791,10 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
       const matchesSearch =
         !query ||
         [
-          eventLabels[event.event_type] || event.event_type,
+          getAuditActivityLabel(event),
           event.actor_name,
-          event.target_name,
+          getAuditTarget(event),
+          getAuditDetail(event),
         ]
           .join(" ")
           .toLowerCase()
@@ -881,7 +1054,7 @@ export function AdminModulePage({ section }: { section: AdminSection }) {
       ) : (
         <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
           <div className="grid gap-3 border-b border-gray-100 p-5 md:grid-cols-[1fr_180px_180px]"><div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari aktivitas atau pengguna..." className="w-full rounded-xl border border-gray-200 py-3 pl-11 pr-4 text-sm font-semibold outline-none focus:border-emerald-500" /></div><select value={auditStatus} onChange={(event) => setAuditStatus(event.target.value)} className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold"><option value="all">Semua Status</option><option value="success">Berhasil</option><option value="failed">Gagal</option><option value="blocked">Diblokir</option></select><input type="date" value={auditDate} onChange={(event) => setAuditDate(event.target.value)} className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold" /></div>
-          <div className="overflow-x-auto"><table className="min-w-[1050px] w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr><th className="px-5 py-4">Waktu</th><th className="px-5 py-4">Aktivitas</th><th className="px-5 py-4">Pelaku</th><th className="px-5 py-4">Target</th><th className="px-5 py-4">Rincian</th><th className="px-5 py-4">Status</th></tr></thead><tbody>{filteredAudit.map((event) => <tr key={event.id} className="border-t border-gray-100 align-top hover:bg-gray-50/70"><td className="whitespace-nowrap px-5 py-4 font-semibold text-gray-600">{formatDateTime(event.created_at)}</td><td className="px-5 py-4 font-black text-gray-900">{eventLabels[event.event_type] || event.event_type.replaceAll("_", " ")}</td><td className="px-5 py-4 font-bold text-gray-700">{event.actor_name}</td><td className="px-5 py-4 text-gray-600">{event.target_name}</td><td className="max-w-sm px-5 py-4"><code className="line-clamp-3 whitespace-pre-wrap break-words text-xs text-gray-500">{Object.keys(event.details || {}).length > 0 ? JSON.stringify(event.details) : "-"}</code></td><td className="px-5 py-4"><StatusPill tone={event.status === "success" ? "green" : event.status === "failed" ? "red" : "amber"}>{event.status === "success" ? "Berhasil" : event.status === "failed" ? "Gagal" : "Diblokir"}</StatusPill></td></tr>)}</tbody></table></div>
+          <div className="overflow-x-auto"><table className="min-w-[1180px] w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr><th className="px-5 py-4">Waktu</th><th className="px-5 py-4">Aktivitas</th><th className="px-5 py-4">Pelaku (Username)</th><th className="px-5 py-4">Target Aktivitas</th><th className="px-5 py-4">Rincian</th><th className="px-5 py-4">Status</th></tr></thead><tbody>{filteredAudit.map((event) => <tr key={event.id} className="border-t border-gray-100 align-top hover:bg-gray-50/70"><td className="whitespace-nowrap px-5 py-4 font-semibold text-gray-600">{formatDateTime(event.created_at)}</td><td className="px-5 py-4 font-black text-gray-900">{getAuditActivityLabel(event)}</td><td className="px-5 py-4 font-black text-emerald-800">{event.actor_name}</td><td className="max-w-xs px-5 py-4 font-semibold text-gray-700">{getAuditTarget(event)}</td><td className="max-w-md px-5 py-4 text-xs font-medium leading-relaxed text-gray-600">{getAuditDetail(event)}</td><td className="px-5 py-4"><StatusPill tone={event.status === "success" ? "green" : event.status === "failed" ? "red" : "amber"}>{event.status === "success" ? "Berhasil" : event.status === "failed" ? "Gagal" : "Diblokir"}</StatusPill></td></tr>)}</tbody></table></div>
           {filteredAudit.length === 0 && <div className="px-6 py-16 text-center"><History className="mx-auto text-gray-300" size={48} /><p className="mt-4 font-black text-gray-700">Tidak ada aktivitas yang sesuai filter.</p></div>}
         </section>
       )}

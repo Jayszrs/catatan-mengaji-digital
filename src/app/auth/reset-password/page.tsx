@@ -103,6 +103,15 @@ function ResetPasswordContent() {
       if (password !== confirmation) throw new Error("Konfirmasi password tidak sama.");
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        await fetch("/api/auth/password-audit", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+      }
       await supabase.auth.signOut();
       setMode("success");
       setMessage("Password berhasil diubah. Silakan login menggunakan password baru.");

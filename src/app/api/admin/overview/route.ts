@@ -69,6 +69,13 @@ function userContact(user: User) {
     : user.email || "-";
 }
 
+function userAuditIdentity(user: User) {
+  const username = String(user.user_metadata?.username || "").trim();
+  if (username) return `@${username}`;
+  const emailUsername = String(user.email || "").split("@")[0]?.trim();
+  return emailUsername ? `@${emailUsername}` : userDisplayName(user);
+}
+
 function normalizeClassName(value: unknown) {
   return String(value || "")
     .trim()
@@ -140,6 +147,7 @@ export async function GET(request: NextRequest) {
       classes,
       parentLinks,
       dailyReports,
+      dailyScores,
       levelExams,
       munaqosyahExams,
       curriculum,
@@ -175,20 +183,36 @@ export async function GET(request: NextRequest) {
       optionalRows(
         admin
           .from("daily_student_reports")
-          .select("id,teacher_id,student_id,tanggal,status_presensi,updated_at")
+          .select(
+            "id,teacher_id,student_id,tanggal,status_presensi,kegiatan,ringkasan_tadarus,ringkasan_hafalan,created_at,updated_at",
+          )
           .gte("tanggal", weekStart)
           .order("tanggal", { ascending: false }),
       ),
       optionalRows(
         admin
+          .from("laporan_tahsin_tahfidz")
+          .select(
+            "id,teacher_id,student_id,tanggal,nama_surah,nilai,nilai_rata_rata,keterangan",
+          )
+          .gte("tanggal", daysAgoIso(30))
+          .order("tanggal", { ascending: false })
+          .limit(250),
+      ),
+      optionalRows(
+        admin
           .from("level_promotion_exams")
-          .select("id,teacher_id,student_id,tanggal,status,tahun_ajaran")
+          .select(
+            "id,teacher_id,student_id,tanggal,level_asal,level_tujuan,nilai_rata_rata,status,tahun_ajaran,created_at,updated_at",
+          )
           .order("tanggal", { ascending: false }),
       ),
       optionalRows(
         admin
           .from("munaqosyah_exams")
-          .select("id,teacher_id,student_id,tanggal,status,updated_at")
+          .select(
+            "id,teacher_id,student_id,tanggal,status,hasil_ujian,created_at,updated_at",
+          )
           .order("tanggal", { ascending: false }),
       ),
       optionalRows(
@@ -227,8 +251,8 @@ export async function GET(request: NextRequest) {
     const linkedStudentIds = new Set(
       activeLinks.map((link) => String(link.student_id)),
     );
-    const userNameById = new Map(
-      activeUsers.map((user) => [user.id, userDisplayName(user)]),
+    const auditIdentityById = new Map(
+      activeUsers.map((user) => [user.id, userAuditIdentity(user)]),
     );
 
     const teachers = activeUsers
@@ -435,11 +459,11 @@ export async function GET(request: NextRequest) {
       status: event.status,
       actor_id: event.actor_user_id,
       actor_name: event.actor_user_id
-        ? userNameById.get(String(event.actor_user_id)) || "Akun terhapus"
-        : "Sistem/Administrator utama",
+        ? auditIdentityById.get(String(event.actor_user_id)) || "Akun terhapus"
+        : "@admin",
       target_id: event.target_user_id,
       target_name: event.target_user_id
-        ? userNameById.get(String(event.target_user_id)) || "Akun terhapus"
+        ? auditIdentityById.get(String(event.target_user_id)) || "Akun terhapus"
         : "-",
       details: event.details || {},
       created_at: event.created_at,
@@ -452,7 +476,10 @@ export async function GET(request: NextRequest) {
       const changedTimestamp = new Date(changedAt).getTime();
       const alreadyRecorded = securityEvents.some(
         (event) =>
-          event.event_type === "admin_password_changed" &&
+          [
+            "admin_password_changed",
+            "self_password_reset_completed",
+          ].includes(String(event.event_type)) &&
           String(event.target_user_id) === user.id &&
           new Date(event.created_at).getTime() >= changedTimestamp - 5_000,
       );
@@ -460,16 +487,27 @@ export async function GET(request: NextRequest) {
       const changedBy = String(
         user.user_metadata?.password_changed_by || "",
       );
+      const changeReason = String(
+        user.user_metadata?.password_change_reason || "admin_reset",
+      );
       return [
         {
           id: `password-${user.id}-${changedAt}`,
-          event_type: "admin_password_changed",
+          event_type:
+            changeReason === "forgot_password" && changedBy === user.id
+              ? "self_password_reset_completed"
+              : "admin_password_changed",
           status: "success" as const,
           actor_id: changedBy || null,
-          actor_name: userNameById.get(changedBy) || "Administrator",
+          actor_name:
+            auditIdentityById.get(changedBy) || "@admin",
           target_id: user.id,
-          target_name: userDisplayName(user),
-          details: { source: "auth_metadata", password_changed_at: changedAt },
+          target_name: userAuditIdentity(user),
+          details: {
+            reason: changeReason,
+            source: "auth_metadata",
+            password_changed_at: changedAt,
+          },
           created_at: changedAt,
         },
       ];
@@ -478,30 +516,126 @@ export async function GET(request: NextRequest) {
     // Laporan harian sebelumnya ditulis langsung oleh Guru melalui RLS, bukan
     // endpoint Admin. Bentuk event audit dari data laporan yang otoritatif agar
     // setiap simpan/edit tetap terpantau tanpa bergantung pada tabel audit.
-    const dailyReportAuditEvents = dailyReports.map((report) => ({
-      id: `daily-${report.id}-${report.updated_at || report.tanggal}`,
-      event_type: "teacher_daily_report_saved",
+    const dailyReportAuditEvents = dailyReports.map((report) => {
+      const createdAt = String(report.created_at || "");
+      const updatedAt = String(report.updated_at || "");
+      const operation =
+        createdAt && updatedAt &&
+        new Date(updatedAt).getTime() - new Date(createdAt).getTime() > 5_000
+          ? "updated"
+          : "created";
+      return {
+        id: `daily-${report.id}-${report.updated_at || report.tanggal}`,
+        event_type: "teacher_daily_report_saved",
+        status: "success" as const,
+        actor_id: String(report.teacher_id || "") || null,
+        actor_name:
+          auditIdentityById.get(String(report.teacher_id)) ||
+          "Guru tidak ditemukan",
+        target_id: String(report.student_id || "") || null,
+        target_name:
+          studentById.get(String(report.student_id))?.nama_lengkap ||
+          "Siswa tidak ditemukan",
+        details: {
+          operation,
+          report_date: report.tanggal,
+          attendance_status: report.status_presensi,
+          activity: report.kegiatan,
+          tadarus: report.ringkasan_tadarus,
+          memorization: report.ringkasan_hafalan,
+          source: "daily_student_reports",
+        },
+        created_at: report.updated_at || `${report.tanggal}T00:00:00+07:00`,
+      };
+    });
+
+    const levelExamAuditEvents = levelExams.map((exam) => ({
+      id: `level-${exam.id}-${exam.updated_at || exam.tanggal}`,
+      event_type: "teacher_level_exam_saved",
       status: "success" as const,
-      actor_id: String(report.teacher_id || "") || null,
+      actor_id: String(exam.teacher_id || "") || null,
       actor_name:
-        teacherNameById.get(String(report.teacher_id)) || "Guru tidak ditemukan",
-      target_id: String(report.student_id || "") || null,
+        auditIdentityById.get(String(exam.teacher_id)) ||
+        "Guru tidak ditemukan",
+      target_id: String(exam.student_id || "") || null,
       target_name:
-        studentById.get(String(report.student_id))?.nama_lengkap ||
+        studentById.get(String(exam.student_id))?.nama_lengkap ||
         "Siswa tidak ditemukan",
       details: {
-        report_id: report.id,
-        report_date: report.tanggal,
-        attendance_status: report.status_presensi,
-        source: "daily_student_reports",
+        exam_date: exam.tanggal,
+        source_level: exam.level_asal,
+        target_level: exam.level_tujuan,
+        average_score: exam.nilai_rata_rata,
+        result: exam.status,
+        academic_year: exam.tahun_ajaran,
+        source: "level_promotion_exams",
       },
-      created_at: report.updated_at || `${report.tanggal}T00:00:00+07:00`,
+      created_at: exam.updated_at || exam.created_at || `${exam.tanggal}T00:00:00+07:00`,
     }));
+
+    const dailyScoreAuditEvents = dailyScores.map((score) => ({
+      id: `score-${score.id}-${score.tanggal}`,
+      event_type: "teacher_daily_score_saved",
+      status: "success" as const,
+      actor_id: String(score.teacher_id || "") || null,
+      actor_name:
+        auditIdentityById.get(String(score.teacher_id)) ||
+        "Guru tidak ditemukan",
+      target_id: String(score.student_id || "") || null,
+      target_name:
+        studentById.get(String(score.student_id))?.nama_lengkap ||
+        "Siswa tidak ditemukan",
+      details: {
+        score_date: score.tanggal,
+        surah_name: score.nama_surah,
+        average_score: score.nilai_rata_rata ?? score.nilai,
+        description: score.keterangan,
+        source: "laporan_tahsin_tahfidz",
+      },
+      created_at: `${score.tanggal}T12:00:00+07:00`,
+    }));
+
+    const munaqosyahAuditEvents = munaqosyahExams.map((exam) => {
+      const result =
+        exam.hasil_ujian && typeof exam.hasil_ujian === "object"
+          ? (exam.hasil_ujian as Record<string, unknown>)
+          : {};
+      return {
+        id: `munaqosyah-${exam.id}-${exam.updated_at || exam.tanggal}`,
+        event_type: "teacher_munaqosyah_saved",
+        status: "success" as const,
+        actor_id: String(exam.teacher_id || "") || null,
+        actor_name:
+          auditIdentityById.get(String(exam.teacher_id)) ||
+          "Guru tidak ditemukan",
+        target_id: String(exam.student_id || "") || null,
+        target_name:
+          studentById.get(String(exam.student_id))?.nama_lengkap ||
+          "Siswa tidak ditemukan",
+        details: {
+          exam_date: exam.tanggal,
+          exam_status: exam.status,
+          juz: result.juz,
+          average_score: result.nilaiRataRata,
+          predicate:
+            result.kategoriMunaqosyah &&
+            typeof result.kategoriMunaqosyah === "object"
+              ? (result.kategoriMunaqosyah as Record<string, unknown>).indo
+              : null,
+          source: "munaqosyah_exams",
+        },
+        created_at:
+          exam.updated_at || exam.created_at || `${exam.tanggal}T00:00:00+07:00`,
+      };
+    });
 
     const auditEvents = [
       ...storedAuditEvents,
       ...passwordAuditEvents,
       ...dailyReportAuditEvents,
+      ...dailyScoreAuditEvents,
+      ...levelExamAuditEvents,
+      ...munaqosyahAuditEvents,
     ]
       .sort(
         (left, right) =>
